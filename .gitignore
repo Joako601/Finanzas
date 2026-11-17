@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+.kotlin/
+
+# Configuración local (ruta del SDK, llaves de firma)
+local.properties
+*.jks
+*.keystore
+keystore.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Sistema
+.DS_Store
+
+# Evidencia con datos personales: nunca al repositorio sin anonimizar
+evidencia/privado/
