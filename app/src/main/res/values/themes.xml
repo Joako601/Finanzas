@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tema de la ventana antes de que Compose dibuje (pantalla de arranque y fondo).
+  El tema visual real está en ui/tema/Tema.kt. Se usa el tema del sistema y no el de
+  Material Components para no agregar esa librería solo por esto.
+-->
+<resources>
+    <style name="Theme.Finanzas" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

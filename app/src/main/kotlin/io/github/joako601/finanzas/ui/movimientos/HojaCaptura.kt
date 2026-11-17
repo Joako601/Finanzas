@@ -1,0 +1,237 @@
+package io.github.joako601.finanzas.ui.movimientos
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
+import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
+import io.github.joako601.finanzas.core.domain.libro.Cuenta
+import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.ErrorRegistro
+import io.github.joako601.finanzas.ui.formatoCorto
+import kotlinx.datetime.LocalDate
+
+/** Todas las acciones del formulario agrupadas, para no pasar ocho lambdas sueltas. */
+class AccionesCaptura(
+    val cambiarClase: (ClaseRegistro) -> Unit,
+    val cambiarMonto: (String) -> Unit,
+    val elegirCategoria: (CuentaId) -> Unit,
+    val elegirCuenta: (CuentaId) -> Unit,
+    val cambiarFecha: (LocalDate) -> Unit,
+    val cambiarNota: (String) -> Unit,
+    val guardar: () -> Unit,
+    val cerrar: () -> Unit,
+)
+
+private const val MILIS_POR_DIA = 86_400_000L
+
+/**
+ * Hoja inferior para capturar un gasto o un ingreso.
+ *
+ * Camino corto (la meta de "dos o tres toques"): tocar Registrar, escribir el monto
+ * (el teclado numérico aparece solo), tocar la categoría y tocar Guardar. La cuenta
+ * viene preseleccionada con la última usada y la fecha con hoy.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HojaCaptura(
+    captura: Captura,
+    categorias: List<Cuenta>,
+    cuentas: List<Cuenta>,
+    acciones: AccionesCaptura,
+) {
+    val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val foco = remember { FocusRequester() }
+    var mostrarCalendario by rememberSaveable { mutableStateOf(false) }
+
+    ModalBottomSheet(onDismissRequest = acciones.cerrar, sheetState = estadoHoja) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                ClaseRegistro.entries.forEachIndexed { indice, clase ->
+                    SegmentedButton(
+                        selected = captura.clase == clase,
+                        onClick = { acciones.cambiarClase(clase) },
+                        shape = SegmentedButtonDefaults.itemShape(indice, ClaseRegistro.entries.size),
+                    ) {
+                        Text(
+                            stringResource(
+                                when (clase) {
+                                    ClaseRegistro.GASTO -> R.string.gasto
+                                    ClaseRegistro.INGRESO -> R.string.ingreso
+                                },
+                            ),
+                        )
+                    }
+                }
+            }
+
+            val errorMonto = captura.errores.firstOrNull {
+                it == ErrorRegistro.MONTO_VACIO || it == ErrorRegistro.MONTO_INVALIDO || it == ErrorRegistro.MONTO_CERO
+            }
+            OutlinedTextField(
+                value = captura.montoTexto,
+                onValueChange = acciones.cambiarMonto,
+                modifier = Modifier.fillMaxWidth().focusRequester(foco),
+                label = { Text(stringResource(R.string.monto)) },
+                prefix = { Text("$") },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.headlineSmall,
+                isError = errorMonto != null,
+                supportingText = errorMonto?.let { { Text(textoError(it)) } },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            )
+
+            Seccion(
+                titulo = stringResource(R.string.categoria),
+                error = captura.errores.firstOrNull {
+                    it == ErrorRegistro.SIN_CATEGORIA || it == ErrorRegistro.CATEGORIA_NO_CORRESPONDE
+                },
+            ) {
+                categorias.forEach { categoria ->
+                    FilterChip(
+                        selected = captura.categoriaId == categoria.id,
+                        onClick = { acciones.elegirCategoria(categoria.id) },
+                        label = { Text(categoria.nombre) },
+                    )
+                }
+            }
+
+            Seccion(
+                titulo = stringResource(R.string.cuenta),
+                error = captura.errores.firstOrNull { it == ErrorRegistro.SIN_CUENTA },
+            ) {
+                cuentas.forEach { cuenta ->
+                    FilterChip(
+                        selected = captura.cuentaId == cuenta.id,
+                        onClick = { acciones.elegirCuenta(cuenta.id) },
+                        label = { Text(cuenta.nombre) },
+                    )
+                }
+            }
+
+            Seccion(titulo = stringResource(R.string.fecha), error = null) {
+                AssistChip(
+                    onClick = { mostrarCalendario = true },
+                    label = { Text(captura.fecha.formatoCorto()) },
+                )
+            }
+
+            val errorNota = captura.errores.firstOrNull { it == ErrorRegistro.NOTA_DEMASIADO_LARGA }
+            OutlinedTextField(
+                value = captura.nota,
+                onValueChange = acciones.cambiarNota,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.nota_opcional)) },
+                singleLine = true,
+                isError = errorNota != null,
+                supportingText = errorNota?.let { { Text(textoError(it)) } },
+            )
+
+            if (captura.errorAlGuardar) {
+                Text(stringResource(R.string.error_al_guardar), color = MaterialTheme.colorScheme.error)
+            }
+
+            Button(
+                onClick = acciones.guardar,
+                enabled = !captura.guardando,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.guardar))
+            }
+        }
+    }
+
+    // El monto es lo primero que se escribe: el cursor y el teclado aparecen ahí solos.
+    LaunchedEffect(Unit) { foco.requestFocus() }
+
+    if (mostrarCalendario) {
+        // El selector de fechas de Material trabaja en milisegundos UTC a medianoche.
+        val estadoCalendario = rememberDatePickerState(
+            initialSelectedDateMillis = captura.fecha.toEpochDays() * MILIS_POR_DIA,
+        )
+        DatePickerDialog(
+            onDismissRequest = { mostrarCalendario = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    estadoCalendario.selectedDateMillis?.let { millis ->
+                        acciones.cambiarFecha(LocalDate.fromEpochDays(Math.floorDiv(millis, MILIS_POR_DIA)))
+                    }
+                    mostrarCalendario = false
+                }) { Text(stringResource(R.string.aceptar)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { mostrarCalendario = false }) { Text(stringResource(R.string.cancelar)) }
+            },
+        ) {
+            DatePicker(state = estadoCalendario)
+        }
+    }
+}
+
+@Composable
+private fun Seccion(titulo: String, error: ErrorRegistro?, contenido: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(titulo, style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { contenido() }
+        if (error != null) {
+            Text(textoError(error), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun textoError(error: ErrorRegistro): String = stringResource(
+    when (error) {
+        ErrorRegistro.MONTO_VACIO -> R.string.error_monto_vacio
+        ErrorRegistro.MONTO_INVALIDO -> R.string.error_monto_invalido
+        ErrorRegistro.MONTO_CERO -> R.string.error_monto_cero
+        ErrorRegistro.SIN_CUENTA -> R.string.error_sin_cuenta
+        ErrorRegistro.SIN_CATEGORIA -> R.string.error_sin_categoria
+        ErrorRegistro.CATEGORIA_NO_CORRESPONDE -> R.string.error_categoria_no_corresponde
+        ErrorRegistro.NOTA_DEMASIADO_LARGA -> R.string.error_nota_larga
+    },
+)
