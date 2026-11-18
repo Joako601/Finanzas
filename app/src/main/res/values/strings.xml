@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Finanzas</string>
+
+    <!-- Pantalla principal -->
+    <string name="total_en_cuentas">Total en cuentas</string>
+    <string name="agregar_cuenta">Agregar cuenta</string>
+    <string name="registrar">Registrar</string>
+    <string name="sin_movimientos">Todavía no hay movimientos.\nToca Registrar para capturar tu primer gasto o ingreso.</string>
+    <string name="hoy">Hoy</string>
+    <string name="ayer">Ayer</string>
+    <string name="saldo_inicial">Saldo inicial</string>
+    <string name="transferencia">Transferencia</string>
+    <string name="movimiento">Movimiento</string>
+
+    <!-- Captura -->
+    <string name="gasto">Gasto</string>
+    <string name="ingreso">Ingreso</string>
+    <string name="monto">Monto</string>
+    <string name="categoria">Categoría</string>
+    <string name="cuenta">Cuenta</string>
+    <string name="nota_opcional">Nota (opcional)</string>
+    <string name="guardar">Guardar</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="aceptar">Aceptar</string>
+    <string name="fecha">Fecha</string>
+
+    <!-- Errores de captura -->
+    <string name="error_monto_vacio">Escribe el monto</string>
+    <string name="error_monto_invalido">Monto no válido. Usa punto para centavos, por ejemplo 1250.50</string>
+    <string name="error_monto_cero">El monto debe ser mayor a cero</string>
+    <string name="error_sin_cuenta">Elige una cuenta</string>
+    <string name="error_sin_categoria">Elige una categoría</string>
+    <string name="error_categoria_no_corresponde">La categoría no corresponde al tipo de movimiento</string>
+    <string name="error_nota_larga">La nota es demasiado larga</string>
+    <string name="error_al_guardar">No se pudo guardar. Intenta de nuevo.</string>
+
+    <!-- Detalle -->
+    <string name="eliminar">Eliminar</string>
+    <string name="eliminar_movimiento_pregunta">¿Eliminar este movimiento?</string>
+
+    <!-- Nueva cuenta -->
+    <string name="nueva_cuenta">Nueva cuenta</string>
+    <string name="nombre_cuenta">Nombre (por ejemplo, Nu débito)</string>
+    <string name="saldo_actual">Saldo actual</string>
+    <string name="crear">Crear</string>
+    <string name="error_nombre_vacio">Escribe un nombre</string>
+    <string name="error_saldo_invalido">Saldo no válido</string>
+</resources>

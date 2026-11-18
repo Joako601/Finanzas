@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Registrador de notificaciones (fase 0). Solo para el teléfono del autor.
+
+  Sin <uses-permission>: no tiene internet. El acceso a notificaciones no es un permiso
+  del manifiesto; lo concede el usuario a mano en Ajustes.
+
+  Sin respaldo ni transferencia entre teléfonos: el registro contiene textos de
+  notificaciones bancarias y solo sale del teléfono por adb (exportar.sh).
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Visibilidad de paquetes (Android 11+): sin esto no podemos saber si estas apps
+      están instaladas ni mostrar su nombre. Declarar paquetes concretos no requiere
+      permisos especiales (a diferencia de QUERY_ALL_PACKAGES).
+      Los nombres son una suposición por verificar: si la pantalla los muestra como
+      "no instalada" teniendo la app, el nombre está mal.
+    -->
+    <queries>
+        <package android:name="com.nu.production" />
+        <package android:name="com.bancomer.mbanking" />
+        <package android:name="com.mercadopago.wallet" />
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:label="Registrador de notificaciones"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          El permiso BIND_NOTIFICATION_LISTENER_SERVICE garantiza que solo el sistema
+          puede conectarse a este servicio; ninguna otra app puede hacerse pasar por él.
+        -->
+        <service
+            android:name=".RegistradorService"
+            android:exported="false"
+            android:label="Registrador de notificaciones"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sin <uses-permission>: la app no pide ningún permiso, en particular no pide INTERNET.
+  La tarea verificarPermisos* de app/build.gradle.kts falla si alguna librería agrega uno.
+
+  Respaldo:
+  - allowBackup="false" desactiva el respaldo en la nube de Google en todas las versiones.
+  - En Android 12+ eso NO impide la transferencia directa entre teléfonos al cambiar de
+    equipo; dataExtractionRules la excluye también. Cuando la base esté cifrada con una
+    llave del Keystore, copiarla a otro teléfono sería inútil (la llave no viaja), y antes
+    de eso sería sacar los datos sin cifrar. La recuperación será el respaldo cifrado propio.
+  - fullBackupContent cubre Android 11 y anteriores con la misma regla.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:name=".FinanzasApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Finanzas"
+        tools:targetApi="36">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>

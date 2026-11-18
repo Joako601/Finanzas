@@ -1,0 +1,20 @@
+package io.github.joako601.finanzas.core.data
+
+import android.content.Context
+import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
+import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
+
+/**
+ * Única puerta pública de core:data. La base, los DAO y las entidades son `internal`:
+ * los demás módulos solo ven el puerto del dominio y no pueden saltarse el repositorio
+ * para escribir SQL por su cuenta. El compilador impone esa regla.
+ */
+public class Datos private constructor(baseDeDatos: FinanzasDatabase) {
+
+    public val repositorioLibro: RepositorioLibro = RepositorioLibroRoom(baseDeDatos)
+
+    public companion object {
+        /** Debe crearse una sola vez por proceso (lo hace el contenedor de la app). */
+        public fun crear(context: Context): Datos = Datos(FinanzasDatabase.crear(context))
+    }
+}
