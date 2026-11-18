@@ -214,6 +214,32 @@ necesario para la versión 0.1.
 
 ---
 
+## D-012 Actualizar sin perder datos: migraciones obligatorias desde la versión 1
+
+**Fecha:** 2026-11-18
+
+**Contexto:** el autor ya usa la app con datos reales en su teléfono. Cada módulo nuevo
+se instala como actualización sobre la anterior.
+
+**Decisión:**
+- Todo cambio de esquema de Room sube la versión de la base y trae su migración
+  (automática de Room cuando alcance, escrita a mano cuando no), con una prueba que
+  crea la base en la versión anterior, inserta datos, migra y los compara.
+  `fallbackToDestructiveMigration` queda prohibido: borraría los datos en silencio.
+- Cada módulo sube `versionCode` y `versionName`, para saber qué versión está instalada.
+- La llave de firma de depuración (`~/.config/.android/debug.keystore`, SHA-256
+  `02:97:04:74:BC:C2:DF:67:AA:91:92:90:96:14:BF:3D:85:96:08:ED:16:38:68:51:D1:3D:53:EB:CE:70:06:31`,
+  vigente hasta 2056) se respalda. Si se pierde, Android rechaza la actualización por
+  firma distinta y la única salida es desinstalar, que borra los datos.
+
+**Cómo se verifica:** las pruebas de migración en `core:data`, y la actualización real
+en el teléfono conservando los movimientos capturados.
+
+**Se revisa cuando:** exista la llave de release para la prueba cerrada en Play. Esa
+llave reemplaza a la de depuración y su custodia es otro tema (Play App Signing).
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |
