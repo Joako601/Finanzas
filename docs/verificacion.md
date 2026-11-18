@@ -70,3 +70,14 @@ Esperado: la hoja se cierra, el movimiento aparece bajo **Hoy** con `−$85.50` 
 saldo de Efectivo baja en $85.50. Son tres toques más escribir el monto.
 
 La medición formal (cinco personas, con tiempo medido) llega con la decisión 3.
+
+## Registro de resultados
+
+| Fecha | Qué | Dónde | Resultado | Quién |
+|---|---|---|---|---|
+| 2026-11-18 | Recorrido manual de 8 pasos: captura de gasto con teclado automático, saldo, cuenta nueva, ingreso, fecha anterior, rotación, borrado, mensajes de error | Samsung Galaxy S24 FE, APK debug instalado desde archivo | Todo funciona | Autor |
+
+Limitaciones de esta evidencia: la hizo el autor, que conoce la app (no cuenta para
+el oráculo de usabilidad de cinco personas), y no hay capturas de pantalla guardadas.
+Las pruebas instrumentadas de Room (sección 3) siguen pendientes de ejecutarse en el
+teléfono.
