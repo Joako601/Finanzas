@@ -176,7 +176,41 @@ mayoría de los artefactos de Google Maven no están firmados.
 
 **Al agregar o actualizar una dependencia:**
 `./gradlew --write-verification-metadata sha256 assembleDebug assembleRelease check :core:data:assembleDebugAndroidTest`
-y se revisa la diferencia del XML en el commit.
+y se revisa la diferencia del XML en el commit. Al regenerar, Gradle borra los
+comentarios del archivo: hay que restaurar el que explica `trusted-artifacts`.
+
+---
+
+## D-011 El usuario captura los datos de su estado de cuenta; la app no los calcula
+
+**Fecha:** 2026-11-18
+
+**Decisión:** cada ciclo, el usuario registra en la app los datos impresos en su estado
+de cuenta: fecha de corte, fecha límite, pago para no generar intereses y pago mínimo.
+La app los toma como verdad para los recordatorios. No se piden PDF.
+
+**Por qué:**
+- El dato capturado ES la fuente: no hay que replicar reglas de cada banco (días
+  inhábiles, MSI, centavos sobrantes) para acertar al centavo.
+- El cálculo de "pago para no generar intereses" con MSI, devoluciones y pagos
+  anticipados deja de ser requisito de la primera versión de tarjetas.
+- No se manejan PDF con datos personales de nadie.
+
+**Lo que la app todavía tiene que predecir:** el recordatorio "antes del corte" llega
+antes de que exista el estado de cuenta de ese ciclo. Se predice la siguiente fecha de
+corte y de límite a partir de los ciclos capturados (o del día de corte que el usuario
+indique al dar de alta la tarjeta), y la predicción se reemplaza por el dato real cuando
+el usuario lo captura.
+
+**Cómo se verifica:** cada captura deja guardada la predicción que había para ese ciclo.
+El error de predicción (días de diferencia en corte y en límite) se mide con los datos
+reales de cada usuario, dentro de la propia app, en lugar de con un corpus aparte.
+
+**Costo aceptado:** cuatro campos por tarjeta cada mes. Se mitiga con un recordatorio
+"tu estado de cuenta ya debió llegar" unos días después del corte predicho.
+
+**Reemplaza:** el punto 2 de la fase 0 (estados de cuenta de voluntarios) deja de ser
+necesario para la versión 0.1.
 
 ---
 
