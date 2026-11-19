@@ -341,6 +341,48 @@ recorrido en emulador de `verificacion.md` §6; dos semanas de medición en el S
 
 ---
 
+## D-016 Pagos e ingresos fijos como plantillas que se registran con un toque
+
+**Fecha:** 2026-11-19
+
+**Decisión:**
+- Un pago fijo (CFE, internet, predial) o un ingreso esperado (quincena, aguinaldo, PTU)
+  es una **plantilla** (`recurrente`), no un movimiento. Guarda nombre, pago o ingreso,
+  monto aproximado, categoría, periodicidad, fecha de inicio y próxima fecha pendiente.
+- Registrar crea el movimiento con el monto, la cuenta y la fecha **reales** (el recibo de
+  luz cambia cada bimestre) y avanza la próxima fecha, en una sola transacción.
+  "Omitir esta vez" solo avanza la fecha. Eliminar la serie no toca los movimientos.
+- Nada se registra solo: el libro solo contiene lo que el usuario confirmó.
+- Periodicidades: cada N días (semanal, catorcenal), cada N meses el mismo día
+  (mensual, bimestral, anual) y dos días fijos al mes (quincena: 15 y último día).
+  La serie se calcula desde la fecha de inicio, así un 31 vuelve a ser 31 después de
+  febrero.
+- Si la fecha de alta ya pasó, la app toma la primera fecha de la serie desde hoy.
+- Aviso un día antes de cada pago fijo a las 9:00, con el mismo programador de D-015.
+  Los ingresos esperados no avisan.
+- No hace falta saber el estado ni el municipio: el usuario captura la fecha de cada
+  recibo. Sus recibos reales sirven para medir los supuestos, no para configurar.
+- Nueva categoría "Impuestos y predial". La migración 3→4 la agrega a las bases
+  existentes (al final del catálogo, sin duplicar).
+
+**Supuestos:**
+- S7. Si el mes no tiene el día, toca el último día del mes (igual que S1).
+- S8. No se recorre por fines de semana ni días inhábiles; si la empresa paga el
+  viernes antes, el usuario registra la fecha real y la serie sigue igual.
+
+**Descartado por ahora:**
+- Editar una serie (hoy: eliminar y volver a crear).
+- Aviso para confirmar que llegó un ingreso.
+- Sugerencias precargadas (CFE, Telmex, predial de tu municipio).
+- Periodicidades fuera de la lista (por ejemplo, cada 3 meses).
+
+**Cómo se verifica:** `RecurrentesTest` (14 pruebas, una de propiedades: la siguiente
+fecha siempre es posterior y no se salta ninguna); `RecurrentesViewModelTest` (4, en la
+JVM); `MigracionTest` 3→4 y `RepositorioRecurrentesRoomTest`, que compilan pero no se
+han ejecutado en dispositivo (la computadora actual no soporta el emulador).
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |
@@ -354,6 +396,7 @@ recorrido en emulador de `verificacion.md` §6; dos semanas de medición en el S
 | kotest-property (solo pruebas) | Pruebas basadas en propiedades | Generadores escritos a mano |
 | kotlinx-coroutines-test (solo pruebas) | `runTest` para funciones suspend | `runBlocking`: sin control del tiempo virtual |
 | androidx.test runner y ext-junit (solo pruebas) | Pruebas instrumentadas de Room en el teléfono | Robolectric: otra dependencia grande, y no es SQLite real del teléfono |
+| kotlinx-coroutines-test en la app (solo pruebas) | `runTest` y `Dispatchers.setMain` para probar ViewModels en la JVM | Ya estaba en el catálogo para el dominio; no agrega archivos |
 | junit 4 (solo pruebas) | Pruebas de la app en la JVM, sin teléfono (por ahora: que cada categoría del catálogo tenga ícono). Ya estaba en el grafo verificado por ext-junit; no agrega archivos | kotlin-test-junit: otro artefacto para lo mismo |
 | room-testing (solo pruebas) | `MigrationTestHelper`: crea la base en una versión anterior desde su esquema exportado, migra y valida contra el esquema nuevo (D-012) | Probar la migración con SQL suelto: no compara contra el esquema que Room espera |
 | material-icons | **No se usa**: el único ícono se copió como vector XML | — |

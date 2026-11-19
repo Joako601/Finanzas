@@ -113,6 +113,7 @@ dos semanas. Pendiente: pruebas con `dumpsys deviceidle force-idle` y
 | 2026-11-19 | Estilo visual nuevo (claro y oscuro) y actualización de versionCode 2 a 3 con datos | Emulador API 37 | Datos intactos; capturas en `docs/evidencia/2026-11-19-*.png` | Claude |
 | 2026-11-19 | Recordatorios: permiso desde la tarjeta "Activa los avisos"; alarma del 2 dic 9:00 con ventana +1 h; reloj movido a las 8:59:30 → aviso "Paga $1,500.00 de Nu credito antes del 5 dic" entregado a las 9:00:22 (22 s); pago del saldo → la alarma del 4 dic desaparece y no llega aviso; reinicio → alarma reprogramada sin abrir la app | Emulador API 37 | Todo correcto. Captura: `docs/evidencia/2026-11-19-aviso-de-pago.png` | Claude |
 | 2026-11-19 | 15 pruebas instrumentadas, incluidas migraciones 1→2, 1→3 y 2→3 con tarjetas | Emulador API 37 | 15/15 pasan | Claude |
+| 2026-11-19 | Pagos y cobros fijos: 75 pruebas del dominio (14 nuevas), 5 de la app en la JVM (4 del ViewModel), lint, compilación debug y release, guardia de permisos y verificación de dependencias | Computadora de desarrollo (sin dispositivo) | Todo pasa. **Pendiente en dispositivo:** migración 3→4 y pruebas de Room (compilan, sin ejecutar), recorrido de la sección nueva y capturas en claro, oscuro y texto al 130% | Claude |
 
 Hallazgos abiertos del recorrido en emulador:
 - El botón flotante **Registrar** no expone su texto a accesibilidad (`NAF="true"` en

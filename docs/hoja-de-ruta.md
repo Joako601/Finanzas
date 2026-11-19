@@ -1,6 +1,6 @@
 # Hoja de ruta
 
-Estado al 2026-11-19 (tarde). Se actualiza al cerrar cada módulo. El detalle de cada decisión
+Estado al 2026-11-19 (noche). Se actualiza al cerrar cada módulo. El detalle de cada decisión
 está en `decisiones.md` y la evidencia en `verificacion.md`.
 
 ## Hecho
@@ -13,14 +13,15 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Identidad visual propia en claro y oscuro; Guardar fijo sobre el teclado | versionCode 3 | Capturas en `evidencia/`, instalada en el S24 FE |
 | Registrador de notificaciones (herramienta de la fase 0) | — | Instalado en el S24 FE el 2026-11-19; falta que el autor conceda el acceso |
 | Recordatorios: antes del corte, capturar estado de cuenta, pago con monto | versionCode 4 | 12 pruebas del plan, 15 de Room, recorrido con reloj movido y reinicio en emulador; falta la medición de dos semanas en el S24 FE |
+| Pagos y cobros fijos: periodicidades, registro de un toque, aviso un día antes, categoría de impuestos (D-016) | versionCode 5 | 14 pruebas de dominio, 4 del ViewModel; **falta probar en dispositivo** la migración 3→4 y la pantalla |
 
 ## Siguiente, en orden
 
 1. ~~Instalar el registrador de notificaciones~~ (hecho; corre dos semanas).
 2. ~~Recordatorios~~ (hecho; corre la medición de dos semanas con
    `herramientas/medir-recordatorios.sh`).
-3. **Pagos recurrentes e ingresos esperados:** servicios con cualquier periodicidad
-   (CFE bimestral, internet mensual, predial anual), quincena, aguinaldo y PTU.
+3. ~~Pagos recurrentes e ingresos esperados~~ (hecho en código, D-016; falta probarlo en
+   un dispositivo: la computadora actual no soporta el emulador).
 4. **Compras a MSI:** repartidas en los estados de cuenta siguientes; el gasto cuenta
    el mes de la compra y el flujo, mes a mes.
 5. **Línea de tiempo de 30 días y "disponible real":** dinero en cuentas menos lo
