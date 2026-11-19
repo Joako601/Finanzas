@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,10 +22,10 @@ import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorEstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorTarjeta
+import io.github.joako601.finanzas.ui.componentes.Campo
 import io.github.joako601.finanzas.ui.componentes.SelectorFecha
-
-/** Solo caracteres que pueden formar un monto. */
-private fun limpiarMonto(texto: String) = texto.filter { it.isDigit() || it == '.' || it == ',' }.take(20)
+import io.github.joako601.finanzas.ui.componentes.TECLADO_MONTO
+import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 
 private fun limpiarDia(texto: String) = texto.filter { it.isDigit() }.take(2)
 
@@ -209,29 +208,7 @@ fun DialogoEstadoDeCuenta(
     )
 }
 
-private val TECLADO_MONTO = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next)
 private val TECLADO_DIA = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
-
-@Composable
-private fun Campo(
-    valor: String,
-    onCambio: (String) -> Unit,
-    etiqueta: String,
-    error: String?,
-    teclado: KeyboardOptions,
-    prefijo: String? = null,
-) {
-    OutlinedTextField(
-        value = valor,
-        onValueChange = onCambio,
-        label = { Text(etiqueta) },
-        prefix = prefijo?.let { { Text(it) } },
-        singleLine = true,
-        isError = error != null,
-        supportingText = error?.let { { Text(it) } },
-        keyboardOptions = teclado,
-    )
-}
 
 @Composable
 private fun ErrorAlGuardar(hayError: Boolean) {
