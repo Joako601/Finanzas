@@ -41,6 +41,10 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
 
+    // Pruebas locales en la JVM (sin teléfono) para el cifrado del respaldo.
+    testImplementation(libs.junit)
+    testImplementation(kotlin("test"))
+
     // Crea la base en una versión anterior desde su esquema exportado y valida la migración.
     androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.test.runner)
