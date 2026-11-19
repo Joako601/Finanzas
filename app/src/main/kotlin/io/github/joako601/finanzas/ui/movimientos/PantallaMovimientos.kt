@@ -38,6 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -329,10 +333,22 @@ fun ContenidoMovimientos(
             )
         },
         floatingActionButton = {
+            val registrar = stringResource(R.string.registrar)
             ExtendedFloatingActionButton(
                 onClick = onRegistrar,
+                // El texto del botón extendido no llega al árbol de accesibilidad: TalkBack
+                // solo decía "Botón" (comprobado en el S24 FE con AccesibilidadTest). Se
+                // deja un único nodo con nombre, rol y acción.
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = registrar
+                    role = Role.Button
+                    onClick {
+                        onRegistrar()
+                        true
+                    }
+                },
                 icon = { Icon(painterResource(R.drawable.ic_agregar), contentDescription = null) },
-                text = { Text(stringResource(R.string.registrar)) },
+                text = { Text(registrar) },
             )
         },
     ) { margenes ->

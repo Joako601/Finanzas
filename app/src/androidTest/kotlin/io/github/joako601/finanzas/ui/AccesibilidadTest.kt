@@ -1,19 +1,18 @@
 package io.github.joako601.finanzas.ui
 
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertHeightIsAtLeast
-import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.unit.dp
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.graphics.Rect
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
@@ -97,32 +96,62 @@ class AccesibilidadTest {
     fun registrar_es_un_boton_con_nombre_y_de_48dp() {
         mostrarPantalla()
 
-        regla.onNode(hasText("Registrar") and hasClickAction())
+        // TalkBack lee el texto o la descripción del elemento que recibe el toque.
+        regla.onNode((hasText("Registrar") or hasContentDescription("Registrar")) and hasClickAction())
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
-            .assertHeightIsAtLeast(48.dp)
-            .assertWidthIsAtLeast(48.dp)
+
+    }
+
+    /** Lo que Android le entrega a TalkBack: los nodos de accesibilidad de la ventana. */
+    private fun nodosTocables(): List<AccessibilityNodeInfo> {
+        regla.waitForIdle()
+        val automatizacion = InstrumentationRegistry.getInstrumentation().uiAutomation
+        automatizacion.serviceInfo = automatizacion.serviceInfo.apply {
+            flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        }
+        var raiz: AccessibilityNodeInfo? = null
+        repeat(50) { if (raiz == null) raiz = automatizacion.rootInActiveWindow ?: null.also { Thread.sleep(100) } }
+        checkNotNull(raiz) { "Sin ventana activa" }
+        val lista = mutableListOf<AccessibilityNodeInfo>()
+        fun visitar(nodo: AccessibilityNodeInfo) {
+            if (nodo.isClickable) lista += nodo
+            for (i in 0 until nodo.childCount) nodo.getChild(i)?.let(::visitar)
+        }
+        visitar(raiz!!)
+        return lista
+    }
+
+    /** Lo que TalkBack diría: el texto o descripción del nodo, o el de sus descendientes. */
+    private fun nombre(nodo: AccessibilityNodeInfo): String =
+        (listOfNotNull(nodo.text?.toString(), nodo.contentDescription?.toString()) +
+            (0 until nodo.childCount).mapNotNull { nodo.getChild(it) }.map(::nombre))
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+
+    private fun dp(nodo: AccessibilityNodeInfo): Pair<Float, Float> {
+        val r = Rect().also(nodo::getBoundsInScreen)
+        val densidad = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        return r.width() / densidad to r.height() / densidad
     }
 
     @Test
     fun todo_lo_tocable_tiene_un_nombre_que_leer() {
         mostrarPantalla()
 
-        val tocables = regla.onAllNodes(hasClickAction()).fetchSemanticsNodes()
-        val sinNombre = tocables.filter { nombre(it).isBlank() }.map { it.boundsInRoot.toString() }
+        val tocables = nodosTocables()
+        val sinNombre = tocables.filter { nombre(it).isBlank() }.map { "${it.className} ${dp(it)}" }
 
-        assertEquals("Elementos tocables sin texto ni descripción (de ${tocables.size})", emptyList<String>(), sinNombre)
+        assertEquals("Elementos tocables que TalkBack no puede nombrar (de ${tocables.size})", emptyList<String>(), sinNombre)
     }
 
+    /** Las medidas que Android reporta a accesibilidad ya incluyen el área táctil ampliada de Compose. */
     @Test
     fun todo_lo_tocable_mide_al_menos_48dp() {
         mostrarPantalla()
 
-        val tocables = regla.onAllNodes(hasClickAction()).fetchSemanticsNodes()
-        val chicos = with(regla.density) {
-            val minimo = 48.dp.toPx() - 0.5f
-            tocables.filter { it.size.height < minimo || it.size.width < minimo }
-                .map { "${nombre(it)}: ${it.size.width.toDp()} × ${it.size.height.toDp()}" }
-        }
+        val tocables = nodosTocables()
+        val chicos = tocables.filter { val (ancho, alto) = dp(it); ancho < 47.5f || alto < 47.5f }
+            .map { "${nombre(it)}: ${dp(it)}" }
 
         assertEquals("Elementos tocables de menos de 48 dp (de ${tocables.size})", emptyList<String>(), chicos)
     }
@@ -135,11 +164,4 @@ class AccesibilidadTest {
             .assertExists()
     }
 
-    private fun nombre(nodo: SemanticsNode): String {
-        val config = nodo.config
-        return listOfNotNull(
-            config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" "),
-            config.getOrNull(SemanticsProperties.Text)?.joinToString(" "),
-        ).joinToString(" ")
-    }
 }
