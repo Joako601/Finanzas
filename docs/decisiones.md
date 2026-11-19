@@ -542,6 +542,41 @@ recomendaciones.
   - No quedan temporales sin cifrar.
 - `RespaldoViewModelTest`: 8 pruebas.
 
+
+## D-019 Editar movimientos y transferir entre cuentas propias
+
+**Fecha:** 2026-11-19
+
+**Decisión:**
+- **Transferencia** = dinero que pasa entre dos cuentas propias de efectivo o débito
+  (retirar del cajero, mover a otra cuenta). Baja el origen y sube el destino. No es gasto
+  ni ingreso y no cambia el total en cuentas ni el disponible real. Pasar dinero a una
+  tarjeta sigue siendo un pago de tarjeta (D-013), no una transferencia.
+  - Se abre con "Transferir", junto a "Agregar cuenta". Solo aparece con dos cuentas o
+    más; no toca el camino corto de registro.
+  - En la lista va sin signo y en color secundario (`diseno-finanzas`, sección 4), con
+    "Débito → Efectivo" debajo. En el CSV, la cuenta es el origen y la columna "Categoría
+    o destino" el destino.
+- **Editar** = tocar un gasto, ingreso o transferencia abre su formulario con los datos.
+  - Al guardar se reemplazan fecha, nota y asientos en una transacción.
+  - El movimiento conserva su id y su lugar entre los del mismo día (`creado_en` no
+    cambia).
+  - Si el movimiento ya se borró, falla sin crear asientos sueltos.
+  - Al editar no aparece el teclado solo: lo que se corrige puede ser la categoría.
+  - "Eliminar" queda dentro del formulario y pide la misma confirmación de siempre.
+- Los saldos iniciales y los pagos de tarjeta siguen sin editarse: tocarlos ofrece
+  eliminar, como antes. Un pago de tarjeta tiene su propio diálogo y editarlo cambiaría
+  la situación del ciclo; se agrega si hace falta.
+
+**Cómo se verifica:**
+- `TransferenciaTest`: 5 pruebas, una de propiedades: una transferencia nunca cambia el
+  total en cuentas.
+- `RepositorioLibroRoomTest`: 3 pruebas nuevas en el S24 FE.
+  - Editar conserva el id y el lugar, y no deja asientos del original.
+  - Si falla, no cambia nada.
+  - No se puede editar un movimiento borrado.
+- `MovimientosViewModelTest`: 6 pruebas.
+
 ---
 
 ## Dependencias y su razón

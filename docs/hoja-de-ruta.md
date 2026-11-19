@@ -15,6 +15,7 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Recordatorios: antes del corte, capturar estado de cuenta, pago con monto | versionCode 4 | 12 pruebas del plan, 15 de Room, recorrido con reloj movido y reinicio en emulador; falta la medición de dos semanas en el S24 FE |
 | Disponible real y línea de tiempo de 30 días (D-017) | versionCode 6 | 24 pruebas de dominio; sin cambios en la base; revisada por el autor en el S24 FE (TalkBack pendiente) |
 | Respaldo cifrado con contraseña, restauración con simulacro y exportación a CSV (D-018) | versionCode 7 | 15 pruebas en la JVM, 7 de Room en el S24 FE con el simulacro, 8 del ViewModel; instalada en el S24 FE y simulacro real hecho por el autor |
+| Editar movimientos, transferencias entre cuentas propias y `targetSdk` 37 (D-019) | versionCode 8 | 5 pruebas de dominio, 3 de Room en el S24 FE, 6 del ViewModel; falta instalarla |
 | Pagos y cobros fijos: periodicidades, registro de un toque, aviso un día antes, categoría de impuestos (D-016) | versionCode 5 | 14 pruebas de dominio, 4 del ViewModel, 24 de Room en el S24 FE; instalada en el S24 FE con migración 3→4 verificada sobre datos reales |
 
 ## Siguiente, en orden
@@ -28,9 +29,8 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
    el mes de la compra y el flujo, mes a mes.
 5. ~~Línea de tiempo de 30 días y "disponible real"~~ (hecho, D-017).
 6. ~~Exportación CSV y respaldo cifrado~~ (hecho, D-018; simulacro real en el S24 FE).
-7. **Pequeños pendientes:** editar movimientos, transferencias entre cuentas propias,
-   accesibilidad del botón Registrar (verificar con TalkBack), `targetSdk` 37 (ya hay
-   un teléfono con Android 17 para probarlo).
+7. ~~Pequeños pendientes~~ (hecho: editar movimientos, transferencias, `targetSdk` 37;
+   D-019). Queda verificar con TalkBack el botón Registrar, pospuesto por el autor.
 
 Con eso queda completo el alcance de la **versión 0.1**.
 
