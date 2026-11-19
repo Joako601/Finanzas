@@ -127,11 +127,12 @@ dos semanas. Pendiente: pruebas con `dumpsys deviceidle force-idle` y
 | 2026-11-19 | Revisión de los pasos 6 y 7 por un subagente con skills (calidad, seguridad, TDD, diseño, accesibilidad), sin acceso al teléfono | Computadora de desarrollo | Sin hallazgos graves; 1 medio (respaldo fallido deja archivo vacío) y 10 menores. Corregidos todos menos uno, que se documentó como límite (avisos repetidos tras restaurar uno viejo). Pruebas de mutación: quitar `updateAAD` y quitar `\t\r` del CSV ahora hacen fallar las pruebas | Subagente y Claude |
 | 2026-11-19 | Tras las correcciones: 112 pruebas del dominio, 10 de cifrado, 27 de la app en la JVM; lint sin advertencias | Computadora de desarrollo | Todo pasa | Claude |
 | 2026-11-19 | 36 pruebas instrumentadas de Room, 2 nuevas del respaldo (no se reusan ids en un teléfono nuevo; se borran temporales huérfanos al arrancar) | Samsung Galaxy S24 FE, paquete de prueba aparte | 36/36 | Claude |
-| 2026-11-19 | Prueba de accesibilidad de la pantalla principal (`AccesibilidadTest`, 4 casos) con el tipo de compilación `pruebas` | Samsung Galaxy S24 FE | Primera corrida: falló al arrancar por Espresso 3.5.0 (no corre en Android 17); se fijó 3.7.0. Segunda: no encontró la pantalla porque el teléfono estaba bloqueado. **Pendiente** correrla con el teléfono desbloqueado. La app del autor no se tocó (sigue en versionCode 7) | Claude |
+| 2026-11-19 | Prueba de accesibilidad de la pantalla principal (`AccesibilidadTest`, 4 casos) con el tipo de compilación `pruebas` | Samsung Galaxy S24 FE | Primera corrida: falló al arrancar por Espresso 3.5.0 (no corre en Android 17); se fijó 3.7.0. Segunda: no encontró la pantalla porque el teléfono estaba bloqueado. Tercera, desbloqueado: **encontró un error real**: el botón Registrar no tenía nombre en el árbol de accesibilidad (TalkBack diría solo "Botón"). Corregido en `64ac8f5`. Mi primera versión de la prueba medía el tamaño dibujado (40 dp) y marcaba en falso 6 botones; se cambió a leer `AccessibilityNodeInfo`, donde miden 48 dp. Final: 4/4. Sin el arreglo, 2 fallan. La app del autor no se tocó (sigue en versionCode 7) | Claude |
 
 Hallazgos abiertos del recorrido en emulador:
-- El botón flotante **Registrar** no expone su texto a accesibilidad (`NAF="true"` en
-  uiautomator). Verificar con TalkBack antes de corregir.
+- ~~El botón flotante **Registrar** no expone su texto a accesibilidad (`NAF="true"` en
+  uiautomator).~~ Era real: confirmado y corregido el 2026-11-19 con `AccesibilidadTest`.
+  Falta escuchar con TalkBack cómo suenan "−", "$" y "·".
 - ~~Con el teclado abierto, **Guardar** de la hoja de captura queda debajo del teclado y
   hay que deslizar.~~ Resuelto el 2026-11-19: Guardar queda fijo sobre el teclado
   (`docs/evidencia/2026-11-19-guardar-sobre-teclado.png`).

@@ -30,7 +30,8 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 5. ~~Línea de tiempo de 30 días y "disponible real"~~ (hecho, D-017).
 6. ~~Exportación CSV y respaldo cifrado~~ (hecho, D-018; simulacro real en el S24 FE).
 7. ~~Pequeños pendientes~~ (hecho: editar movimientos, transferencias, `targetSdk` 37;
-   D-019). Queda verificar con TalkBack el botón Registrar, pospuesto por el autor.
+   D-019). El botón Registrar no tenía nombre para TalkBack: lo encontró y lo cubre
+   `AccesibilidadTest` en el S24 FE. Queda escuchar con TalkBack los símbolos.
 
 Con eso queda completo el alcance de la **versión 0.1**.
 
