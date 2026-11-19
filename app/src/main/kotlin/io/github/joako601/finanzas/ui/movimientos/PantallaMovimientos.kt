@@ -57,6 +57,7 @@ import io.github.joako601.finanzas.ui.tarjetas.DialogoPagoTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
 import io.github.joako601.finanzas.ui.tarjetas.ResumenTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.SeccionTarjetas
+import io.github.joako601.finanzas.ui.tarjetas.TarjetaActivarAvisos
 import io.github.joako601.finanzas.ui.tarjetas.TarjetasViewModel
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 import kotlinx.datetime.DateTimeUnit
@@ -229,6 +230,12 @@ fun ContenidoMovimientos(
         ) {
             item(key = "saldos") {
                 TarjetaSaldos(estado, onAgregarCuenta)
+            }
+
+            if (estadoTarjetas.tarjetas.isNotEmpty()) {
+                item(key = "avisos") {
+                    TarjetaActivarAvisos(Modifier.padding(bottom = 16.dp))
+                }
             }
 
             item(key = "tarjetas") {

@@ -97,4 +97,21 @@
     <string name="pago_minimo">Pago mínimo</string>
     <string name="error_pago_invalido">Monto no válido</string>
     <string name="error_limite_antes_del_corte">La fecha límite debe ser posterior al corte</string>
+
+    <!-- Recordatorios -->
+    <string name="canal_recordatorios">Recordatorios de pago</string>
+    <string name="canal_recordatorios_descripcion">Avisos antes del corte, antes de la fecha límite y para capturar tu estado de cuenta.</string>
+    <string name="aviso_publico">Tienes un recordatorio de pago</string>
+    <string name="aviso_corte_titulo">Mañana es el corte de %1$s</string>
+    <string name="aviso_corte_texto">Lo que compres a partir del %1$s entra en el siguiente estado de cuenta.</string>
+    <string name="aviso_capturar_titulo">Captura tu estado de cuenta de %1$s</string>
+    <string name="aviso_capturar_texto">Tu corte fue el %1$s. Anota la fecha límite y el pago para no generar intereses.</string>
+    <string name="aviso_pago_titulo">Paga %1$s de %2$s antes del %3$s</string>
+    <plurals name="aviso_pago_texto">
+        <item quantity="one">Falta %d día para la fecha límite. Así no generas intereses.</item>
+        <item quantity="other">Faltan %d días para la fecha límite. Así no generas intereses.</item>
+    </plurals>
+    <string name="activar_avisos_titulo">Activa los avisos</string>
+    <string name="activar_avisos_texto">Te avisamos antes de tu fecha límite con el monto exacto para no pagar intereses.</string>
+    <string name="activar_avisos_boton">Activar avisos</string>
 </resources>
