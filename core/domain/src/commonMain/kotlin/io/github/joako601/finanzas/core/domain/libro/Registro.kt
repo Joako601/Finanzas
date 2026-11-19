@@ -74,6 +74,32 @@ public object Registro {
     }
 
     /**
+     * Pago a una tarjeta de crédito desde una cuenta de dinero: baja la deuda (cargo al
+     * pasivo) y baja el dinero (abono al activo). No es un gasto: el gasto se registró al
+     * comprar con la tarjeta, y contarlo otra vez al pagar lo duplicaría.
+     */
+    public fun pagoDeTarjeta(
+        fecha: LocalDate,
+        monto: Dinero,
+        desde: Cuenta,
+        tarjeta: Cuenta,
+        nota: String = "",
+    ): Movimiento {
+        require(monto.esPositivo) { "El monto de un pago debe ser positivo" }
+        require(desde.tipo == TipoCuenta.ACTIVO) { "Una tarjeta se paga desde efectivo o débito" }
+        require(tarjeta.tipo == TipoCuenta.PASIVO) { "Solo se paga una cuenta de pasivo" }
+        return Movimiento(
+            id = null,
+            fecha = fecha,
+            descripcion = nota.trim(),
+            asientos = listOf(
+                Asiento(tarjeta.id, monto),
+                Asiento(desde.id, -monto),
+            ),
+        )
+    }
+
+    /**
      * Saldo con el que arranca una cuenta. La contrapartida es una cuenta de capital,
      * así el dinero que "ya existía" no se cuenta como ingreso del mes.
      */
