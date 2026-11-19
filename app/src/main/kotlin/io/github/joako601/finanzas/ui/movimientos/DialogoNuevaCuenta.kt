@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -59,6 +60,9 @@ fun DialogoNuevaCuenta(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                 )
+                if (nuevaCuenta.errorAlGuardar) {
+                    Text(stringResource(R.string.error_al_guardar), color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         confirmButton = {

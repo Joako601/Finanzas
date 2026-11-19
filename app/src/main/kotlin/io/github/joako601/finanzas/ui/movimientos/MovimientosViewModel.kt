@@ -69,6 +69,7 @@ data class NuevaCuenta(
     val saldoTexto: String = "",
     val errorNombre: Boolean = false,
     val errorSaldo: Boolean = false,
+    val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
 )
 
@@ -254,10 +255,16 @@ class MovimientosViewModel(
             _nuevaCuenta.value = actual.copy(errorNombre = errorNombre, errorSaldo = errorSaldo)
             return
         }
-        _nuevaCuenta.value = actual.copy(guardando = true)
+        _nuevaCuenta.value = actual.copy(guardando = true, errorAlGuardar = false)
         viewModelScope.launch {
-            servicio.crearCuentaDeDinero(actual.nombre, saldo, fechaDeHoy())
-            _nuevaCuenta.value = null
+            try {
+                servicio.crearCuentaDeDinero(actual.nombre, saldo, fechaDeHoy())
+                _nuevaCuenta.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _nuevaCuenta.update { it?.copy(guardando = false, errorAlGuardar = true) }
+            }
         }
     }
 
