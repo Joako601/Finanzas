@@ -273,6 +273,35 @@ y `SituacionTarjeta.kt`):**
 
 ---
 
+## D-014 Identidad visual propia en lugar del color dinámico
+
+**Fecha:** 2026-11-19
+
+**Contexto:** el autor eligió como referencia dos pantallas con el lenguaje visual de
+un banco colombiano (su logo, su amarillo y sus cintas de colores son marca registrada).
+
+**Decisión:**
+- Paleta fija en claro y oscuro: fondo gris muy claro con tarjetas blancas; amarillo
+  como color de acción con texto negro; montos en verde (ingreso) y rojo (gasto);
+  modo oscuro en gris carbón con íconos naranja. Reemplaza el "color dinámico" del
+  stack original (colores tomados del fondo de pantalla).
+- Se toma el estilo, no la marca: ni logos, ni cintas, ni el diseño de la tarjeta del
+  banco. Una app financiera que se parece a un banco confunde sobre quién la hace y
+  Google Play la rechaza por suplantación.
+- Contraste: el amarillo nunca es texto sobre fondo claro. En claro, los textos de
+  acción son casi negros y el amarillo solo es fondo (botón principal, botón flotante,
+  selección).
+- Íconos de categoría: 24 vectores copiados de Material Symbols (Apache 2.0), sin la
+  librería de íconos. Se asignan por nombre de categoría; las categorías nuevas usan
+  un ícono genérico hasta que exista edición de categorías.
+- Sin fuente propia: la del sistema con más peso en títulos y cifras. Una fuente
+  incluida en el APK queda como opción si hace falta.
+
+**Cómo se verifica:** capturas en `docs/evidencia/2026-11-19-*.png` (claro, oscuro y
+hoja de captura con teclado).
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |

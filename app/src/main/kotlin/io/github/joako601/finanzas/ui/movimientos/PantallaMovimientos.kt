@@ -14,12 +14,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -32,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -43,6 +45,9 @@ import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
+import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
+import io.github.joako601.finanzas.ui.componentes.iconoDe
 import io.github.joako601.finanzas.ui.formatoCorto
 import io.github.joako601.finanzas.ui.formatoEncabezado
 import io.github.joako601.finanzas.ui.hoy
@@ -53,6 +58,7 @@ import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
 import io.github.joako601.finanzas.ui.tarjetas.ResumenTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.SeccionTarjetas
 import io.github.joako601.finanzas.ui.tarjetas.TarjetasViewModel
+import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.minus
 
@@ -194,7 +200,9 @@ fun ContenidoMovimientos(
     onTocarMovimiento: (MovimientoResumido) -> Unit,
 ) {
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.app_name)) }) },
+        topBar = {
+            TopAppBar(title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall) })
+        },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = onRegistrar,
@@ -244,8 +252,11 @@ fun ContenidoMovimientos(
                 }
             }
 
-            estado.dias.forEach { dia ->
-                item(key = "dia-${dia.fecha}") {
+            // Cada día es una tarjeta con sus movimientos. Un día rara vez tiene más de unas
+            // decenas de movimientos, así que agruparlos en un solo elemento de la lista no
+            // afecta el rendimiento.
+            items(estado.dias, key = { "dia-${it.fecha}" }) { dia ->
+                Column(Modifier.padding(horizontal = 16.dp)) {
                     Text(
                         text = when (dia.fecha) {
                             fechaDeHoy -> stringResource(R.string.hoy)
@@ -254,11 +265,14 @@ fun ContenidoMovimientos(
                         },
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+                        modifier = Modifier.padding(top = 20.dp, bottom = 8.dp, start = 4.dp),
                     )
-                }
-                items(dia.movimientos, key = { "mov-${it.movimiento.id?.valor}" }) { movimiento ->
-                    FilaMovimiento(movimiento, onClick = { onTocarMovimiento(movimiento) })
+                    TarjetaFinanzas(Modifier.fillMaxWidth()) {
+                        dia.movimientos.forEachIndexed { indice, movimiento ->
+                            if (indice > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                            FilaMovimiento(movimiento, onClick = { onTocarMovimiento(movimiento) })
+                        }
+                    }
                 }
             }
         }
@@ -267,16 +281,20 @@ fun ContenidoMovimientos(
 
 @Composable
 private fun TarjetaSaldos(estado: EstadoMovimientos, onAgregarCuenta: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(stringResource(R.string.total_en_cuentas), style = MaterialTheme.typography.labelLarge)
-            Text(estado.totalEnCuentas.formatear(), style = MaterialTheme.typography.headlineMedium)
-            Spacer(Modifier.height(8.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    TarjetaFinanzas(Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(Modifier.padding(20.dp)) {
+            Text(
+                stringResource(R.string.total_en_cuentas),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(estado.totalEnCuentas.formatear(), style = MaterialTheme.typography.headlineLarge)
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 estado.cuentasDeDinero.forEach { (cuenta, saldo) ->
                     Column {
-                        Text(cuenta.nombre, style = MaterialTheme.typography.labelMedium)
-                        Text(saldo.formatear(), style = MaterialTheme.typography.bodyMedium)
+                        Text(cuenta.nombre, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(saldo.formatear(), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -290,15 +308,14 @@ private fun TarjetaSaldos(estado: EstadoMovimientos, onAgregarCuenta: () -> Unit
 @Composable
 private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) {
     val esDeuda = movimiento.cuenta?.tipo == TipoCuenta.PASIVO
+    val neutro = MaterialTheme.colorScheme.onSurfaceVariant
     val (signo, color) = when (movimiento.clase) {
-        ClaseMovimiento.GASTO -> "−" to MaterialTheme.colorScheme.onSurface
-        ClaseMovimiento.INGRESO -> "+" to MaterialTheme.colorScheme.primary
+        ClaseMovimiento.GASTO -> "−" to TemaFinanzas.colores.gasto
+        ClaseMovimiento.INGRESO -> "+" to TemaFinanzas.colores.ingreso
         // Una deuda inicial no es dinero que entra: sin signo.
-        ClaseMovimiento.SALDO_INICIAL ->
-            (if (esDeuda) "" else "+") to (if (esDeuda) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
+        ClaseMovimiento.SALDO_INICIAL -> if (esDeuda) "" to neutro else "+" to TemaFinanzas.colores.ingreso
         // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.
-        ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO ->
-            "" to MaterialTheme.colorScheme.onSurfaceVariant
+        ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO -> "" to neutro
     }
     val detalle = listOfNotNull(
         movimiento.cuenta?.nombre,
@@ -307,10 +324,12 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
 
     ListItem(
         modifier = Modifier.clickable(onClick = onClick),
-        headlineContent = { Text(etiqueta(movimiento)) },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        leadingContent = { IconoEnCirculo(iconoDe(movimiento)) },
+        headlineContent = { Text(etiqueta(movimiento), style = MaterialTheme.typography.titleSmall) },
         supportingContent = if (detalle.isNotEmpty()) ({ Text(detalle) }) else null,
         trailingContent = {
-            Text(signo + movimiento.monto.formatear(), color = color, style = MaterialTheme.typography.bodyLarge)
+            Text(signo + movimiento.monto.formatear(), color = color, style = MaterialTheme.typography.titleMedium)
         },
     )
 }
