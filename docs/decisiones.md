@@ -146,7 +146,7 @@ Entonces se evalúa Navigation 3 frente a Navigation Compose.
 
 ---
 
-## D-009 compileSdk 37, targetSdk 36
+## D-009 compileSdk 37, targetSdk 36 (37 desde el paso 7)
 
 **Fecha:** 2026-11-16
 
@@ -159,6 +159,22 @@ advertencia (`OldTargetApi`) y se acepta.
 
 **Pendiente de verificar contra la fuente oficial:** el requisito vigente de nivel de
 API objetivo de Google Play, antes de la primera prueba cerrada.
+
+**Actualización 2026-11-19 (paso 7):** `targetSdk` 37. Ya hay un teléfono con Android 17
+(el S24 FE del autor). Se revisó la página oficial "Behavior changes: apps targeting
+Android 17" (developer.android.com/about/versions/17/behavior-changes-17). Lo que podría
+tocar a esta app:
+- La app no fija orientación ni tamaño, así que no le afecta que ya no se pueda pedir
+  que se respeten en pantallas grandes.
+- Con teclado físico, los campos de contraseña del respaldo ocultan todos los caracteres.
+  Es deseable.
+- La app no usa reflexión, así que no le afectan el nuevo `MessageQueue` sin candados ni
+  los campos `static final` que ya no se pueden modificar.
+
+El resto no aplica: widgets, red local, SMS, contactos, audio en segundo plano,
+Bluetooth, código nativo dinámico, Content Capture y Certificate Transparency (no hay
+red). Las alarmas y notificaciones no cambian para el target 37. Lint ya no marca
+`OldTargetApi`.
 
 ---
 
