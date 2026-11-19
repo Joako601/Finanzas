@@ -104,6 +104,64 @@ class RepositorioLibroRoomTest {
     }
 
     @Test
+    fun editar_conserva_id_y_lugar_y_reemplaza_los_asientos() = runTest {
+        var reloj = 1_000L
+        val repositorio = RepositorioLibroRoom(baseDeDatos) { reloj }
+        val cuentas = repositorio.observarCuentas().first()
+        val efectivo = cuentas.first { it.tipo == TipoCuenta.ACTIVO }
+        val super_ = cuentas.first { it.tipo == TipoCuenta.GASTO }
+        val comida = cuentas.filter { it.tipo == TipoCuenta.GASTO }[1]
+        val tacos = repositorio.registrar(Registro.gasto(fecha, Dinero(10_000), efectivo, super_, "tacos"))
+        reloj = 2_000L
+        val refresco = repositorio.registrar(Registro.gasto(fecha, Dinero(2_500), efectivo, super_, "refresco"))
+        reloj = 9_000L
+
+        repositorio.actualizar(Registro.gasto(fecha, Dinero(8_550), efectivo, comida, "tacos al pastor").copy(id = tacos))
+
+        val movimientos = repositorio.observarMovimientos().first()
+        assertEquals(listOf(refresco, tacos), movimientos.map { it.id }, "editar no lo mueve al principio del día")
+        val editado = movimientos.last()
+        assertEquals("tacos al pastor", editado.descripcion)
+        assertEquals(2, editado.asientos.size, "no quedan asientos del original")
+        val saldos = repositorio.observarSaldos().first()
+        assertEquals(Dinero(-11_050), saldos[efectivo.id])
+        assertEquals(Dinero(2_500), saldos[super_.id])
+        assertEquals(Dinero(8_550), saldos[comida.id])
+    }
+
+    @Test
+    fun editar_es_atomico_si_falla_no_cambia_nada() = runTest {
+        val cuentas = repositorio.observarCuentas().first()
+        val efectivo = cuentas.first { it.tipo == TipoCuenta.ACTIVO }
+        val super_ = cuentas.first { it.tipo == TipoCuenta.GASTO }
+        val id = repositorio.registrar(Registro.gasto(fecha, Dinero(100), efectivo, super_, "original"))
+        val antes = repositorio.observarMovimientos().first()
+
+        val fantasma = io.github.joako601.finanzas.core.domain.libro.Cuenta(
+            io.github.joako601.finanzas.core.domain.libro.CuentaId(9_999), "Fantasma", TipoCuenta.GASTO,
+        )
+        assertFailsWith<SQLiteConstraintException> {
+            repositorio.actualizar(Registro.gasto(fecha, Dinero(200), efectivo, fantasma, "nuevo").copy(id = id))
+        }
+
+        assertEquals(antes, repositorio.observarMovimientos().first())
+    }
+
+    @Test
+    fun editar_un_movimiento_que_ya_no_existe_falla() = runTest {
+        val cuentas = repositorio.observarCuentas().first()
+        val efectivo = cuentas.first { it.tipo == TipoCuenta.ACTIVO }
+        val super_ = cuentas.first { it.tipo == TipoCuenta.GASTO }
+        val id = repositorio.registrar(Registro.gasto(fecha, Dinero(100), efectivo, super_))
+        repositorio.eliminar(id)
+
+        assertFailsWith<IllegalStateException> {
+            repositorio.actualizar(Registro.gasto(fecha, Dinero(200), efectivo, super_).copy(id = id))
+        }
+        assertTrue(repositorio.observarSaldos().first().isEmpty(), "no se crean asientos sueltos")
+    }
+
+    @Test
     fun la_llave_foranea_rechaza_cuentas_inexistentes() = runTest {
         val dao = baseDeDatos.libroDao()
         assertFailsWith<SQLiteConstraintException> {

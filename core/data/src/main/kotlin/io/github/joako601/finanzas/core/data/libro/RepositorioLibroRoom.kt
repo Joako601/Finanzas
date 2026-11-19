@@ -30,13 +30,18 @@ internal class RepositorioLibroRoom(
         dao.observarMovimientos().map { filas -> filas.map { it.aDominio() } }
 
     override suspend fun registrar(movimiento: Movimiento): MovimientoId {
-        require(movimiento.id == null) { "El movimiento ya tiene id; editar llega en otra fase" }
+        require(movimiento.id == null) { "El movimiento ya tiene id; para editarlo usa actualizar" }
         val id = dao.insertarCompleto(movimiento.aEntidad(relojMillis()), movimiento.asientosAEntidades())
         return MovimientoId(id)
     }
 
     override suspend fun eliminar(id: MovimientoId) {
         dao.eliminarMovimiento(id.valor)
+    }
+
+    override suspend fun actualizar(movimiento: Movimiento) {
+        val id = requireNotNull(movimiento.id) { "Solo se edita un movimiento guardado" }
+        dao.reemplazarCompleto(id.valor, movimiento.fecha.toEpochDays(), movimiento.descripcion, movimiento.asientosAEntidades())
     }
 
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = enTransaccion {

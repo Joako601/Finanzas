@@ -146,7 +146,7 @@ Entonces se evalúa Navigation 3 frente a Navigation Compose.
 
 ---
 
-## D-009 compileSdk 37, targetSdk 36
+## D-009 compileSdk 37, targetSdk 36 (37 desde el paso 7)
 
 **Fecha:** 2026-11-16
 
@@ -159,6 +159,22 @@ advertencia (`OldTargetApi`) y se acepta.
 
 **Pendiente de verificar contra la fuente oficial:** el requisito vigente de nivel de
 API objetivo de Google Play, antes de la primera prueba cerrada.
+
+**Actualización 2026-11-19 (paso 7):** `targetSdk` 37. Ya hay un teléfono con Android 17
+(el S24 FE del autor). Se revisó la página oficial "Behavior changes: apps targeting
+Android 17" (developer.android.com/about/versions/17/behavior-changes-17). Lo que podría
+tocar a esta app:
+- La app no fija orientación ni tamaño, así que no le afecta que ya no se pueda pedir
+  que se respeten en pantallas grandes.
+- Con teclado físico, los campos de contraseña del respaldo ocultan todos los caracteres.
+  Es deseable.
+- La app no usa reflexión, así que no le afectan el nuevo `MessageQueue` sin candados ni
+  los campos `static final` que ya no se pueden modificar.
+
+El resto no aplica: widgets, red local, SMS, contactos, audio en segundo plano,
+Bluetooth, código nativo dinámico, Content Capture y Certificate Transparency (no hay
+red). Las alarmas y notificaciones no cambian para el target 37. Lint ya no marca
+`OldTargetApi`.
 
 ---
 
@@ -480,7 +496,7 @@ recomendaciones.
   - Pide confirmar con un botón rojo, "Reemplazar mis datos".
 - **Exportar a CSV:**
   - Es para leer en Excel o Google Sheets, no para recuperar datos.
-  - Una fila por movimiento: fecha, tipo, descripción, cuenta, categoría o tarjeta y monto.
+  - Una fila por movimiento: fecha, tipo, descripción, cuenta, categoría o destino (la tarjeta pagada o la cuenta que recibe) y monto.
   - UTF-8 con BOM, coma como separador y punto decimal.
   - Los textos que empiezan con `= + - @` llevan un apóstrofo delante para que Excel no los
     ejecute como fórmula (inyección de CSV de OWASP). Eso importará cuando las
@@ -508,7 +524,11 @@ recomendaciones.
 - Todo en memoria: un respaldo de decenas de MB necesitaría flujos. Hoy pesa kilobytes.
 - Mientras se restaura, el archivo descifrado vive unos segundos en la carpeta privada de la
   app y se borra al terminar, igual de protegido que la base, que tampoco está cifrada
-  (SQLCipher se decide con el modelo de amenazas).
+  (SQLCipher se decide con el modelo de amenazas). Si el proceso muere a mitad, queda ahí
+  hasta el siguiente arranque de la app, que lo borra.
+- Restaurar un respaldo viejo reemplaza también el registro de avisos entregados: puede
+  repetirse un aviso de hoy o de ayer que ya se había mostrado. Se acepta; conservar las
+  entregas recientes complicaría la restauración por un aviso duplicado.
 - La contraseña pasa por un `String` de Compose y no se puede borrar de memoria a mano.
 
 **Cómo se verifica:**
@@ -525,6 +545,65 @@ recomendaciones.
   - Un respaldo de una versión más nueva se rechaza.
   - No quedan temporales sin cifrar.
 - `RespaldoViewModelTest`: 8 pruebas.
+
+**Revisión de un subagente (2026-11-19)** con las skills code-review-and-quality,
+security-and-hardening, test-driven-development, diseno-finanzas, impeccable y
+accessibility-engineering. No encontró nada grave. Lo que se corrigió:
+- Un respaldo fallido dejaba un archivo vacío en el destino. Ahora se borra y se avisa;
+  también si Android cerró la app mientras se elegía la carpeta.
+- Los contadores de ids (`sqlite_sequence`) no viajaban en el respaldo. En un teléfono
+  nuevo se habrían reusado ids de lo borrado.
+- Los temporales descifrados se borran también al arrancar, y la copia se cierra ante
+  cualquier error.
+- La base de la app y las copias de respaldo comparten la configuración de Room, para que
+  una migración manual futura no falte al restaurar.
+- Quitar la autenticación del encabezado no lo detectaba ninguna prueba. Ahora hay una que
+  arma el mismo sobre con y sin ella; quitar `updateAAD` la hace fallar.
+- El CSV tiene prueba para textos que empiezan con tabulador o retorno.
+- El aviso de la hoja ya no queda viejo al reabrirla.
+- TalkBack anuncia los errores de los campos.
+
+
+## D-019 Editar movimientos y transferir entre cuentas propias
+
+**Fecha:** 2026-11-19
+
+**Decisión:**
+- **Transferencia** = dinero que pasa entre dos cuentas propias de efectivo o débito
+  (retirar del cajero, mover a otra cuenta). Baja el origen y sube el destino. No es gasto
+  ni ingreso y no cambia el total en cuentas ni el disponible real. Pasar dinero a una
+  tarjeta sigue siendo un pago de tarjeta (D-013), no una transferencia.
+  - Se abre con "Transferir", junto a "Agregar cuenta". Solo aparece con dos cuentas o
+    más; no toca el camino corto de registro.
+  - En la lista va sin signo y en color secundario (`diseno-finanzas`, sección 4), con
+    "Débito → Efectivo" debajo. En el CSV, la cuenta es el origen y la columna "Categoría
+    o destino" el destino.
+- **Editar** = tocar un gasto, ingreso o transferencia abre su formulario con los datos.
+  - Al guardar se reemplazan fecha, nota y asientos en una transacción.
+  - El movimiento conserva su id y su lugar entre los del mismo día (`creado_en` no
+    cambia).
+  - Si el movimiento ya se borró, falla sin crear asientos sueltos.
+  - Al editar no aparece el teclado solo: lo que se corrige puede ser la categoría.
+  - "Eliminar" queda dentro del formulario y pide la misma confirmación de siempre.
+- Los saldos iniciales y los pagos de tarjeta siguen sin editarse: tocarlos ofrece
+  eliminar, como antes. Un pago de tarjeta tiene su propio diálogo y editarlo cambiaría
+  la situación del ciclo; se agrega si hace falta.
+
+**Cómo se verifica:**
+- `TransferenciaTest`: 5 pruebas, una de propiedades: una transferencia nunca cambia el
+  total en cuentas.
+- `RepositorioLibroRoomTest`: 3 pruebas nuevas en el S24 FE.
+  - Editar conserva el id y el lugar, y no deja asientos del original.
+  - Si falla, no cambia nada.
+  - No se puede editar un movimiento borrado.
+- `MovimientosViewModelTest`: 10 pruebas.
+
+**Tras la revisión del subagente:**
+- Al editar, la cuenta o categoría archivada del movimiento sigue disponible y se conserva.
+- Una "transferencia" que toca una tarjeta (disposición de efectivo) no se abre en el
+  formulario de transferencia; solo se puede eliminar.
+- La fila se lee "de Débito a Efectivo" con TalkBack, en lugar de "flecha derecha".
+- La hoja de captura y el diálogo de transferencia dicen "Editar" al editar.
 
 ---
 
@@ -544,4 +623,6 @@ recomendaciones.
 | kotlinx-coroutines-test en la app (solo pruebas) | `runTest` y `Dispatchers.setMain` para probar ViewModels en la JVM | Ya estaba en el catálogo para el dominio; no agrega archivos |
 | junit 4 (solo pruebas) | Pruebas de la app en la JVM, sin teléfono (por ahora: que cada categoría del catálogo tenga ícono). Ya estaba en el grafo verificado por ext-junit; no agrega archivos | kotlin-test-junit: otro artefacto para lo mismo |
 | room-testing (solo pruebas) | `MigrationTestHelper`: crea la base en una versión anterior desde su esquema exportado, migra y valida contra el esquema nuevo (D-012) | Probar la migración con SQL suelto: no compara contra el esquema que Room espera |
+| espresso-core 3.7.0 (solo pruebas) | Lo usan por dentro las pruebas de Compose. La versión que traen (3.5.0) llama por reflexión a `InputManager.getInstance`, que ya no existe en Android 17: fallaba antes de probar nada en el S24 FE. Se fija la estable más nueva | Bajar el `targetSdk` o probar en otro teléfono: no arregla nada |
+| compose ui-test-junit4 y ui-test-manifest (solo pruebas) | Prueba de accesibilidad de la pantalla principal en el teléfono: revisa el árbol de semántica que lee TalkBack (nombre y 48 dp de todo lo tocable). Arrastra Espresso y Hamcrest, también solo de pruebas. Corre con el tipo de compilación `pruebas` (paquete `.pruebas`) porque las pruebas instrumentadas desinstalan la app al terminar | Robolectric: corre en la JVM pero descarga Android completo por su cuenta, fuera de la verificación de dependencias; Accessibility Scanner: manual |
 | material-icons | **No se usa**: el único ícono se copió como vector XML | — |

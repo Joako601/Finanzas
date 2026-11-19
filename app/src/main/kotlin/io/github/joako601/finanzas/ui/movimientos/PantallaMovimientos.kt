@@ -38,6 +38,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -107,6 +113,7 @@ fun PantallaMovimientos(
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
     val nuevaCuenta by viewModel.nuevaCuenta.collectAsStateWithLifecycle()
+    val transferencia by viewModel.transferencia.collectAsStateWithLifecycle()
     val estadoTarjetas by tarjetasViewModel.estado.collectAsStateWithLifecycle()
     val nuevaTarjeta by tarjetasViewModel.nuevaTarjeta.collectAsStateWithLifecycle()
     val pago by tarjetasViewModel.pago.collectAsStateWithLifecycle()
@@ -124,6 +131,7 @@ fun PantallaMovimientos(
         estadoTarjetas = estadoTarjetas,
         onRegistrar = viewModel::abrirCaptura,
         onAgregarCuenta = viewModel::abrirNuevaCuenta,
+        onTransferir = viewModel::abrirTransferencia,
         lineaDeTiempo = estadoLinea.linea,
         onVerLineaDeTiempo = { verLineaDeTiempo = true },
         accionesTarjetas = AccionesTarjetas(
@@ -136,7 +144,10 @@ fun PantallaMovimientos(
             agregar = recurrentesViewModel::abrirNuevo,
             tocar = recurrentesViewModel::abrirRegistro,
         ),
-        onTocarMovimiento = { porEliminar = it },
+        // Gastos, ingresos y transferencias se editan; lo demás solo se puede eliminar.
+        onTocarMovimiento = {
+            if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
+        },
         onRespaldo = { verRespaldo = true },
     )
 
@@ -197,13 +208,15 @@ fun PantallaMovimientos(
     captura?.let { actual ->
         HojaCaptura(
             captura = actual,
+            // Al editar, la categoría o cuenta archivada del movimiento sigue disponible.
             categorias = when (actual.clase) {
-                ClaseRegistro.GASTO -> estado.categoriasDeGasto
-                ClaseRegistro.INGRESO -> estado.categoriasDeIngreso
+                ClaseRegistro.GASTO -> estado.categoriasDeGasto + actual.archivadas.filter { it.tipo == TipoCuenta.GASTO }
+                ClaseRegistro.INGRESO -> estado.categoriasDeIngreso + actual.archivadas.filter { it.tipo == TipoCuenta.INGRESO }
             },
             // Un gasto se puede pagar con tarjeta; un ingreso solo llega a efectivo o débito.
             cuentas = estado.cuentasDeDinero.map { it.cuenta } +
-                if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList(),
+                (if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList()) +
+                actual.archivadas.filter { it.tipo.esDeDinero },
             acciones = AccionesCaptura(
                 cambiarClase = viewModel::cambiarClase,
                 cambiarMonto = viewModel::cambiarMonto,
@@ -213,6 +226,20 @@ fun PantallaMovimientos(
                 cambiarNota = viewModel::cambiarNota,
                 guardar = viewModel::guardarCaptura,
                 cerrar = viewModel::cerrarCaptura,
+                eliminar = actual.editando?.let { id -> { pedirEliminar(id, estado, viewModel::cerrarCaptura) { porEliminar = it } } },
+            ),
+        )
+    }
+
+    transferencia?.let { actual ->
+        DialogoTransferencia(
+            transferencia = actual,
+            cuentas = estado.cuentasDeDinero.map { it.cuenta } + actual.archivadas,
+            acciones = AccionesTransferencia(
+                editar = viewModel::editarTransferencia,
+                guardar = viewModel::guardarTransferencia,
+                eliminar = actual.editando?.let { id -> { pedirEliminar(id, estado, viewModel::cerrarTransferencia) { porEliminar = it } } },
+                cerrar = viewModel::cerrarTransferencia,
             ),
         )
     }
@@ -289,6 +316,7 @@ fun ContenidoMovimientos(
     estadoTarjetas: EstadoTarjetas,
     onRegistrar: () -> Unit,
     onAgregarCuenta: () -> Unit,
+    onTransferir: () -> Unit,
     lineaDeTiempo: LineaDeTiempo?,
     onVerLineaDeTiempo: () -> Unit,
     accionesTarjetas: AccionesTarjetas,
@@ -305,10 +333,22 @@ fun ContenidoMovimientos(
             )
         },
         floatingActionButton = {
+            val registrar = stringResource(R.string.registrar)
             ExtendedFloatingActionButton(
                 onClick = onRegistrar,
+                // El texto del botón extendido no llega al árbol de accesibilidad: TalkBack
+                // solo decía "Botón" (comprobado en el S24 FE con AccesibilidadTest). Se
+                // deja un único nodo con nombre, rol y acción.
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = registrar
+                    role = Role.Button
+                    onClick {
+                        onRegistrar()
+                        true
+                    }
+                },
                 icon = { Icon(painterResource(R.drawable.ic_agregar), contentDescription = null) },
-                text = { Text(stringResource(R.string.registrar)) },
+                text = { Text(registrar) },
             )
         },
     ) { margenes ->
@@ -329,7 +369,7 @@ fun ContenidoMovimientos(
             ),
         ) {
             item(key = "saldos") {
-                TarjetaSaldos(estado, lineaDeTiempo, onAgregarCuenta, onVerLineaDeTiempo)
+                TarjetaSaldos(estado, lineaDeTiempo, onAgregarCuenta, onTransferir, onVerLineaDeTiempo)
             }
 
             if (estadoTarjetas.tarjetas.isNotEmpty()) {
@@ -403,6 +443,7 @@ private fun TarjetaSaldos(
     estado: EstadoMovimientos,
     linea: LineaDeTiempo?,
     onAgregarCuenta: () -> Unit,
+    onTransferir: () -> Unit,
     onVerLineaDeTiempo: () -> Unit,
 ) {
     TarjetaFinanzas(Modifier.fillMaxWidth().padding(16.dp)) {
@@ -435,8 +476,16 @@ private fun TarjetaSaldos(
                     }
                 }
             }
-            TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
-                Text(stringResource(R.string.agregar_cuenta))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
+                    Text(stringResource(R.string.agregar_cuenta))
+                }
+                // Con una sola cuenta no hay a dónde transferir.
+                if (estado.cuentasDeDinero.size >= 2) {
+                    TextButton(onClick = onTransferir, contentPadding = PaddingValues(0.dp)) {
+                        Text(stringResource(R.string.transferir))
+                    }
+                }
             }
         }
     }
@@ -454,8 +503,19 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
         // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.
         ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO -> "" to neutro
     }
+    val desde = movimiento.cuenta?.nombre
+    val hacia = movimiento.contraparte?.nombre
+    val esTransferencia = movimiento.clase == ClaseMovimiento.TRANSFERENCIA && desde != null && hacia != null
+    val origenDestino = if (esTransferencia) stringResource(R.string.de_a, desde!!, hacia!!) else desde
+    val nota = movimiento.movimiento.descripcion.ifBlank { null }?.takeIf { movimiento.clase != ClaseMovimiento.SALDO_INICIAL }
+    // TalkBack leería la flecha como "flecha derecha"; se le da la frase completa.
+    val detalleHablado = if (esTransferencia) {
+        listOfNotNull(stringResource(R.string.de_a_hablado, desde!!, hacia!!), nota).joinToString(", ")
+    } else {
+        null
+    }
     val detalle = listOfNotNull(
-        movimiento.cuenta?.nombre,
+        origenDestino,
         movimiento.movimiento.descripcion.ifBlank { null }?.takeIf { movimiento.clase != ClaseMovimiento.SALDO_INICIAL },
     ).joinToString(" · ")
 
@@ -464,7 +524,16 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { IconoEnCirculo(iconoDe(movimiento)) },
         headlineContent = { Text(etiqueta(movimiento), style = MaterialTheme.typography.titleSmall) },
-        supportingContent = if (detalle.isNotEmpty()) ({ Text(detalle) }) else null,
+        supportingContent = if (detalle.isNotEmpty()) {
+            {
+                Text(
+                    detalle,
+                    modifier = if (detalleHablado != null) Modifier.semantics { contentDescription = detalleHablado } else Modifier,
+                )
+            }
+        } else {
+            null
+        },
         trailingContent = {
             Text(signo + movimiento.monto.formatear(), color = color, style = MaterialTheme.typography.titleMedium)
         },
@@ -501,4 +570,16 @@ private fun MenuPrincipal(onRespaldo: () -> Unit) {
             )
         }
     }
+}
+
+/** Cierra el formulario de edición y abre la confirmación de borrado del mismo movimiento. */
+private fun pedirEliminar(
+    id: io.github.joako601.finanzas.core.domain.libro.MovimientoId,
+    estado: EstadoMovimientos,
+    cerrar: () -> Unit,
+    confirmar: (MovimientoResumido) -> Unit,
+) {
+    val resumen = estado.dias.firstNotNullOfOrNull { dia -> dia.movimientos.firstOrNull { it.movimiento.id == id } } ?: return
+    cerrar()
+    confirmar(resumen)
 }

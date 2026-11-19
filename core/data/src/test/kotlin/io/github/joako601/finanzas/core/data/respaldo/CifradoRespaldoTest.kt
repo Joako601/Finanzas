@@ -1,6 +1,12 @@
 package io.github.joako601.finanzas.core.data.respaldo
 
 import org.junit.Test
+import java.nio.ByteBuffer
+import javax.crypto.Cipher
+import javax.crypto.SecretKeyFactory
+import javax.crypto.spec.GCMParameterSpec
+import javax.crypto.spec.PBEKeySpec
+import javax.crypto.spec.SecretKeySpec
 import kotlin.random.Random
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
@@ -83,5 +89,31 @@ class CifradoRespaldoTest {
         val futuro = sobre.copyOf().also { it[8] = 2 }
         val error = assertFailsWith<ErrorRespaldo> { CifradoRespaldo.descifrar(futuro, contrasena) }
         assertEquals(ErrorRespaldo.Motivo.VERSION_NUEVA, error.motivo)
+    }
+
+    @Test
+    fun el_encabezado_va_autenticado_aunque_la_llave_sea_la_correcta() {
+        // Mismo encabezado, misma llave y mismo IV: lo único que cambia es si el encabezado
+        // entra como dato autenticado de GCM. Así se prueba ese candado por separado.
+        val sal = ByteArray(16) { 1 }
+        val iv = ByteArray(12) { 2 }
+        val encabezado = ByteBuffer.allocate(41)
+            .put("FINANZAS".encodeToByteArray()).put(1).putInt(rapido).put(sal).put(iv)
+            .array()
+        val llave = SecretKeySpec(
+            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(PBEKeySpec(contrasena, sal, rapido, 256)).encoded,
+            "AES",
+        )
+        fun sobre(autenticado: Boolean): ByteArray = encabezado + Cipher.getInstance("AES/GCM/NoPadding").run {
+            init(Cipher.ENCRYPT_MODE, llave, GCMParameterSpec(128, iv))
+            if (autenticado) updateAAD(encabezado)
+            doFinal(datos)
+        }
+
+        // Control: armado igual que la app, se abre.
+        assertContentEquals(datos, CifradoRespaldo.descifrar(sobre(autenticado = true), contrasena))
+        // Sin el encabezado autenticado, se rechaza.
+        val error = assertFailsWith<ErrorRespaldo> { CifradoRespaldo.descifrar(sobre(autenticado = false), contrasena) }
+        assertEquals(ErrorRespaldo.Motivo.CONTRASENA_O_DANADO, error.motivo)
     }
 }

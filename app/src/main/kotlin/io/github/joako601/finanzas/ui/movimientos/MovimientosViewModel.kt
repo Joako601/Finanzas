@@ -7,10 +7,12 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.joako601.finanzas.FinanzasApp
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.ErrorRegistro
+import io.github.joako601.finanzas.core.domain.libro.Movimiento
 import io.github.joako601.finanzas.core.domain.libro.MovimientoId
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.Registro
@@ -62,6 +64,24 @@ data class Captura(
     val errores: Set<ErrorRegistro> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
+    /** Movimiento que se está editando; `null` al capturar uno nuevo. */
+    val editando: MovimientoId? = null,
+    /** Al editar: su cuenta o categoría si ya está archivada, para poder conservarla. */
+    val archivadas: List<Cuenta> = emptyList(),
+)
+
+/** Diálogo de transferencia entre cuentas propias abierto. */
+data class Transferencia(
+    val montoTexto: String = "",
+    val desdeId: CuentaId? = null,
+    val haciaId: CuentaId? = null,
+    val fecha: LocalDate,
+    val nota: String = "",
+    val errores: Set<ErrorRegistro> = emptySet(),
+    val errorAlGuardar: Boolean = false,
+    val guardando: Boolean = false,
+    val editando: MovimientoId? = null,
+    val archivadas: List<Cuenta> = emptyList(),
 )
 
 /** Diálogo de nueva cuenta abierto. */
@@ -118,6 +138,9 @@ class MovimientosViewModel(
     private val _captura = MutableStateFlow<Captura?>(null)
     val captura: StateFlow<Captura?> = _captura.asStateFlow()
 
+    private val _transferencia = MutableStateFlow<Transferencia?>(null)
+    val transferencia: StateFlow<Transferencia?> = _transferencia.asStateFlow()
+
     private val _nuevaCuenta = MutableStateFlow<NuevaCuenta?>(null)
     val nuevaCuenta: StateFlow<NuevaCuenta?> = _nuevaCuenta.asStateFlow()
 
@@ -134,6 +157,51 @@ class MovimientosViewModel(
 
     fun cerrarCaptura() {
         _captura.value = null
+    }
+
+    /**
+     * Abre un movimiento guardado para editarlo: un gasto o ingreso en la hoja de captura,
+     * una transferencia en su diálogo. Los demás (saldo inicial, pago de tarjeta) no se editan.
+     */
+    fun abrirEdicion(resumen: MovimientoResumido) {
+        val movimiento = resumen.movimiento
+        val id = movimiento.id ?: return
+        if (!esEditable(resumen)) return
+        val archivadas = listOfNotNull(resumen.cuenta, resumen.categoria, resumen.contraparte).filter { it.archivada }
+        when (resumen.clase) {
+            ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO -> _captura.value = Captura(
+                clase = if (resumen.clase == ClaseMovimiento.GASTO) ClaseRegistro.GASTO else ClaseRegistro.INGRESO,
+                montoTexto = resumen.monto.textoEditable(),
+                cuentaId = resumen.cuenta?.id,
+                categoriaId = resumen.categoria?.id,
+                fecha = movimiento.fecha,
+                nota = movimiento.descripcion,
+                editando = id,
+                archivadas = archivadas,
+            )
+            ClaseMovimiento.TRANSFERENCIA -> _transferencia.value = Transferencia(
+                montoTexto = resumen.monto.textoEditable(),
+                desdeId = resumen.cuenta?.id,
+                haciaId = resumen.contraparte?.id,
+                fecha = movimiento.fecha,
+                nota = movimiento.descripcion,
+                editando = id,
+                archivadas = archivadas,
+            )
+            else -> Unit
+        }
+    }
+
+    /**
+     * Gastos, ingresos y transferencias entre efectivo y débito se editan. Una
+     * "transferencia" que toca una tarjeta (disposición de efectivo) no tiene formulario
+     * todavía; como los saldos iniciales y los pagos de tarjeta, solo se puede eliminar.
+     */
+    fun esEditable(resumen: MovimientoResumido): Boolean = when (resumen.clase) {
+        ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO -> true
+        ClaseMovimiento.TRANSFERENCIA ->
+            resumen.cuenta?.tipo == TipoCuenta.ACTIVO && resumen.contraparte?.tipo == TipoCuenta.ACTIVO
+        else -> false
     }
 
     fun cambiarClase(clase: ClaseRegistro) = editarCaptura {
@@ -173,7 +241,7 @@ class MovimientosViewModel(
                 _captura.value = actual.copy(errores = emptySet(), guardando = true, errorAlGuardar = false)
                 viewModelScope.launch {
                     try {
-                        repositorio.registrar(resultado.movimiento)
+                        guardarOActualizar(resultado.movimiento, actual.editando)
                         ultimaCuenta = actual.cuentaId
                         _captura.value = null
                     } catch (e: CancellationException) {
@@ -211,6 +279,7 @@ class MovimientosViewModel(
             if (captura.clase == ClaseRegistro.GASTO) estado.value.tarjetas.forEach { put(it.id, it) }
             estado.value.categoriasDeGasto.forEach { put(it.id, it) }
             estado.value.categoriasDeIngreso.forEach { put(it.id, it) }
+            captura.archivadas.forEach { put(it.id, it) }
         }
         return Registro.desdeCaptura(
             clase = captura.clase,
@@ -220,6 +289,64 @@ class MovimientosViewModel(
             fecha = captura.fecha,
             nota = captura.nota,
         )
+    }
+
+    // ---- Transferencia entre cuentas propias ----
+
+    /** Propone de la primera cuenta a la segunda; lo normal es cambiar una de las dos. */
+    fun abrirTransferencia() {
+        val cuentas = estado.value.cuentasDeDinero.map { it.cuenta.id }
+        _transferencia.value = Transferencia(fecha = fechaDeHoy(), desdeId = cuentas.getOrNull(0), haciaId = cuentas.getOrNull(1))
+    }
+
+    fun cerrarTransferencia() {
+        _transferencia.value = null
+    }
+
+    /** Como en la captura: los errores se recalculan solo después del primer intento de guardar. */
+    fun editarTransferencia(cambio: Transferencia.() -> Transferencia) {
+        _transferencia.update { actual ->
+            actual?.cambio()?.let { nueva ->
+                val errores = if (nueva.errores.isEmpty()) emptySet() else validar(nueva).erroresO()
+                nueva.copy(montoTexto = limpiarMonto(nueva.montoTexto), errores = errores, errorAlGuardar = false)
+            }
+        }
+    }
+
+    fun guardarTransferencia() {
+        val actual = _transferencia.value ?: return
+        if (actual.guardando) return
+        when (val resultado = validar(actual)) {
+            is ResultadoRegistro.Invalido -> _transferencia.value = actual.copy(errores = resultado.errores)
+            is ResultadoRegistro.Valido -> {
+                _transferencia.value = actual.copy(errores = emptySet(), guardando = true, errorAlGuardar = false)
+                viewModelScope.launch {
+                    try {
+                        guardarOActualizar(resultado.movimiento, actual.editando)
+                        _transferencia.value = null
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        _transferencia.update { it?.copy(guardando = false, errorAlGuardar = true) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun validar(transferencia: Transferencia): ResultadoRegistro {
+        val porId = (estado.value.cuentasDeDinero.map { it.cuenta } + transferencia.archivadas).associateBy { it.id }
+        return Registro.desdeTransferencia(
+            montoTexto = transferencia.montoTexto,
+            desde = transferencia.desdeId?.let(porId::get),
+            hacia = transferencia.haciaId?.let(porId::get),
+            fecha = transferencia.fecha,
+            nota = transferencia.nota,
+        )
+    }
+
+    private suspend fun guardarOActualizar(movimiento: Movimiento, editando: MovimientoId?) {
+        if (editando == null) repositorio.registrar(movimiento) else repositorio.actualizar(movimiento.copy(id = editando))
     }
 
     // ---- Eliminar ----
@@ -281,4 +408,13 @@ class MovimientosViewModel(
             }
         }
     }
+}
+
+private fun ResultadoRegistro.erroresO(): Set<ErrorRegistro> = (this as? ResultadoRegistro.Invalido)?.errores.orEmpty()
+
+/** "1234.50", o "100" si no tiene centavos: lo que el usuario escribiría en el campo de monto. */
+internal fun Dinero.textoEditable(): String {
+    val absoluto = absoluto().centavos
+    val centavos = absoluto % 100
+    return if (centavos == 0L) "${absoluto / 100}" else "${absoluto / 100}.${centavos.toString().padStart(2, '0')}"
 }

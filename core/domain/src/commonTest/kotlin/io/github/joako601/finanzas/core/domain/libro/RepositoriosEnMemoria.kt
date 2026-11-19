@@ -37,6 +37,10 @@ internal class RepositorioEnMemoria : RepositorioLibro {
         movimientos.value = movimientos.value.filterNot { it.id == id }
     }
 
+    override suspend fun actualizar(movimiento: Movimiento) {
+        movimientos.value = movimientos.value.map { if (it.id == movimiento.id) movimiento else it }
+    }
+
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta {
         val cuenta = Cuenta(CuentaId(cuentas.value.size + 1L), nombre, tipo)
         cuentas.value = cuentas.value + cuenta

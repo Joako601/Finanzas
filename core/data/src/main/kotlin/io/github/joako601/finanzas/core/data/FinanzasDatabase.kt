@@ -70,9 +70,17 @@ internal abstract class FinanzasDatabase : RoomDatabase() {
         const val NOMBRE_ARCHIVO = "finanzas.db"
 
         fun crear(context: Context): FinanzasDatabase =
-            Room.databaseBuilder(context.applicationContext, FinanzasDatabase::class.java, NOMBRE_ARCHIVO)
+            constructor(context, NOMBRE_ARCHIVO)
                 .addCallback(SembrarCatalogo)
                 .build()
+
+        /**
+         * La configuración común de la base de la app y de las copias de respaldo. Toda
+         * migración manual (`addMigrations`) va AQUÍ: si solo la tuviera [crear], los
+         * respaldos de versiones anteriores no se podrían restaurar.
+         */
+        fun constructor(context: Context, nombre: String): RoomDatabase.Builder<FinanzasDatabase> =
+            Room.databaseBuilder(context.applicationContext, FinanzasDatabase::class.java, nombre)
 
         /** Base en memoria para pruebas: se pierde al cerrarse. */
         fun enMemoria(context: Context): FinanzasDatabase =

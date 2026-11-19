@@ -15,15 +15,28 @@ android {
         applicationId = "io.github.joako601.finanzas"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 7
-        versionName = "0.1.0-dev.7"
+        versionCode = 8
+        versionName = "0.1.0-dev.8"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    // Las pruebas instrumentadas instalan la app y al terminar la DESINSTALAN. Con este tipo
+    // aparte corren sobre "io.github.joako601.finanzas.pruebas" y nunca tocan la app debug
+    // que el autor usa con sus datos.
+    testBuildType = "pruebas"
 
     buildTypes {
         debug {
             // Permite tener instaladas la versión de desarrollo y la de release a la vez.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+        }
+        create("pruebas") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".pruebas"
+            versionNameSuffix = "-pruebas"
+            // core:data no tiene tipo "pruebas": usa su variante debug.
+            matchingFallbacks += "debug"
         }
         release {
             // R8: elimina código no usado y ofusca. Las librerías traen sus propias reglas.
@@ -63,6 +76,15 @@ dependencies {
 
     // Vista previa de Compose en Android Studio; solo en debug, no llega al APK de release.
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // Pruebas de la interfaz en el teléfono (accesibilidad). ui-test-manifest declara la
+    // Activity vacía donde corre la prueba; solo va en el APK de pruebas, nunca en debug ni release.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    "pruebasImplementation"(libs.androidx.compose.ui.test.manifest)
 
     // Pruebas en la JVM (sin teléfono) de la lógica de la interfaz.
     testImplementation(libs.junit)

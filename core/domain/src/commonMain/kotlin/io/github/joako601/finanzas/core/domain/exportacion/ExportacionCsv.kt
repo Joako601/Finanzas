@@ -24,7 +24,7 @@ import io.github.joako601.finanzas.core.domain.libro.resumir
  */
 public object ExportacionCsv {
 
-    private val ENCABEZADO = listOf("Fecha", "Tipo", "Descripción", "Cuenta", "Categoría o tarjeta", "Monto")
+    private val ENCABEZADO = listOf("Fecha", "Tipo", "Descripción", "Cuenta", "Categoría o destino", "Monto")
 
     public fun generar(movimientos: List<Movimiento>, cuentas: Map<CuentaId, Cuenta>): String = buildString {
         append('\uFEFF')

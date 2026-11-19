@@ -25,6 +25,12 @@ public interface RepositorioLibro {
 
     public suspend fun eliminar(id: MovimientoId)
 
+    /**
+     * Reemplaza fecha, nota y asientos de un movimiento guardado ([Movimiento.id] no nulo).
+     * Conserva su id y el momento en que se registró, de forma atómica.
+     */
+    public suspend fun actualizar(movimiento: Movimiento)
+
     public suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta
 
     /** La cuenta de capital contra la que se registran los saldos iniciales. */
