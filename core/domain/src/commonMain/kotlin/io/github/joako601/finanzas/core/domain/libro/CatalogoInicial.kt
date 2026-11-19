@@ -30,6 +30,8 @@ public object CatalogoInicial {
         "Mascotas",
         "Regalos",
         "Otros gastos",
+        // Agregada en la versión 4 de la base; la migración la inserta en bases existentes.
+        "Impuestos y predial",
     )
 
     public val categoriasDeIngreso: List<String> = listOf(

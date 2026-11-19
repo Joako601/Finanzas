@@ -42,7 +42,7 @@ class Avisos(private val context: Context) {
 
     fun mostrar(recordatorio: Recordatorio) {
         crearCanal()
-        val nombre = recordatorio.tarjeta.cuenta.nombre
+        val nombre = recordatorio.nombre
         val referencia = recordatorio.fechaReferencia
         val (titulo, texto) = when (recordatorio.tipo) {
             TipoRecordatorio.ANTES_DEL_CORTE -> Pair(
@@ -65,6 +65,10 @@ class Avisos(private val context: Context) {
                     context.resources.getQuantityString(R.plurals.aviso_pago_texto, dias, dias),
                 )
             }
+            TipoRecordatorio.PAGO_RECURRENTE -> Pair(
+                context.getString(R.string.aviso_recurrente_titulo, nombre),
+                context.getString(R.string.aviso_recurrente_texto, recordatorio.monto?.formatear().orEmpty()),
+            )
         }
 
         val abrirApp = PendingIntent.getActivity(
