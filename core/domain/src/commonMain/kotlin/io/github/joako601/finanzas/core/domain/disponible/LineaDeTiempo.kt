@@ -7,6 +7,7 @@ import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.totalEnCuentas
 import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
+import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.siguienteDespues
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
@@ -21,7 +22,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 
-/** Qué pasa en una fecha futura. El orden es el del mismo día: primero lo que sale, al final lo que entra. */
+/** Qué pasa en una fecha. El orden es el del mismo día: primero lo que sale, al final lo que entra. */
 public enum class TipoEvento { PAGO_TARJETA, PAGO_FIJO, CORTE, INGRESO_ESPERADO }
 
 /**
@@ -29,9 +30,10 @@ public enum class TipoEvento { PAGO_TARJETA, PAGO_FIJO, CORTE, INGRESO_ESPERADO 
  *
  * [monto] siempre es positivo; si entra o sale lo dice [tipo] (un corte no mueve dinero y
  * va en cero). [exacto] es falso cuando es un estimado: el monto aproximado de un pago
- * fijo o la deuda de una tarjeta cuyo estado de cuenta no se ha capturado.
- * [vencido]: un pago fijo cuya fecha ya pasó y no se ha registrado.
+ * fijo o la deuda de una tarjeta sin estado de cuenta capturado.
+ * [vencido]: su fecha ya pasó y sigue sin pagarse.
  * [saldoDespues]: lo que quedaría en efectivo y débito después de este evento.
+ * [recurrente] y [tarjeta] dicen de dónde sale, para poder registrarlo o pagarlo.
  */
 public data class EventoFuturo(
     val fecha: LocalDate,
@@ -41,6 +43,8 @@ public data class EventoFuturo(
     val exacto: Boolean,
     val vencido: Boolean = false,
     val categoria: CuentaId? = null,
+    val recurrente: RecurrenteId? = null,
+    val tarjeta: CuentaId? = null,
     val saldoDespues: Dinero = Dinero.CERO,
 ) {
     val esSalida: Boolean get() = tipo == TipoEvento.PAGO_TARJETA || tipo == TipoEvento.PAGO_FIJO
@@ -52,33 +56,40 @@ public data class Faltante(val fecha: LocalDate, val falta: Dinero)
 /**
  * Los próximos [DIAS] días de dinero y el "disponible real".
  *
- * Disponible real = dinero en efectivo y débito menos lo que hay que pagar hasta
- * [horizonte]: el próximo ingreso esperado o, si no hay, el día 30. Los ingresos no se
- * suman al disponible: marcan hasta cuándo tiene que alcanzar.
+ * **Disponible real** = lo que se puede gastar hoy sin quedar en negativo ningún día hasta
+ * [fin], contando los pagos y los ingresos que se esperan. Es el saldo proyectado más bajo,
+ * y nunca más que lo que hay hoy en efectivo y débito (un ingreso futuro no se gasta hoy).
  *
  * SUPUESTOS (D-017):
- * - S9. Sin estado de cuenta capturado, el pago de la tarjeta se estima con la deuda
- *   actual que no cubre ya el estado vigente. Es prudente: exagera si hay compras a MSI
- *   o compras después del corte.
+ * - S9. Sin estado de cuenta capturado, el pago de la tarjeta se estima con la deuda que
+ *   no cubren ya los estados vencidos o vigente. Exagera si hay compras a MSI; puede quedarse
+ *   corto por las compras que todavía no se hacen.
  * - S10. Los pagos fijos cuentan por su monto aproximado; los vencidos siguen pendientes.
- * - S11. Un ingreso esperado cuya fecha ya pasó no se cuenta: no se sabe si llegó.
+ * - S11. Un ingreso cuya fecha ya pasó sin registrarse no se cuenta: no se sabe si llegó.
+ * - S12. Los ingresos esperados llegan en su fecha. Si se retrasan, el disponible sale
+ *   más alto de lo que conviene hasta registrarlos u omitirlos.
  */
 public data class LineaDeTiempo(
     val hoy: LocalDate,
     val enCuentas: Dinero,
-    val horizonte: LocalDate,
-    /** El ingreso que cierra el horizonte; null si el horizonte son los 30 días. */
-    val ingresoQueCierra: EventoFuturo?,
-    /** Ordenados por fecha; los pagos vencidos van primero. */
+    val fin: LocalDate,
+    /** Ordenados por fecha; los vencidos van primero. */
     val eventos: List<EventoFuturo>,
 ) {
-    /** Lo que sale antes del horizonte (incluido el mismo día del ingreso). */
-    val comprometido: List<EventoFuturo> get() = eventos.filter { it.esSalida && it.fecha <= horizonte }
+    val disponible: Dinero = (eventos.map { it.saldoDespues } + enCuentas).min()
 
-    val disponible: Dinero get() = enCuentas - comprometido.map { it.monto }.sumar()
+    /** Lo que el disponible aparta de lo que hay hoy en cuentas. */
+    val comprometido: Dinero get() = enCuentas - disponible
+
+    /** El evento tras el que el saldo queda más bajo, si baja de lo que hay hoy. */
+    val puntoMasBajo: EventoFuturo? = eventos.filter { it.saldoDespues < enCuentas }.minByOrNull { it.saldoDespues }
 
     val primerFaltante: Faltante?
-        get() = eventos.firstOrNull { it.saldoDespues.esNegativo }?.let { Faltante(it.fecha, -it.saldoDespues) }
+        get() = if (enCuentas.esNegativo) {
+            Faltante(hoy, -enCuentas)
+        } else {
+            eventos.firstOrNull { it.saldoDespues.esNegativo }?.let { Faltante(maxOf(it.fecha, hoy), -it.saldoDespues) }
+        }
 
     public companion object {
         public const val DIAS: Int = 30
@@ -108,18 +119,17 @@ public data class LineaDeTiempo(
                 }
                 evento.copy(saldoDespues = saldo)
             }
-
-            val ingreso = eventos.firstOrNull { it.tipo == TipoEvento.INGRESO_ESPERADO && it.fecha > hoy }
-            return LineaDeTiempo(hoy, enCuentas, ingreso?.fecha ?: fin, ingreso, eventos)
+            return LineaDeTiempo(hoy, enCuentas, fin, eventos)
         }
 
         /**
-         * Pagos y cortes de una tarjeta hasta [fin]:
-         * - el estado vigente con lo que falta pagar (exacto);
-         * - el primer ciclo sin capturar cuya fecha límite cae antes de [fin], con la deuda
-         *   que el vigente no cubre (estimado, S9). Los siguientes no se estiman: sus
-         *   compras todavía no existen;
-         * - los cortes, como referencia (no mueven dinero).
+         * Pagos y cortes de una tarjeta hasta [fin]. Lo que se pide nunca suma más que la
+         * deuda: cada pago toma de lo que queda por cubrir, en este orden:
+         * 1. el último estado vencido sin pagar, si no hay un estado vigente (que ya lo incluiría);
+         * 2. lo que falta del estado vigente (exacto);
+         * 3. el primer ciclo sin capturar cuya fecha límite cae en el plazo, con lo que reste
+         *    de la deuda (estimado, S9). Los siguientes no se estiman: sus compras no existen.
+         * Los cortes van como referencia (no mueven dinero).
          */
         private fun deTarjeta(
             tarjeta: Tarjeta,
@@ -131,11 +141,26 @@ public data class LineaDeTiempo(
         ): List<EventoFuturo> = buildList {
             val nombre = tarjeta.cuenta.nombre
             val propios = estados.filter { it.tarjeta == tarjeta.id }
+            val deuda = deudaDe(tarjeta, saldos)
+            var porCubrir = if (deuda.esPositivo) deuda else Dinero.CERO
 
-            val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy)
-            val cubierto = if (situacion is SituacionTarjeta.PagoPendiente) situacion.restante else Dinero.CERO
-            if (situacion is SituacionTarjeta.PagoPendiente && situacion.estado.fechaLimite <= fin) {
-                add(EventoFuturo(situacion.estado.fechaLimite, TipoEvento.PAGO_TARJETA, nombre, situacion.restante, exacto = true))
+            fun pago(fecha: LocalDate, pedido: Dinero, exacto: Boolean, vencido: Boolean = false) {
+                val monto = minOf(pedido, porCubrir)
+                porCubrir -= monto
+                if (monto.esPositivo && fecha <= fin) {
+                    add(EventoFuturo(fecha, TipoEvento.PAGO_TARJETA, nombre, monto, exacto, vencido, tarjeta = tarjeta.id))
+                }
+            }
+
+            when (val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy)) {
+                is SituacionTarjeta.PagoPendiente -> pago(situacion.estado.fechaLimite, situacion.restante, exacto = true)
+                is SituacionTarjeta.Pagado -> Unit
+                else -> propios.filter { it.fechaLimite < hoy }.maxByOrNull { it.fechaCorte }?.let { vencido ->
+                    // S4: un pago del mismo día del corte ya quedó reflejado en ese estado.
+                    val pagado = pagos.filter { it.tarjeta == tarjeta.id && it.fecha > vencido.fechaCorte }.map { it.monto }.sumar()
+                    val falta = vencido.pagoSinIntereses - pagado
+                    if (falta.esPositivo) pago(vencido.fechaLimite, falta, exacto = true, vencido = true)
+                }
             }
 
             // El estado de cuenta se genera al cierre del corte: se empieza por el último corte antes de hoy.
@@ -144,8 +169,7 @@ public data class LineaDeTiempo(
                 val limite = CalendarioTarjeta.limiteParaCorte(tarjeta, corte)
                 if (limite > fin) break
                 if (limite >= hoy && !corteCapturado(propios, corte)) {
-                    val estimado = deudaDe(tarjeta, saldos) - cubierto
-                    if (estimado.esPositivo) add(EventoFuturo(limite, TipoEvento.PAGO_TARJETA, nombre, estimado, exacto = false))
+                    pago(limite, porCubrir, exacto = false)
                     break
                 }
                 corte = CalendarioTarjeta.siguienteCorteDesde(tarjeta, corte.plus(1, DateTimeUnit.DAY))
@@ -153,7 +177,7 @@ public data class LineaDeTiempo(
 
             var proximoCorte = CalendarioTarjeta.siguienteCorteDesde(tarjeta, hoy)
             while (proximoCorte <= fin) {
-                add(EventoFuturo(proximoCorte, TipoEvento.CORTE, nombre, Dinero.CERO, exacto = true))
+                add(EventoFuturo(proximoCorte, TipoEvento.CORTE, nombre, Dinero.CERO, exacto = true, tarjeta = tarjeta.id))
                 proximoCorte = CalendarioTarjeta.siguienteCorteDesde(tarjeta, proximoCorte.plus(1, DateTimeUnit.DAY))
             }
         }
@@ -168,8 +192,8 @@ public data class LineaDeTiempo(
                 if (!(esIngreso && vencido)) {
                     add(
                         EventoFuturo(
-                            fecha, tipo, recurrente.nombre, recurrente.montoEstimado,
-                            exacto = false, vencido = vencido, categoria = recurrente.categoria,
+                            fecha, tipo, recurrente.nombre, recurrente.montoEstimado, exacto = false,
+                            vencido = vencido, categoria = recurrente.categoria, recurrente = recurrente.id,
                         ),
                     )
                 }
