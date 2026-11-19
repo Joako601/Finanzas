@@ -1,0 +1,293 @@
+package io.github.joako601.finanzas.ui.respaldo
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.data.respaldo.ErrorRespaldo
+import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
+import io.github.joako601.finanzas.ui.componentes.BotonSecundario
+import io.github.joako601.finanzas.ui.componentes.Campo
+import io.github.joako601.finanzas.ui.componentes.TECLADO_CONTRASENA
+import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
+import io.github.joako601.finanzas.ui.formatoDiaCorto
+import io.github.joako601.finanzas.ui.hoy
+
+/**
+ * Hoja "Respaldo y exportar". Los archivos se eligen con el selector de Android, que
+ * deja guardar en Descargas, Drive o donde el usuario quiera sin que la app pida permisos.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
+    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val nuevo by viewModel.nuevo.collectAsStateWithLifecycle()
+    val porRestaurar by viewModel.porRestaurar.collectAsStateWithLifecycle()
+    val fechaDeHoy = remember { hoy() }
+
+    val destinoRespaldo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) {
+        viewModel.guardarRespaldo(it?.toString())
+    }
+    val destinoCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) {
+        viewModel.exportarCsv(it?.toString())
+    }
+    val origenRespaldo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
+        viewModel.elegirParaRestaurar(it?.toString())
+    }
+    val libre = estado.tarea == null
+
+    ModalBottomSheet(
+        onDismissRequest = onCerrar,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                stringResource(R.string.respaldo_y_exportar),
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.semantics { heading() },
+            )
+            Progreso(estado)
+
+            TarjetaFinanzas(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(R.string.respaldo_cifrado),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    val ultimo = estado.ultimo
+                    if (ultimo != null) {
+                        Text(
+                            stringResource(R.string.ultimo_respaldo, ultimo.formatoDiaCorto(fechaDeHoy)),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.sin_respaldo),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.explicacion_respaldo),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    BotonPrincipal(stringResource(R.string.crear_respaldo), viewModel::abrirNuevoRespaldo, habilitado = libre)
+                    BotonSecundario(
+                        stringResource(R.string.restaurar_respaldo),
+                        // Todos los tipos: el proveedor no sabe qué es ".respaldo"; la app lo revisa al leerlo.
+                        { origenRespaldo.launch(arrayOf("*/*")) },
+                        habilitado = libre,
+                    )
+                }
+            }
+
+            TarjetaFinanzas(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        stringResource(R.string.exportar_csv),
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    Text(
+                        stringResource(R.string.explicacion_csv),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    BotonSecundario(
+                        stringResource(R.string.exportar_movimientos),
+                        { destinoCsv.launch("finanzas-movimientos-$fechaDeHoy.csv") },
+                        habilitado = libre,
+                    )
+                }
+            }
+        }
+    }
+
+    nuevo?.let { actual ->
+        DialogoNuevoRespaldo(
+            nuevo = actual,
+            onEditar = viewModel::editarNuevo,
+            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-$fechaDeHoy.respaldo") },
+            onCerrar = viewModel::cerrarNuevo,
+        )
+    }
+
+    porRestaurar?.let { actual ->
+        DialogoRestaurar(
+            porRestaurar = actual,
+            onEditar = viewModel::editarRestaurar,
+            onConfirmar = viewModel::confirmarRestaurar,
+            onCerrar = viewModel::cerrarRestaurar,
+        )
+    }
+}
+
+/** Lo que está pasando o el resultado de lo último que se hizo. TalkBack lo anuncia al cambiar. */
+@Composable
+private fun Progreso(estado: EstadoRespaldo) {
+    val tarea = estado.tarea
+    val aviso = estado.aviso
+    Column(
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        when {
+            tarea != null -> {
+                Text(
+                    stringResource(
+                        when (tarea) {
+                            Tarea.CREANDO -> R.string.creando_respaldo
+                            Tarea.EXPORTANDO -> R.string.exportando_movimientos
+                        },
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                LinearProgressIndicator(Modifier.fillMaxWidth())
+            }
+            aviso != null -> {
+                val esError = aviso in setOf(Aviso.NO_SE_PUDO_ESCRIBIR, Aviso.NO_SE_PUDO_LEER, Aviso.NO_ES_RESPALDO)
+                Text(
+                    stringResource(
+                        when (aviso) {
+                            Aviso.RESPALDO_GUARDADO -> R.string.aviso_respaldo_guardado
+                            Aviso.DATOS_RESTAURADOS -> R.string.aviso_datos_restaurados
+                            Aviso.CSV_GUARDADO -> R.string.aviso_csv_guardado
+                            Aviso.NO_SE_PUDO_ESCRIBIR -> R.string.aviso_no_se_pudo_escribir
+                            Aviso.NO_SE_PUDO_LEER -> R.string.aviso_no_se_pudo_leer
+                            Aviso.NO_ES_RESPALDO -> R.string.aviso_no_es_respaldo
+                        },
+                    ),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (esError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DialogoNuevoRespaldo(
+    nuevo: NuevoRespaldo,
+    onEditar: (NuevoRespaldo.() -> NuevoRespaldo) -> Unit,
+    onContinuar: () -> Unit,
+    onCerrar: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text(stringResource(R.string.contrasena_respaldo_titulo)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.contrasena_respaldo_texto), style = MaterialTheme.typography.bodyMedium)
+                Campo(
+                    valor = nuevo.contrasena,
+                    onCambio = { v -> onEditar { copy(contrasena = v) } },
+                    etiqueta = stringResource(R.string.contrasena),
+                    error = if (nuevo.error == ErrorContrasena.CORTA) stringResource(R.string.error_contrasena_corta) else null,
+                    teclado = TECLADO_CONTRASENA,
+                    oculto = true,
+                )
+                Campo(
+                    valor = nuevo.confirmacion,
+                    onCambio = { v -> onEditar { copy(confirmacion = v) } },
+                    etiqueta = stringResource(R.string.repite_contrasena),
+                    error = if (nuevo.error == ErrorContrasena.NO_COINCIDE) stringResource(R.string.error_contrasena_no_coincide) else null,
+                    teclado = TECLADO_CONTRASENA.copy(imeAction = ImeAction.Done),
+                    oculto = true,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onContinuar) { Text(stringResource(R.string.elegir_donde_guardar)) } },
+        dismissButton = { TextButton(onClick = onCerrar) { Text(stringResource(R.string.cancelar)) } },
+    )
+}
+
+@Composable
+private fun DialogoRestaurar(
+    porRestaurar: PorRestaurar,
+    onEditar: (String) -> Unit,
+    onConfirmar: () -> Unit,
+    onCerrar: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text(stringResource(R.string.restaurar_titulo)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.restaurar_texto), style = MaterialTheme.typography.bodyMedium)
+                Campo(
+                    valor = porRestaurar.contrasena,
+                    onCambio = onEditar,
+                    etiqueta = stringResource(R.string.contrasena_respaldo_titulo),
+                    error = porRestaurar.error?.let { motivo ->
+                        stringResource(
+                            when (motivo) {
+                                ErrorRespaldo.Motivo.CONTRASENA_O_DANADO -> R.string.error_restaurar_contrasena
+                                ErrorRespaldo.Motivo.NO_ES_RESPALDO -> R.string.aviso_no_es_respaldo
+                                ErrorRespaldo.Motivo.VERSION_NUEVA -> R.string.error_restaurar_version
+                                ErrorRespaldo.Motivo.BASE_INVALIDA -> R.string.error_restaurar_base
+                            },
+                        )
+                    },
+                    teclado = TECLADO_CONTRASENA.copy(imeAction = ImeAction.Done),
+                    oculto = true,
+                )
+                if (porRestaurar.trabajando) {
+                    Text(
+                        stringResource(R.string.restaurando),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                    LinearProgressIndicator(Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirmar,
+                enabled = !porRestaurar.trabajando && porRestaurar.contrasena.isNotEmpty(),
+                // Rojo porque borra lo actual; deshabilitado se ve gris como cualquier botón.
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            ) {
+                Text(stringResource(R.string.reemplazar_mis_datos))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCerrar, enabled = !porRestaurar.trabajando) { Text(stringResource(R.string.cancelar)) }
+        },
+    )
+}

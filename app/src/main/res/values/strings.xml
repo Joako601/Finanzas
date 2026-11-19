@@ -169,4 +169,39 @@
     <string name="activar_avisos_titulo">Activa los avisos</string>
     <string name="activar_avisos_texto">Te avisamos antes de tu fecha límite con el monto exacto para no pagar intereses.</string>
     <string name="activar_avisos_boton">Activar avisos</string>
+
+    <!-- Respaldo y exportación (D-018) -->
+    <string name="mas_opciones">Más opciones</string>
+    <string name="respaldo_y_exportar">Respaldo y exportar</string>
+    <string name="respaldo_cifrado">Respaldo cifrado</string>
+    <string name="ultimo_respaldo">Último respaldo: %1$s</string>
+    <string name="sin_respaldo">Todavía no tienes un respaldo. Si pierdes o cambias de teléfono, pierdes tus datos.</string>
+    <string name="explicacion_respaldo">Un archivo con todos tus datos, protegido con tu contraseña. Guárdalo fuera del teléfono: en Drive, en tu correo o en tu computadora.</string>
+    <string name="crear_respaldo">Crear respaldo</string>
+    <string name="restaurar_respaldo">Restaurar un respaldo</string>
+    <string name="exportar_csv">Exportar a CSV</string>
+    <string name="explicacion_csv">Tus movimientos para abrir en Excel o Google Sheets. Este archivo no va cifrado: quien lo tenga puede leerlo. Para recuperar tus datos usa el respaldo.</string>
+    <string name="exportar_movimientos">Exportar movimientos</string>
+    <string name="creando_respaldo">Creando respaldo…</string>
+    <string name="exportando_movimientos">Exportando movimientos…</string>
+    <string name="aviso_respaldo_guardado">Respaldo guardado.</string>
+    <string name="aviso_datos_restaurados">Listo, tus datos se restauraron.</string>
+    <string name="aviso_csv_guardado">Movimientos exportados.</string>
+    <string name="aviso_no_se_pudo_escribir">No se pudo guardar el archivo. Intenta en otra carpeta.</string>
+    <string name="aviso_no_se_pudo_leer">No se pudo abrir el archivo.</string>
+    <string name="aviso_no_es_respaldo">Ese archivo no es un respaldo de Finanzas. Busca uno que termine en .respaldo.</string>
+    <string name="contrasena_respaldo_titulo">Contraseña del respaldo</string>
+    <string name="contrasena_respaldo_texto">La necesitarás para restaurar. Si la olvidas, el respaldo no se puede abrir: nadie puede recuperarla.</string>
+    <string name="contrasena">Contraseña</string>
+    <string name="repite_contrasena">Repite la contraseña</string>
+    <string name="error_contrasena_corta">Usa al menos 8 caracteres</string>
+    <string name="error_contrasena_no_coincide">Las contraseñas no coinciden</string>
+    <string name="elegir_donde_guardar">Elegir dónde guardar</string>
+    <string name="restaurar_titulo">¿Reemplazar tus datos?</string>
+    <string name="restaurar_texto">Todo lo que hay en la app se cambia por lo del respaldo. Lo que registraste después de crearlo se pierde.</string>
+    <string name="reemplazar_mis_datos">Reemplazar mis datos</string>
+    <string name="restaurando">Restaurando…</string>
+    <string name="error_restaurar_contrasena">La contraseña no es correcta o el archivo está dañado. Tus datos no cambiaron.</string>
+    <string name="error_restaurar_version">Este respaldo es de una versión más nueva de Finanzas. Actualiza la app y vuelve a intentarlo.</string>
+    <string name="error_restaurar_base">El respaldo está incompleto o dañado. Tus datos no cambiaron.</string>
 </resources>

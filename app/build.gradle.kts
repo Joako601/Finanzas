@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.joako601.finanzas"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 6
-        versionName = "0.1.0-dev.6"
+        versionCode = 7
+        versionName = "0.1.0-dev.7"
     }
 
     buildTypes {

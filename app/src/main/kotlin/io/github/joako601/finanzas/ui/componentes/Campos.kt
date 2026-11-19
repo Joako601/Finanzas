@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import io.github.joako601.finanzas.R
 
 /**
@@ -15,6 +17,9 @@ import io.github.joako601.finanzas.R
  * otros. La validación real es `Dinero.parsear`.
  */
 fun limpiarMonto(texto: String): String = texto.filter { it.isDigit() || it == '.' || it == ',' }.take(20)
+
+/** Sin autocorrección ni sugerencias: el teclado no debe aprender la contraseña. */
+val TECLADO_CONTRASENA = KeyboardOptions(keyboardType = KeyboardType.Password, autoCorrectEnabled = false, imeAction = ImeAction.Next)
 
 val TECLADO_MONTO = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next)
 
@@ -27,6 +32,8 @@ fun Campo(
     error: String?,
     teclado: KeyboardOptions,
     prefijo: String? = null,
+    /** Contraseña: muestra puntos en lugar de las letras. */
+    oculto: Boolean = false,
 ) {
     OutlinedTextField(
         value = valor,
@@ -37,6 +44,7 @@ fun Campo(
         isError = error != null,
         supportingText = error?.let { { Text(it) } },
         keyboardOptions = teclado,
+        visualTransformation = if (oculto) PasswordVisualTransformation() else VisualTransformation.None,
     )
 }
 

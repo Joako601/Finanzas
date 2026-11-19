@@ -445,6 +445,87 @@ no supera lo de hoy ni ningún saldo proyectado, y que es negativo justo cuando 
 faltante. Quitar el tope por deuda la hace fallar. La revisión visual en el S24 FE sigue
 pendiente.
 
+
+## D-018 Respaldo cifrado con contraseña propia y exportación a CSV
+
+**Fecha:** 2026-11-19
+
+**Contexto:** D-006 deja la base fuera del respaldo de Google y de la transferencia entre
+teléfonos, así que perder o cambiar el teléfono era perder los datos. Este paso cierra
+ese hueco antes de que alguien más use la app. El autor aprobó las cinco
+recomendaciones.
+
+**Decisión:**
+- **Respaldo cifrado** de toda la base: cuentas, movimientos, tarjetas, estados de
+  cuenta, pagos fijos y avisos entregados.
+  - La llave sale de una **contraseña del usuario**: PBKDF2-HMAC-SHA256 con 600 000
+    vueltas (la cifra de OWASP) y sal aleatoria. El cifrado es AES-256-GCM. No se usa una
+    llave del Keystore porque muere con el teléfono, que es justo el caso a cubrir.
+  - Contraseña de 8 caracteres o más, escrita dos veces. Si se olvida, ese respaldo no se
+    puede abrir: no hay servidor ni recuperación.
+  - Formato propio: `"FINANZAS"`, la versión del formato, las vueltas, la sal, el IV y el
+    contenido cifrado. El encabezado va autenticado, así que cualquier byte cambiado se
+    detecta. Las vueltas se aceptan solo entre 100 000 y 10 millones, para que un archivo
+    manipulado no congele la app.
+  - Adentro va una base SQLite completa con el esquema actual. Se arma copiando las filas
+    dentro de una transacción, porque el archivo de Room solo, en modo WAL, no trae los
+    cambios recientes. `VACUUM INTO` lo resolvería, pero llega hasta Android 11 y el mínimo
+    de la app es Android 8.
+- **Restaurar:**
+  - Revisa la integridad (`PRAGMA integrity_check`) y la versión del esquema.
+  - Rechaza un respaldo de una versión más nueva de la app.
+  - Migra con las migraciones de Room un respaldo de una versión anterior.
+  - Reemplaza **todo** en una sola transacción: o queda el respaldo completo o no cambia
+    nada. Las pantallas abiertas se actualizan solas.
+  - Pide confirmar con un botón rojo, "Reemplazar mis datos".
+- **Exportar a CSV:**
+  - Es para leer en Excel o Google Sheets, no para recuperar datos.
+  - Una fila por movimiento: fecha, tipo, descripción, cuenta, categoría o tarjeta y monto.
+  - UTF-8 con BOM, coma como separador y punto decimal.
+  - Los textos que empiezan con `= + - @` llevan un apóstrofo delante para que Excel no los
+    ejecute como fórmula (inyección de CSV de OWASP). Eso importará cuando las
+    descripciones lleguen de notificaciones del banco.
+  - La app avisa que el archivo va sin cifrar.
+- Los archivos se eligen con el **selector de Android** (Storage Access Framework): el
+  usuario guarda en Descargas, Drive o donde quiera. **Sin permisos nuevos**: ni
+  almacenamiento ni internet.
+- Sin respaldos automáticos: sin internet no hay a dónde mandarlos solos. La app muestra la
+  fecha del último respaldo y, si no hay ninguno, avisa que se pierden los datos con el
+  teléfono.
+- Acceso desde un menú de tres puntos en la barra superior; no toca el camino corto de
+  registro.
+- Sin dependencias nuevas: todo el cifrado viene en Android.
+
+**Descartado:**
+- Argon2id: resiste mejor la fuerza bruta con tarjetas gráficas, pero necesita una
+  librería nativa.
+- Respaldos automáticos a una carpeta: seguirían en el mismo teléfono.
+- Un respaldo automático de lo actual antes de restaurar: más complejidad. Hoy lo cubre el
+  aviso de confirmación.
+- Mostrar u ocultar la contraseña mientras se escribe: lo cubre escribirla dos veces.
+
+**Límites conocidos:**
+- Todo en memoria: un respaldo de decenas de MB necesitaría flujos. Hoy pesa kilobytes.
+- Mientras se restaura, el archivo descifrado vive unos segundos en la carpeta privada de la
+  app y se borra al terminar, igual de protegido que la base, que tampoco está cifrada
+  (SQLCipher se decide con el modelo de amenazas).
+- La contraseña pasa por un `String` de Compose y no se puede borrar de memoria a mano.
+
+**Cómo se verifica:**
+- `ExportacionCsvTest`: 6 pruebas, entre ellas acentos, comillas, saltos de línea y fórmulas.
+- `CifradoRespaldoTest`: 9 pruebas en la JVM. Cubre la ida y vuelta con las vueltas reales,
+  la contraseña equivocada, un byte cambiado en el encabezado, en el contenido y en la
+  etiqueta, un archivo cortado, un archivo que no es respaldo, las vueltas fuera de rango y
+  una versión nueva del formato.
+- `RespaldoTest`: 7 pruebas en el S24 FE.
+  - El **simulacro**: respaldar, cambiar datos, restaurar y comparar fila por fila.
+  - Las pantallas abiertas se actualizan.
+  - Con contraseña equivocada o una base inválida no cambia nada.
+  - Un respaldo de la versión 3 se migra.
+  - Un respaldo de una versión más nueva se rechaza.
+  - No quedan temporales sin cifrar.
+- `RespaldoViewModelTest`: 8 pruebas.
+
 ---
 
 ## Dependencias y su razón
