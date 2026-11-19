@@ -429,6 +429,16 @@ han ejecutado en dispositivo (la computadora actual no soporta el emulador).
 **Descartado por ahora:** proyectar más de 30 días; elegir el plazo a mano; avisos por
 notificación cuando el saldo proyectado quede en negativo.
 
+**Límites conocidos, decididos a propósito** (revisión de dos subagentes):
+- Un pago fijo semanal olvidado acumula una salida vencida por semana. Es coherente con
+  S10, porque cada una sigue pendiente. Si molesta, se agrupan en una fila.
+- Un pago fijo cobrado con tarjeta (Netflix) cuenta como salida de débito en su fecha,
+  no en la fecha límite de la tarjeta: `Recurrente` no sabe con qué se paga. Se corrige
+  si se agrega esa columna.
+- Si un ciclo sin capturar ya pasó su fecha límite, su estimado aparece en el siguiente
+  límite y no como vencido. El total sí suma la deuda.
+- Tocar una fecha futura de un pago fijo no hace nada: solo la pendiente se registra.
+
 **Cómo se verifica:** `LineaDeTiempoTest` (21 pruebas, con los casos de la revisión). La
 de propiedades comprueba que una tarjeta nunca pide más que su deuda, que el disponible
 no supera lo de hoy ni ningún saldo proyectado, y que es negativo justo cuando hay
