@@ -9,10 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -22,16 +19,10 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -44,7 +35,7 @@ import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.ErrorRegistro
-import io.github.joako601.finanzas.ui.formatoCorto
+import io.github.joako601.finanzas.ui.componentes.SelectorFecha
 import kotlinx.datetime.LocalDate
 
 /** Todas las acciones del formulario agrupadas, para no pasar ocho lambdas sueltas. */
@@ -58,8 +49,6 @@ class AccionesCaptura(
     val guardar: () -> Unit,
     val cerrar: () -> Unit,
 )
-
-private const val MILIS_POR_DIA = 86_400_000L
 
 /**
  * Hoja inferior para capturar un gasto o un ingreso.
@@ -78,7 +67,6 @@ fun HojaCaptura(
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val foco = remember { FocusRequester() }
-    var mostrarCalendario by rememberSaveable { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = acciones.cerrar, sheetState = estadoHoja) {
         Column(
@@ -154,10 +142,7 @@ fun HojaCaptura(
             }
 
             Seccion(titulo = stringResource(R.string.fecha), error = null) {
-                AssistChip(
-                    onClick = { mostrarCalendario = true },
-                    label = { Text(captura.fecha.formatoCorto()) },
-                )
+                SelectorFecha(fecha = captura.fecha, onCambiar = acciones.cambiarFecha)
             }
 
             val errorNota = captura.errores.firstOrNull { it == ErrorRegistro.NOTA_DEMASIADO_LARGA }
@@ -187,29 +172,6 @@ fun HojaCaptura(
 
     // El monto es lo primero que se escribe: el cursor y el teclado aparecen ahí solos.
     LaunchedEffect(Unit) { foco.requestFocus() }
-
-    if (mostrarCalendario) {
-        // El selector de fechas de Material trabaja en milisegundos UTC a medianoche.
-        val estadoCalendario = rememberDatePickerState(
-            initialSelectedDateMillis = captura.fecha.toEpochDays() * MILIS_POR_DIA,
-        )
-        DatePickerDialog(
-            onDismissRequest = { mostrarCalendario = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    estadoCalendario.selectedDateMillis?.let { millis ->
-                        acciones.cambiarFecha(LocalDate.fromEpochDays(Math.floorDiv(millis, MILIS_POR_DIA)))
-                    }
-                    mostrarCalendario = false
-                }) { Text(stringResource(R.string.aceptar)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { mostrarCalendario = false }) { Text(stringResource(R.string.cancelar)) }
-            },
-        ) {
-            DatePicker(state = estadoCalendario)
-        }
-    }
 }
 
 @Composable

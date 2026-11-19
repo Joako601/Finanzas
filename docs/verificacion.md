@@ -49,8 +49,20 @@ Con el teléfono conectado y la depuración USB autorizada:
 ./gradlew :core:data:connectedDebugAndroidTest
 ```
 
-Esperado: 7 pruebas sin fallas. Reporte en
-`core/data/build/reports/androidTests/connected/`.
+Esperado: 13 pruebas sin fallas, incluida `MigracionTest` (base de la versión 1 con
+datos, migrada a la 2). Reporte en `core/data/build/reports/androidTests/connected/`.
+
+Sin teléfono, sirve el emulador. Si el AVD es de tipo Play Store y aparece como
+`unauthorized`, la llave pública de adb debe estar junto al AVD:
+`cp ~/.android/adbkey.pub ~/.config/.android/` y reiniciar el emulador.
+
+## 3b. Actualizar la app conserva los datos (D-012)
+
+1. Compilar la versión anterior en un worktree (`git worktree add <dir> <commit>`) e
+   instalarla.
+2. Capturar datos en ella (un gasto y una cuenta con saldo).
+3. Instalar la versión nueva encima con `adb install -r app-debug.apk`.
+4. Abrir: los movimientos y saldos deben ser los mismos, y la app no debe cerrarse.
 
 ## 4. Las dependencias no cambiaron
 
@@ -76,8 +88,17 @@ La medición formal (cinco personas, con tiempo medido) llega con la decisión 3
 | Fecha | Qué | Dónde | Resultado | Quién |
 |---|---|---|---|---|
 | 2026-11-18 | Recorrido manual de 8 pasos: captura de gasto con teclado automático, saldo, cuenta nueva, ingreso, fecha anterior, rotación, borrado, mensajes de error | Samsung Galaxy S24 FE, APK debug instalado desde archivo | Todo funciona | Autor |
+| 2026-11-18 | 13 pruebas instrumentadas de Room, incluida la migración 1→2 | Emulador API 37 (Medium Phone, Play Store) | 13/13 pasan | Claude |
+| 2026-11-18 | Actualización real de versionCode 1 a 2 con datos (gasto de $85.50 y cuenta con $5,000) | Emulador API 37 | Datos y saldos intactos; sección de tarjetas visible; sin cierres | Claude |
+| 2026-11-18 | Recorrido de tarjetas: alta con deuda $2,500 → captura de estado (corte 15 nov, límite 5 dic, $2,500) → pago de $1,000 desde débito → compra de $300 con tarjeta | Emulador API 37 | Deuda $1,800, falta pagar $1,500, faltan 17 días, total en cuentas sin cambio por la compra a crédito. Captura: `docs/evidencia/2026-11-18-tarjetas-emulador.png` | Claude |
 
-Limitaciones de esta evidencia: la hizo el autor, que conoce la app (no cuenta para
+Hallazgos abiertos del recorrido en emulador:
+- El botón flotante **Registrar** no expone su texto a accesibilidad (`NAF="true"` en
+  uiautomator). Verificar con TalkBack antes de corregir.
+- Con el teclado abierto, **Guardar** de la hoja de captura queda debajo del teclado y
+  hay que deslizar: suma un paso al camino de "dos o tres toques".
+
+Limitaciones de la prueba manual en el S24 FE: la hizo el autor, que conoce la app (no cuenta para
 el oráculo de usabilidad de cinco personas), y no hay capturas de pantalla guardadas.
 Las pruebas instrumentadas de Room (sección 3) siguen pendientes de ejecutarse en el
 teléfono.

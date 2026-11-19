@@ -46,4 +46,53 @@
     <string name="crear">Crear</string>
     <string name="error_nombre_vacio">Escribe un nombre</string>
     <string name="error_saldo_invalido">Saldo no válido</string>
+
+    <!-- Movimientos con tarjeta -->
+    <string name="pago_a_tarjeta">Pago a %1$s</string>
+    <string name="deuda_inicial">Deuda inicial</string>
+
+    <!-- Tarjetas -->
+    <string name="tarjetas_de_credito">Tarjetas de crédito</string>
+    <string name="agregar_tarjeta">Agregar tarjeta</string>
+    <string name="sin_tarjetas">Agrega tus tarjetas para saber cuánto pagar y antes de cuándo.</string>
+    <string name="deuda_y_disponible">Debes %1$s · Disponible %2$s</string>
+    <string name="situacion_pago_pendiente">Paga %1$s antes del %2$s para no generar intereses</string>
+    <string name="vence_hoy">Vence hoy</string>
+    <plurals name="dias_restantes">
+        <item quantity="one">Falta %d día</item>
+        <item quantity="other">Faltan %d días</item>
+    </plurals>
+    <string name="situacion_pagado">Pagado: este ciclo no genera intereses</string>
+    <string name="situacion_captura_pendiente">Tu corte fue el %1$s. Captura tu estado de cuenta.</string>
+    <string name="situacion_en_ciclo">Próximo corte: %1$s</string>
+    <string name="pagar">Pagar</string>
+    <string name="estado_de_cuenta">Estado de cuenta</string>
+
+    <!-- Alta de tarjeta -->
+    <string name="nueva_tarjeta">Nueva tarjeta</string>
+    <string name="nombre_tarjeta">Nombre (por ejemplo, Nu crédito)</string>
+    <string name="linea_de_credito">Línea de crédito</string>
+    <string name="dia_de_corte">Día de corte (1 a 31)</string>
+    <string name="dia_limite">Día límite de pago (1 a 31)</string>
+    <string name="deuda_actual">Deuda actual (opcional)</string>
+    <string name="ayuda_dias_tarjeta">Los días vienen en tu estado de cuenta. Sirven para predecir; la app usa las fechas exactas cuando capturas cada estado de cuenta.</string>
+    <string name="error_linea_invalida">Línea no válida</string>
+    <string name="error_dia_invalido">Escribe un día del 1 al 31</string>
+    <string name="error_deuda_invalida">Deuda no válida</string>
+
+    <!-- Pago de tarjeta -->
+    <string name="pagar_tarjeta">Pagar %1$s</string>
+    <string name="desde">Desde</string>
+    <string name="error_sin_cuenta_pago">Elige de qué cuenta pagas</string>
+    <string name="error_monto_pago">Escribe un monto mayor a cero</string>
+
+    <!-- Estado de cuenta -->
+    <string name="capturar_estado_titulo">Estado de cuenta de %1$s</string>
+    <string name="ayuda_estado_de_cuenta">Copia los datos tal como vienen impresos en tu estado de cuenta.</string>
+    <string name="fecha_de_corte">Corte</string>
+    <string name="fecha_limite">Límite</string>
+    <string name="pago_sin_intereses">Pago para no generar intereses</string>
+    <string name="pago_minimo">Pago mínimo</string>
+    <string name="error_pago_invalido">Monto no válido</string>
+    <string name="error_limite_antes_del_corte">La fecha límite debe ser posterior al corte</string>
 </resources>

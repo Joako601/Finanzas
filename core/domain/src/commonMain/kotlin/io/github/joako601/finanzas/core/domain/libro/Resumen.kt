@@ -4,12 +4,14 @@ import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.dinero.sumar
 
 /** Cómo se presenta un movimiento en la interfaz. */
-public enum class ClaseMovimiento { GASTO, INGRESO, SALDO_INICIAL, TRANSFERENCIA, OTRO }
+public enum class ClaseMovimiento { GASTO, INGRESO, SALDO_INICIAL, PAGO_TARJETA, TRANSFERENCIA, OTRO }
 
 /**
  * Vista de un movimiento en los términos del usuario: "gasté $100 de Efectivo en Súper".
  * [monto] siempre es positivo; el sentido lo da [clase].
- * [cuenta] y [categoria] son `null` cuando el movimiento involucra varias.
+ * [cuenta] es la cuenta de dinero de la que sale o a la que llega; [categoria] la
+ * categoría de gasto o ingreso; [contraparte] la tarjeta en un pago de tarjeta.
+ * Cualquiera es `null` cuando no aplica o cuando el movimiento involucra varias.
  */
 public data class MovimientoResumido(
     val movimiento: Movimiento,
@@ -17,6 +19,7 @@ public data class MovimientoResumido(
     val monto: Dinero,
     val cuenta: Cuenta?,
     val categoria: Cuenta?,
+    val contraparte: Cuenta? = null,
 )
 
 /**
@@ -25,49 +28,65 @@ public data class MovimientoResumido(
  */
 public fun Movimiento.resumir(cuentas: Map<CuentaId, Cuenta>): MovimientoResumido {
     val conCuenta = asientos.map { asiento -> asiento to cuentas[asiento.cuenta] }
-    val tipos = conCuenta.mapNotNull { it.second?.tipo }.toSet()
-
-    val deDinero = conCuenta.filter { it.second?.tipo?.esDeDinero == true }
-    val cuentaUnica = deDinero.mapNotNull { it.second }.distinct().singleOrNull()
-
-    fun categoriaUnica(tipo: TipoCuenta): Cuenta? =
-        conCuenta.mapNotNull { it.second }.filter { it.tipo == tipo }.distinct().singleOrNull()
-
-    fun sumaDe(tipo: TipoCuenta): Dinero =
-        conCuenta.filter { it.second?.tipo == tipo }.map { it.first.monto }.sumar()
 
     // Si alguna cuenta no se encontró, no adivinamos.
     if (conCuenta.any { it.second == null }) {
         return MovimientoResumido(this, ClaseMovimiento.OTRO, montoBruto(), null, null)
     }
 
-    return when (tipos) {
-        setOf(TipoCuenta.GASTO, TipoCuenta.ACTIVO),
-        setOf(TipoCuenta.GASTO, TipoCuenta.PASIVO),
-        setOf(TipoCuenta.GASTO, TipoCuenta.ACTIVO, TipoCuenta.PASIVO),
-        -> MovimientoResumido(
-            this, ClaseMovimiento.GASTO, sumaDe(TipoCuenta.GASTO), cuentaUnica, categoriaUnica(TipoCuenta.GASTO),
-        )
+    val tipos = conCuenta.mapNotNull { it.second?.tipo }.toSet()
 
-        setOf(TipoCuenta.INGRESO, TipoCuenta.ACTIVO),
-        setOf(TipoCuenta.INGRESO, TipoCuenta.PASIVO),
-        setOf(TipoCuenta.INGRESO, TipoCuenta.ACTIVO, TipoCuenta.PASIVO),
-        -> MovimientoResumido(
-            this, ClaseMovimiento.INGRESO, -sumaDe(TipoCuenta.INGRESO), cuentaUnica, categoriaUnica(TipoCuenta.INGRESO),
-        )
+    fun unicaDe(filtro: (TipoCuenta) -> Boolean): Cuenta? =
+        conCuenta.mapNotNull { it.second }.filter { filtro(it.tipo) }.distinct().singleOrNull()
 
-        setOf(TipoCuenta.CAPITAL, TipoCuenta.ACTIVO),
-        setOf(TipoCuenta.CAPITAL, TipoCuenta.PASIVO),
-        -> MovimientoResumido(
-            this, ClaseMovimiento.SALDO_INICIAL, -sumaDe(TipoCuenta.CAPITAL), cuentaUnica, null,
-        )
+    fun sumaDe(tipo: TipoCuenta): Dinero =
+        conCuenta.filter { it.second?.tipo == tipo }.map { it.first.monto }.sumar()
 
-        setOf(TipoCuenta.ACTIVO),
-        setOf(TipoCuenta.PASIVO),
-        setOf(TipoCuenta.ACTIVO, TipoCuenta.PASIVO),
-        -> MovimientoResumido(this, ClaseMovimiento.TRANSFERENCIA, montoBruto(), null, null)
+    val cuentaDeDinero = unicaDe { it.esDeDinero }
+    // Lo que no es cuenta de dinero: categorías de gasto o ingreso, o capital.
+    val otrosTipos = tipos - DE_DINERO
+    val tocaDinero = tipos.any { it in DE_DINERO }
+
+    return when {
+        tocaDinero && otrosTipos == setOf(TipoCuenta.GASTO) ->
+            MovimientoResumido(
+                this, ClaseMovimiento.GASTO, sumaDe(TipoCuenta.GASTO), cuentaDeDinero, unicaDe { it == TipoCuenta.GASTO },
+            )
+
+        tocaDinero && otrosTipos == setOf(TipoCuenta.INGRESO) ->
+            MovimientoResumido(
+                this, ClaseMovimiento.INGRESO, -sumaDe(TipoCuenta.INGRESO), cuentaDeDinero,
+                unicaDe { it == TipoCuenta.INGRESO },
+            )
+
+        cuentaDeDinero != null && otrosTipos == setOf(TipoCuenta.CAPITAL) ->
+            // En un activo el saldo inicial es positivo; en una tarjeta (deuda), negativo.
+            // Se muestra el valor absoluto y la interfaz decide la etiqueta por el tipo de cuenta.
+            MovimientoResumido(
+                this, ClaseMovimiento.SALDO_INICIAL, sumaDe(TipoCuenta.CAPITAL).absoluto(), cuentaDeDinero, null,
+            )
+
+        tipos == setOf(TipoCuenta.ACTIVO, TipoCuenta.PASIVO) && esPagoDeTarjeta(conCuenta) ->
+            MovimientoResumido(
+                this, ClaseMovimiento.PAGO_TARJETA, sumaDe(TipoCuenta.PASIVO),
+                unicaDe { it == TipoCuenta.ACTIVO }, null, unicaDe { it == TipoCuenta.PASIVO },
+            )
+
+        tipos.all { it in DE_DINERO } ->
+            MovimientoResumido(this, ClaseMovimiento.TRANSFERENCIA, montoBruto(), null, null)
 
         else -> MovimientoResumido(this, ClaseMovimiento.OTRO, montoBruto(), null, null)
+    }
+}
+
+private val DE_DINERO = setOf(TipoCuenta.ACTIVO, TipoCuenta.PASIVO)
+
+/** Pago de tarjeta: todo lo que toca al pasivo es cargo (baja la deuda) y todo lo del activo, abono. */
+private fun esPagoDeTarjeta(conCuenta: List<Pair<Asiento, Cuenta?>>): Boolean = conCuenta.all { (asiento, cuenta) ->
+    when (cuenta?.tipo) {
+        TipoCuenta.PASIVO -> asiento.monto.esPositivo
+        TipoCuenta.ACTIVO -> asiento.monto.esNegativo
+        else -> false
     }
 }
 
