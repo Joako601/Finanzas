@@ -14,6 +14,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -51,6 +52,19 @@ fun BotonPrincipal(texto: String, onClick: () -> Unit, modifier: Modifier = Modi
             containerColor = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         ),
+    ) {
+        Text(texto, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/** Botón de una acción secundaria: con borde (negro en claro, gris en oscuro), del mismo tamaño que [BotonPrincipal]. */
+@Composable
+fun BotonSecundario(texto: String, onClick: () -> Unit, modifier: Modifier = Modifier, habilitado: Boolean = true) {
+    OutlinedButton(
+        onClick = onClick,
+        enabled = habilitado,
+        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp),
+        shape = MaterialTheme.shapes.small,
     ) {
         Text(texto, style = MaterialTheme.typography.labelLarge)
     }

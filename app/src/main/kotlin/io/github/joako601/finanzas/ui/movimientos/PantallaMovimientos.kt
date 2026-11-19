@@ -14,9 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +65,8 @@ import io.github.joako601.finanzas.ui.recurrentes.EstadoRecurrentes
 import io.github.joako601.finanzas.ui.recurrentes.RecurrentesViewModel
 import io.github.joako601.finanzas.ui.recurrentes.ResumenRecurrente
 import io.github.joako601.finanzas.ui.recurrentes.SeccionRecurrentes
+import io.github.joako601.finanzas.ui.respaldo.HojaRespaldo
+import io.github.joako601.finanzas.ui.respaldo.RespaldoViewModel
 import io.github.joako601.finanzas.ui.tarjetas.DialogoEstadoDeCuenta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoNuevaTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoPagoTarjeta
@@ -111,6 +116,7 @@ fun PantallaMovimientos(
     val registroRecurrente by recurrentesViewModel.registro.collectAsStateWithLifecycle()
     val estadoLinea by lineaDeTiempoViewModel.estado.collectAsStateWithLifecycle()
     var verLineaDeTiempo by rememberSaveable { mutableStateOf(false) }
+    var verRespaldo by rememberSaveable { mutableStateOf(false) }
     var porEliminar by remember { mutableStateOf<MovimientoResumido?>(null) }
 
     ContenidoMovimientos(
@@ -131,7 +137,12 @@ fun PantallaMovimientos(
             tocar = recurrentesViewModel::abrirRegistro,
         ),
         onTocarMovimiento = { porEliminar = it },
+        onRespaldo = { verRespaldo = true },
     )
+
+    if (verRespaldo) {
+        HojaRespaldo(viewModel(factory = RespaldoViewModel.Fabrica), onCerrar = { verRespaldo = false })
+    }
 
     if (verLineaDeTiempo) {
         // Al tocar algo se cierra la hoja y se abre el diálogo que corresponde.
@@ -284,10 +295,14 @@ fun ContenidoMovimientos(
     estadoRecurrentes: EstadoRecurrentes,
     accionesRecurrentes: AccionesRecurrentes,
     onTocarMovimiento: (MovimientoResumido) -> Unit,
+    onRespaldo: () -> Unit,
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall) })
+            TopAppBar(
+                title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall) },
+                actions = { MenuPrincipal(onRespaldo) },
+            )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -466,4 +481,24 @@ private fun etiqueta(movimiento: MovimientoResumido): String = when (movimiento.
         movimiento.contraparte?.let { stringResource(R.string.pago_a_tarjeta, it.nombre) } ?: stringResource(R.string.movimiento)
     ClaseMovimiento.TRANSFERENCIA -> stringResource(R.string.transferencia)
     ClaseMovimiento.OTRO -> stringResource(R.string.movimiento)
+}
+
+/** Menú de tres puntos de la barra superior: lo que no es del día a día. */
+@Composable
+private fun MenuPrincipal(onRespaldo: () -> Unit) {
+    var abierto by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { abierto = true }) {
+            Icon(painterResource(R.drawable.ic_mas), contentDescription = stringResource(R.string.mas_opciones))
+        }
+        DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.respaldo_y_exportar)) },
+                onClick = {
+                    abierto = false
+                    onRespaldo()
+                },
+            )
+        }
+    }
 }

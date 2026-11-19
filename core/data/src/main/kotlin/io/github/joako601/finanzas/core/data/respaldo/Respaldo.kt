@@ -38,8 +38,11 @@ public class Respaldo internal constructor(
         conTemporal(SALIDA) { archivo ->
             val copia = abrirConRoom(archivo)
             try {
+                // Lectura consistente de la principal y una sola escritura a disco en la copia.
                 base.runInTransaction {
-                    copiarTodo(origen = base.openHelper.writableDatabase, destino = copia.openHelper.writableDatabase)
+                    copia.runInTransaction {
+                        copiarTodo(origen = base.openHelper.writableDatabase, destino = copia.openHelper.writableDatabase)
+                    }
                 }
             } finally {
                 copia.close()
@@ -114,9 +117,12 @@ public class Respaldo internal constructor(
         }
     }
 
-    private companion object {
-        const val SALIDA = "respaldo-salida.db"
-        const val ENTRADA = "respaldo-entrada.db"
+    public companion object {
+        private const val SALIDA = "respaldo-salida.db"
+        private const val ENTRADA = "respaldo-entrada.db"
+
+        /** Si el archivo empieza como un respaldo de Finanzas, para avisar antes de pedir la contraseña. */
+        public fun pareceRespaldo(archivo: ByteArray): Boolean = CifradoRespaldo.pareceRespaldo(archivo)
     }
 }
 

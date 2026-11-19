@@ -2,6 +2,7 @@ package io.github.joako601.finanzas
 
 import android.content.Context
 import io.github.joako601.finanzas.core.data.Datos
+import io.github.joako601.finanzas.core.data.respaldo.Respaldo
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
@@ -41,6 +42,8 @@ class Contenedor(context: Context) {
 
     val repositorioRecurrentes: RepositorioRecurrentes = datos.repositorioRecurrentes
     val servicioRecurrentes: ServicioRecurrentes = ServicioRecurrentes(repositorioLibro, repositorioRecurrentes)
+
+    val respaldo: Respaldo = datos.respaldo
 
     val repositorioRecordatorios: RepositorioRecordatorios = datos.repositorioRecordatorios
     val avisos: Avisos = Avisos(context.applicationContext)

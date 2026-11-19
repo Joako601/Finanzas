@@ -70,10 +70,11 @@ internal object CifradoRespaldo {
         return encabezado + cifrador.doFinal(datos)
     }
 
+    fun pareceRespaldo(sobre: ByteArray): Boolean =
+        sobre.size > MAGIA.size && sobre.copyOf(MAGIA.size).contentEquals(MAGIA)
+
     fun descifrar(sobre: ByteArray, contrasena: CharArray): ByteArray {
-        if (sobre.size < MAGIA.size + 1 || !sobre.copyOf(MAGIA.size).contentEquals(MAGIA)) {
-            throw ErrorRespaldo(ErrorRespaldo.Motivo.NO_ES_RESPALDO)
-        }
+        if (!pareceRespaldo(sobre)) throw ErrorRespaldo(ErrorRespaldo.Motivo.NO_ES_RESPALDO)
         if (sobre[MAGIA.size] > FORMATO) throw ErrorRespaldo(ErrorRespaldo.Motivo.VERSION_NUEVA)
         if (sobre[MAGIA.size] != FORMATO) throw ErrorRespaldo(ErrorRespaldo.Motivo.NO_ES_RESPALDO)
         if (sobre.size < LARGO_ENCABEZADO + LARGO_ETIQUETA) throw ErrorRespaldo(ErrorRespaldo.Motivo.CONTRASENA_O_DANADO)
