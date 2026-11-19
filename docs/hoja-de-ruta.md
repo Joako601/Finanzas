@@ -13,6 +13,7 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Identidad visual propia en claro y oscuro; Guardar fijo sobre el teclado | versionCode 3 | Capturas en `evidencia/`, instalada en el S24 FE |
 | Registrador de notificaciones (herramienta de la fase 0) | — | Instalado en el S24 FE el 2026-11-19; falta que el autor conceda el acceso |
 | Recordatorios: antes del corte, capturar estado de cuenta, pago con monto | versionCode 4 | 12 pruebas del plan, 15 de Room, recorrido con reloj movido y reinicio en emulador; falta la medición de dos semanas en el S24 FE |
+| Disponible real hasta el próximo ingreso y línea de tiempo de 30 días (D-017) | versionCode 6 | 13 pruebas de dominio; sin cambios en la base; falta la revisión visual en el S24 FE |
 | Pagos y cobros fijos: periodicidades, registro de un toque, aviso un día antes, categoría de impuestos (D-016) | versionCode 5 | 14 pruebas de dominio, 4 del ViewModel, 24 de Room en el S24 FE; instalada en el S24 FE con migración 3→4 verificada sobre datos reales |
 
 ## Siguiente, en orden
@@ -21,10 +22,10 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 2. ~~Recordatorios~~ (hecho; corre la medición de dos semanas con
    `herramientas/medir-recordatorios.sh`).
 3. ~~Pagos recurrentes e ingresos esperados~~ (hecho, D-016; instalado en el S24 FE).
-4. **Compras a MSI:** repartidas en los estados de cuenta siguientes; el gasto cuenta
+4. **Compras a MSI** (pospuesto el 2026-11-19: el autor todavía no lo usa; el disponible
+   real trata una compra a meses como deuda completa hasta entonces, S9): repartidas en los estados de cuenta siguientes; el gasto cuenta
    el mes de la compra y el flujo, mes a mes.
-5. **Línea de tiempo de 30 días y "disponible real":** dinero en cuentas menos lo
-   comprometido (pagos de tarjeta, MSI, recurrentes) más los ingresos esperados.
+5. ~~Línea de tiempo de 30 días y "disponible real"~~ (hecho, D-017).
 6. **Exportación CSV y respaldo cifrado** con simulacro de restauración. Requisito antes
    de que alguien más use la app (hoy perder el teléfono es perder los datos, D-006).
 7. **Pequeños pendientes:** editar movimientos, transferencias entre cuentas propias,

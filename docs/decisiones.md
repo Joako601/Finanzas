@@ -383,6 +383,42 @@ han ejecutado en dispositivo (la computadora actual no soporta el emulador).
 
 ---
 
+## D-017 Disponible real hasta el próximo ingreso y línea de tiempo de 30 días
+
+**Fecha:** 2026-11-19
+
+**Contexto:** el autor pospuso MSI (paso 4) porque todavía no lo usa; el paso 5 va antes.
+
+**Decisión:**
+- **Disponible real** = efectivo y débito menos lo que hay que pagar hasta el próximo
+  ingreso esperado (la quincena, por ejemplo) o, si no hay ingresos dados de alta, en los
+  próximos 30 días. Los ingresos no se suman: marcan hasta cuándo tiene que alcanzar.
+- Cuenta como "por pagar": lo que falta del estado de cuenta vigente de cada tarjeta, el
+  estimado del siguiente ciclo sin capturar si vence en el plazo, y cada fecha de los
+  pagos fijos (incluidos los vencidos sin registrar).
+- **Línea de tiempo de 30 días:** pagos de tarjeta, pagos fijos, cortes e ingresos
+  esperados, con el saldo que quedaría después de cada uno. El mismo día va primero lo
+  que sale. Avisa el primer día en que el saldo quedaría en negativo.
+- Es solo cálculo sobre los datos existentes: sin tablas nuevas ni migración.
+- Interfaz: el disponible reemplaza al total en cuentas como cifra principal (el total
+  sigue visible). El detalle va en una hoja inferior que se cierra con Atrás. El pago de
+  tarjeta lleva "−" en color neutro: saca dinero del débito, pero no es un gasto nuevo.
+
+**Supuestos:**
+- S9. Sin estado de cuenta capturado, el pago de la tarjeta se estima con la deuda que el
+  estado vigente no cubre. Es prudente: exagera con compras a MSI (hasta que exista el
+  paso 4) y con compras posteriores al corte. Nunca subestima.
+- S10. Los pagos fijos cuentan por su monto aproximado.
+- S11. Un ingreso cuya fecha ya pasó sin registrarse no se cuenta: no se sabe si llegó.
+
+**Descartado por ahora:** proyectar más de 30 días; elegir el horizonte a mano; sumar los
+ingresos al disponible.
+
+**Cómo se verifica:** `LineaDeTiempoTest` (13 pruebas, una de propiedades: el disponible
+nunca supera lo que hay en cuentas). Revisión visual pendiente en el S24 FE.
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |
