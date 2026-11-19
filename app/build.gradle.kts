@@ -63,6 +63,9 @@ dependencies {
 
     // Vista previa de Compose en Android Studio; solo en debug, no llega al APK de release.
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // Pruebas en la JVM (sin teléfono) de la lógica de la interfaz.
+    testImplementation(libs.junit)
 }
 
 /**

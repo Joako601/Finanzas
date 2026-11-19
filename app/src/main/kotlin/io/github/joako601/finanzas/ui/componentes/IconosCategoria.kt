@@ -12,8 +12,9 @@ import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
  * Limitación conocida: se busca por nombre porque la tabla `cuenta` no guarda ícono.
  * Una categoría renombrada o creada por el usuario cae en el ícono genérico. Cuando
  * exista la edición de categorías, el ícono pasa a ser una columna (con su migración).
+ * IconosCategoriaTest falla si este mapa y CatalogoInicial dejan de coincidir.
  */
-private val iconosPorNombre: Map<String, Int> = mapOf(
+internal val iconosPorNombre: Map<String, Int> = mapOf(
     "Súper y despensa" to R.drawable.ic_cat_super,
     "Comida fuera" to R.drawable.ic_cat_comida,
     "Transporte" to R.drawable.ic_cat_transporte,

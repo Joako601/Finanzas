@@ -354,5 +354,6 @@ recorrido en emulador de `verificacion.md` §6; dos semanas de medición en el S
 | kotest-property (solo pruebas) | Pruebas basadas en propiedades | Generadores escritos a mano |
 | kotlinx-coroutines-test (solo pruebas) | `runTest` para funciones suspend | `runBlocking`: sin control del tiempo virtual |
 | androidx.test runner y ext-junit (solo pruebas) | Pruebas instrumentadas de Room en el teléfono | Robolectric: otra dependencia grande, y no es SQLite real del teléfono |
+| junit 4 (solo pruebas) | Pruebas de la app en la JVM, sin teléfono (por ahora: que cada categoría del catálogo tenga ícono). Ya estaba en el grafo verificado por ext-junit; no agrega archivos | kotlin-test-junit: otro artefacto para lo mismo |
 | room-testing (solo pruebas) | `MigrationTestHelper`: crea la base en una versión anterior desde su esquema exportado, migra y valida contra el esquema nuevo (D-012) | Probar la migración con SQL suelto: no compara contra el esquema que Room espera |
 | material-icons | **No se usa**: el único ícono se copió como vector XML | — |
