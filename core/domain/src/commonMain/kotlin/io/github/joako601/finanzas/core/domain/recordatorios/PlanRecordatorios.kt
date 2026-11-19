@@ -1,6 +1,8 @@
 package io.github.joako601.finanzas.core.domain.recordatorios
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
+import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
@@ -25,6 +27,9 @@ public enum class TipoRecordatorio {
 
     /** Tres días y un día antes de la fecha límite, si falta pagar. */
     PAGO_PROXIMO,
+
+    /** Un día antes de un pago fijo (CFE, internet, predial). Los ingresos esperados no avisan. */
+    PAGO_RECURRENTE,
 }
 
 /**
@@ -34,14 +39,16 @@ public enum class TipoRecordatorio {
  * tipo producen siempre la misma clave. Con ella se evita avisar dos veces y se mide
  * el retraso de entrega.
  *
- * [fechaReferencia] es el corte (antes del corte, capturar) o la fecha límite (pago).
- * [monto] solo aplica al pago: lo que falta para no generar intereses.
+ * [nombre] es la tarjeta o el pago fijo del que se avisa.
+ * [fechaReferencia] es el corte (antes del corte, capturar), la fecha límite (pago de
+ * tarjeta) o la fecha del pago fijo.
+ * [monto] es lo que falta para no generar intereses, o el monto estimado del pago fijo.
  */
 public data class Recordatorio(
     val clave: String,
     val tipo: TipoRecordatorio,
     val momento: LocalDateTime,
-    val tarjeta: Tarjeta,
+    val nombre: String,
     val fechaReferencia: LocalDate,
     val monto: Dinero? = null,
 )
@@ -79,10 +86,29 @@ public object PlanRecordatorios {
         estados: List<EstadoDeCuenta>,
         pagos: List<PagoATarjeta>,
         hoy: LocalDate,
-    ): List<Recordatorio> = tarjetas
-        .filterNot { it.cuenta.archivada }
-        .flatMap { tarjeta -> paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy) }
-        .sortedBy { it.momento }
+        recurrentes: List<Recurrente> = emptyList(),
+    ): List<Recordatorio> = (
+        tarjetas
+            .filterNot { it.cuenta.archivada }
+            .flatMap { tarjeta -> paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy) } +
+            recurrentes.mapNotNull { paraRecurrente(it, hoy) }
+        ).sortedBy { it.momento }
+
+    /** Un día antes de cada pago fijo pendiente, a las 9:00. Si ese día ya pasó, no se avisa. */
+    private fun paraRecurrente(recurrente: Recurrente, hoy: LocalDate): Recordatorio? {
+        val id = recurrente.id?.valor ?: return null
+        if (recurrente.clase != ClaseRegistro.GASTO) return null
+        val dia = recurrente.proxima.minus(1, DateTimeUnit.DAY)
+        if (dia < hoy) return null
+        return Recordatorio(
+            clave = "recurrente:$id:${recurrente.proxima}",
+            tipo = TipoRecordatorio.PAGO_RECURRENTE,
+            momento = dia.atTime(HORA_DIA),
+            nombre = recurrente.nombre,
+            fechaReferencia = recurrente.proxima,
+            monto = recurrente.montoEstimado,
+        )
+    }
 
     private fun paraTarjeta(
         tarjeta: Tarjeta,
@@ -99,7 +125,7 @@ public object PlanRecordatorios {
                 clave = "corte:$id:$proximoCorte",
                 tipo = TipoRecordatorio.ANTES_DEL_CORTE,
                 momento = proximoCorte.minus(1, DateTimeUnit.DAY).atTime(HORA_DIA),
-                tarjeta = tarjeta,
+                nombre = tarjeta.cuenta.nombre,
                 fechaReferencia = proximoCorte,
             ),
         )
@@ -117,7 +143,7 @@ public object PlanRecordatorios {
                         clave = "capturar:$id:$corte",
                         tipo = TipoRecordatorio.CAPTURAR_ESTADO,
                         momento = diaAviso.atTime(HORA_NOCHE),
-                        tarjeta = tarjeta,
+                        nombre = tarjeta.cuenta.nombre,
                         fechaReferencia = corte,
                     ),
                 )
@@ -137,7 +163,7 @@ public object PlanRecordatorios {
                             clave = "pago:$id:$limite:$dias",
                             tipo = TipoRecordatorio.PAGO_PROXIMO,
                             momento = dia.atTime(HORA_DIA),
-                            tarjeta = tarjeta,
+                            nombre = tarjeta.cuenta.nombre,
                             fechaReferencia = limite,
                             monto = situacion.restante,
                         ),

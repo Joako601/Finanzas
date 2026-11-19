@@ -23,6 +23,7 @@ import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorEstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorTarjeta
 import io.github.joako601.finanzas.ui.componentes.Campo
+import io.github.joako601.finanzas.ui.componentes.ErrorAlGuardar
 import io.github.joako601.finanzas.ui.componentes.SelectorFecha
 import io.github.joako601.finanzas.ui.componentes.TECLADO_MONTO
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
@@ -209,8 +210,3 @@ fun DialogoEstadoDeCuenta(
 }
 
 private val TECLADO_DIA = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next)
-
-@Composable
-private fun ErrorAlGuardar(hayError: Boolean) {
-    if (hayError) Text(stringResource(R.string.error_al_guardar), color = MaterialTheme.colorScheme.error)
-}

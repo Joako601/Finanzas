@@ -51,6 +51,13 @@ import io.github.joako601.finanzas.ui.componentes.iconoDe
 import io.github.joako601.finanzas.ui.formatoCorto
 import io.github.joako601.finanzas.ui.formatoEncabezado
 import io.github.joako601.finanzas.ui.hoy
+import io.github.joako601.finanzas.ui.recurrentes.AccionesRegistroRecurrente
+import io.github.joako601.finanzas.ui.recurrentes.DialogoNuevoRecurrente
+import io.github.joako601.finanzas.ui.recurrentes.DialogoRegistroRecurrente
+import io.github.joako601.finanzas.ui.recurrentes.EstadoRecurrentes
+import io.github.joako601.finanzas.ui.recurrentes.RecurrentesViewModel
+import io.github.joako601.finanzas.ui.recurrentes.ResumenRecurrente
+import io.github.joako601.finanzas.ui.recurrentes.SeccionRecurrentes
 import io.github.joako601.finanzas.ui.tarjetas.DialogoEstadoDeCuenta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoNuevaTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoPagoTarjeta
@@ -62,6 +69,12 @@ import io.github.joako601.finanzas.ui.tarjetas.TarjetasViewModel
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.minus
+
+/** Acciones de la sección de pagos y cobros fijos que la lista principal necesita disparar. */
+class AccionesRecurrentes(
+    val agregar: () -> Unit,
+    val tocar: (ResumenRecurrente) -> Unit,
+)
 
 /** Acciones de la sección de tarjetas que la lista principal necesita disparar. */
 class AccionesTarjetas(
@@ -79,6 +92,7 @@ class AccionesTarjetas(
 fun PantallaMovimientos(
     viewModel: MovimientosViewModel = viewModel(factory = MovimientosViewModel.Fabrica),
     tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
+    recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
@@ -87,6 +101,9 @@ fun PantallaMovimientos(
     val nuevaTarjeta by tarjetasViewModel.nuevaTarjeta.collectAsStateWithLifecycle()
     val pago by tarjetasViewModel.pago.collectAsStateWithLifecycle()
     val capturaEstado by tarjetasViewModel.captura.collectAsStateWithLifecycle()
+    val estadoRecurrentes by recurrentesViewModel.estado.collectAsStateWithLifecycle()
+    val nuevoRecurrente by recurrentesViewModel.nuevo.collectAsStateWithLifecycle()
+    val registroRecurrente by recurrentesViewModel.registro.collectAsStateWithLifecycle()
     var porEliminar by remember { mutableStateOf<MovimientoResumido?>(null) }
 
     ContenidoMovimientos(
@@ -99,8 +116,37 @@ fun PantallaMovimientos(
             pagar = tarjetasViewModel::abrirPago,
             capturar = tarjetasViewModel::abrirCaptura,
         ),
+        estadoRecurrentes = estadoRecurrentes,
+        accionesRecurrentes = AccionesRecurrentes(
+            agregar = recurrentesViewModel::abrirNuevo,
+            tocar = recurrentesViewModel::abrirRegistro,
+        ),
         onTocarMovimiento = { porEliminar = it },
     )
+
+    nuevoRecurrente?.let { actual ->
+        DialogoNuevoRecurrente(
+            nuevo = actual,
+            categorias = estadoRecurrentes.categoriasDe(actual.clase),
+            onEditar = recurrentesViewModel::editarNuevo,
+            onGuardar = recurrentesViewModel::guardarNuevo,
+            onCerrar = recurrentesViewModel::cerrarNuevo,
+        )
+    }
+
+    registroRecurrente?.let { actual ->
+        DialogoRegistroRecurrente(
+            registro = actual,
+            cuentas = estadoRecurrentes.cuentasPara(actual.resumen.recurrente.clase),
+            acciones = AccionesRegistroRecurrente(
+                editar = recurrentesViewModel::editarRegistro,
+                registrar = recurrentesViewModel::guardarRegistro,
+                omitir = recurrentesViewModel::omitir,
+                eliminar = recurrentesViewModel::eliminar,
+                cerrar = recurrentesViewModel::cerrarRegistro,
+            ),
+        )
+    }
 
     captura?.let { actual ->
         HojaCaptura(
@@ -198,6 +244,8 @@ fun ContenidoMovimientos(
     onRegistrar: () -> Unit,
     onAgregarCuenta: () -> Unit,
     accionesTarjetas: AccionesTarjetas,
+    estadoRecurrentes: EstadoRecurrentes,
+    accionesRecurrentes: AccionesRecurrentes,
     onTocarMovimiento: (MovimientoResumido) -> Unit,
 ) {
     Scaffold(
@@ -244,6 +292,14 @@ fun ContenidoMovimientos(
                     onAgregar = accionesTarjetas.agregar,
                     onPagar = accionesTarjetas.pagar,
                     onCapturar = accionesTarjetas.capturar,
+                )
+            }
+
+            item(key = "recurrentes") {
+                SeccionRecurrentes(
+                    estado = estadoRecurrentes,
+                    onAgregar = accionesRecurrentes.agregar,
+                    onTocar = accionesRecurrentes.tocar,
                 )
             }
 
