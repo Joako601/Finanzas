@@ -42,30 +42,56 @@ import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
+import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.ui.formatoCorto
 import io.github.joako601.finanzas.ui.formatoEncabezado
 import io.github.joako601.finanzas.ui.hoy
+import io.github.joako601.finanzas.ui.tarjetas.DialogoEstadoDeCuenta
+import io.github.joako601.finanzas.ui.tarjetas.DialogoNuevaTarjeta
+import io.github.joako601.finanzas.ui.tarjetas.DialogoPagoTarjeta
+import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
+import io.github.joako601.finanzas.ui.tarjetas.ResumenTarjeta
+import io.github.joako601.finanzas.ui.tarjetas.SeccionTarjetas
+import io.github.joako601.finanzas.ui.tarjetas.TarjetasViewModel
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.minus
 
+/** Acciones de la sección de tarjetas que la lista principal necesita disparar. */
+class AccionesTarjetas(
+    val agregar: () -> Unit,
+    val pagar: (ResumenTarjeta) -> Unit,
+    val capturar: (ResumenTarjeta) -> Unit,
+)
+
 /**
- * Pantalla principal con estado: obtiene el ViewModel y conecta sus flujos con la
- * interfaz. Todo lo visual está en [ContenidoMovimientos], que no conoce al ViewModel
- * y por eso se puede previsualizar y probar con datos fijos.
+ * Pantalla principal con estado: obtiene los ViewModels y conecta sus flujos con la
+ * interfaz. Todo lo visual está en [ContenidoMovimientos], que no conoce a los
+ * ViewModels y por eso se puede previsualizar y probar con datos fijos.
  */
 @Composable
 fun PantallaMovimientos(
     viewModel: MovimientosViewModel = viewModel(factory = MovimientosViewModel.Fabrica),
+    tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
     val nuevaCuenta by viewModel.nuevaCuenta.collectAsStateWithLifecycle()
+    val estadoTarjetas by tarjetasViewModel.estado.collectAsStateWithLifecycle()
+    val nuevaTarjeta by tarjetasViewModel.nuevaTarjeta.collectAsStateWithLifecycle()
+    val pago by tarjetasViewModel.pago.collectAsStateWithLifecycle()
+    val capturaEstado by tarjetasViewModel.captura.collectAsStateWithLifecycle()
     var porEliminar by remember { mutableStateOf<MovimientoResumido?>(null) }
 
     ContenidoMovimientos(
         estado = estado,
+        estadoTarjetas = estadoTarjetas,
         onRegistrar = viewModel::abrirCaptura,
         onAgregarCuenta = viewModel::abrirNuevaCuenta,
+        accionesTarjetas = AccionesTarjetas(
+            agregar = tarjetasViewModel::abrirNuevaTarjeta,
+            pagar = tarjetasViewModel::abrirPago,
+            capturar = tarjetasViewModel::abrirCaptura,
+        ),
         onTocarMovimiento = { porEliminar = it },
     )
 
@@ -76,7 +102,9 @@ fun PantallaMovimientos(
                 ClaseRegistro.GASTO -> estado.categoriasDeGasto
                 ClaseRegistro.INGRESO -> estado.categoriasDeIngreso
             },
-            cuentas = estado.cuentasDeDinero.map { it.cuenta },
+            // Un gasto se puede pagar con tarjeta; un ingreso solo llega a efectivo o débito.
+            cuentas = estado.cuentasDeDinero.map { it.cuenta } +
+                if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList(),
             acciones = AccionesCaptura(
                 cambiarClase = viewModel::cambiarClase,
                 cambiarMonto = viewModel::cambiarMonto,
@@ -97,6 +125,34 @@ fun PantallaMovimientos(
             onCambiarSaldo = viewModel::cambiarSaldoCuenta,
             onGuardar = viewModel::guardarNuevaCuenta,
             onCerrar = viewModel::cerrarNuevaCuenta,
+        )
+    }
+
+    nuevaTarjeta?.let { actual ->
+        DialogoNuevaTarjeta(
+            nueva = actual,
+            onEditar = tarjetasViewModel::editarNuevaTarjeta,
+            onGuardar = tarjetasViewModel::guardarNuevaTarjeta,
+            onCerrar = tarjetasViewModel::cerrarNuevaTarjeta,
+        )
+    }
+
+    pago?.let { actual ->
+        DialogoPagoTarjeta(
+            pago = actual,
+            cuentas = estadoTarjetas.cuentasParaPagar,
+            onEditar = tarjetasViewModel::editarPago,
+            onGuardar = tarjetasViewModel::guardarPago,
+            onCerrar = tarjetasViewModel::cerrarPago,
+        )
+    }
+
+    capturaEstado?.let { actual ->
+        DialogoEstadoDeCuenta(
+            captura = actual,
+            onEditar = tarjetasViewModel::editarCaptura,
+            onGuardar = tarjetasViewModel::guardarCaptura,
+            onCerrar = tarjetasViewModel::cerrarCaptura,
         )
     }
 
@@ -131,8 +187,10 @@ fun PantallaMovimientos(
 @Composable
 fun ContenidoMovimientos(
     estado: EstadoMovimientos,
+    estadoTarjetas: EstadoTarjetas,
     onRegistrar: () -> Unit,
     onAgregarCuenta: () -> Unit,
+    accionesTarjetas: AccionesTarjetas,
     onTocarMovimiento: (MovimientoResumido) -> Unit,
 ) {
     Scaffold(
@@ -163,6 +221,15 @@ fun ContenidoMovimientos(
         ) {
             item(key = "saldos") {
                 TarjetaSaldos(estado, onAgregarCuenta)
+            }
+
+            item(key = "tarjetas") {
+                SeccionTarjetas(
+                    estado = estadoTarjetas,
+                    onAgregar = accionesTarjetas.agregar,
+                    onPagar = accionesTarjetas.pagar,
+                    onCapturar = accionesTarjetas.capturar,
+                )
             }
 
             if (estado.dias.isEmpty()) {
@@ -222,10 +289,16 @@ private fun TarjetaSaldos(estado: EstadoMovimientos, onAgregarCuenta: () -> Unit
 
 @Composable
 private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) {
+    val esDeuda = movimiento.cuenta?.tipo == TipoCuenta.PASIVO
     val (signo, color) = when (movimiento.clase) {
         ClaseMovimiento.GASTO -> "−" to MaterialTheme.colorScheme.onSurface
-        ClaseMovimiento.INGRESO, ClaseMovimiento.SALDO_INICIAL -> "+" to MaterialTheme.colorScheme.primary
-        else -> "" to MaterialTheme.colorScheme.onSurfaceVariant
+        ClaseMovimiento.INGRESO -> "+" to MaterialTheme.colorScheme.primary
+        // Una deuda inicial no es dinero que entra: sin signo.
+        ClaseMovimiento.SALDO_INICIAL ->
+            (if (esDeuda) "" else "+") to (if (esDeuda) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary)
+        // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.
+        ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO ->
+            "" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     val detalle = listOfNotNull(
         movimiento.cuenta?.nombre,
@@ -246,7 +319,10 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
 private fun etiqueta(movimiento: MovimientoResumido): String = when (movimiento.clase) {
     ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO ->
         movimiento.categoria?.nombre ?: stringResource(R.string.movimiento)
-    ClaseMovimiento.SALDO_INICIAL -> stringResource(R.string.saldo_inicial)
+    ClaseMovimiento.SALDO_INICIAL ->
+        stringResource(if (movimiento.cuenta?.tipo == TipoCuenta.PASIVO) R.string.deuda_inicial else R.string.saldo_inicial)
+    ClaseMovimiento.PAGO_TARJETA ->
+        movimiento.contraparte?.let { stringResource(R.string.pago_a_tarjeta, it.nombre) } ?: stringResource(R.string.movimiento)
     ClaseMovimiento.TRANSFERENCIA -> stringResource(R.string.transferencia)
     ClaseMovimiento.OTRO -> stringResource(R.string.movimiento)
 }

@@ -38,6 +38,8 @@ import kotlinx.datetime.LocalDate
 data class EstadoMovimientos(
     val cargando: Boolean = true,
     val cuentasDeDinero: List<SaldoCuenta> = emptyList(),
+    /** Tarjetas de crédito: se ofrecen como forma de pago de un gasto, no de un ingreso. */
+    val tarjetas: List<Cuenta> = emptyList(),
     val totalEnCuentas: Dinero = Dinero.CERO,
     val categoriasDeGasto: List<Cuenta> = emptyList(),
     val categoriasDeIngreso: List<Cuenta> = emptyList(),
@@ -95,6 +97,7 @@ class MovimientosViewModel(
             cuentasDeDinero = activas
                 .filter { it.tipo == TipoCuenta.ACTIVO }
                 .map { SaldoCuenta(it, saldos[it.id] ?: Dinero.CERO) },
+            tarjetas = activas.filter { it.tipo == TipoCuenta.PASIVO },
             totalEnCuentas = totalEnCuentas(cuentas, saldos),
             categoriasDeGasto = activas.filter { it.tipo == TipoCuenta.GASTO },
             categoriasDeIngreso = activas.filter { it.tipo == TipoCuenta.INGRESO },
@@ -122,7 +125,7 @@ class MovimientosViewModel(
     // ---- Captura de gasto o ingreso ----
 
     fun abrirCaptura() {
-        val cuentas = estado.value.cuentasDeDinero.map { it.cuenta.id }
+        val cuentas = estado.value.cuentasDeDinero.map { it.cuenta.id } + estado.value.tarjetas.map { it.id }
         val preseleccion = ultimaCuenta?.takeIf { it in cuentas } ?: cuentas.firstOrNull()
         _captura.value = Captura(fecha = fechaDeHoy(), cuentaId = preseleccion)
     }
@@ -133,7 +136,18 @@ class MovimientosViewModel(
 
     fun cambiarClase(clase: ClaseRegistro) = editarCaptura {
         // Las categorías de gasto e ingreso son distintas: al cambiar, se borra la elegida.
-        if (it.clase == clase) it else it.copy(clase = clase, categoriaId = null)
+        // Un ingreso no llega a una tarjeta: si estaba elegida una, se vuelve a la primera cuenta.
+        if (it.clase == clase) {
+            it
+        } else {
+            val esTarjeta = estado.value.tarjetas.any { t -> t.id == it.cuentaId }
+            val cuenta = if (clase == ClaseRegistro.INGRESO && esTarjeta) {
+                estado.value.cuentasDeDinero.firstOrNull()?.cuenta?.id
+            } else {
+                it.cuentaId
+            }
+            it.copy(clase = clase, categoriaId = null, cuentaId = cuenta)
+        }
     }
 
     fun cambiarMonto(texto: String) = editarCaptura {
@@ -192,6 +206,8 @@ class MovimientosViewModel(
     private fun validar(captura: Captura): ResultadoRegistro {
         val porId = buildMap {
             estado.value.cuentasDeDinero.forEach { put(it.cuenta.id, it.cuenta) }
+            // Una tarjeta solo es válida para gastos; en un ingreso se trata como cuenta no elegida.
+            if (captura.clase == ClaseRegistro.GASTO) estado.value.tarjetas.forEach { put(it.id, it) }
             estado.value.categoriasDeGasto.forEach { put(it.id, it) }
             estado.value.categoriasDeIngreso.forEach { put(it.id, it) }
         }
