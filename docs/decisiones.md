@@ -383,39 +383,57 @@ han ejecutado en dispositivo (la computadora actual no soporta el emulador).
 
 ---
 
-## D-017 Disponible real hasta el próximo ingreso y línea de tiempo de 30 días
+## D-017 Disponible real: el saldo proyectado más bajo de los próximos 30 días
 
-**Fecha:** 2026-11-19
+**Fecha:** 2026-11-19 (revisada el mismo día tras la revisión de dos subagentes)
 
 **Contexto:** el autor pospuso MSI (paso 4) porque todavía no lo usa; el paso 5 va antes.
 
 **Decisión:**
-- **Disponible real** = efectivo y débito menos lo que hay que pagar hasta el próximo
-  ingreso esperado (la quincena, por ejemplo) o, si no hay ingresos dados de alta, en los
-  próximos 30 días. Los ingresos no se suman: marcan hasta cuándo tiene que alcanzar.
-- Cuenta como "por pagar": lo que falta del estado de cuenta vigente de cada tarjeta, el
-  estimado del siguiente ciclo sin capturar si vence en el plazo, y cada fecha de los
-  pagos fijos (incluidos los vencidos sin registrar).
+- **Disponible real** = lo que se puede gastar hoy sin quedar en negativo ningún día de
+  los próximos 30, contando los pagos y los ingresos que se esperan. Es el saldo
+  proyectado más bajo, y nunca más que lo que hay hoy en efectivo y débito (un ingreso
+  futuro no se gasta hoy).
+- La primera versión ("cuentas menos lo que vence antes del próximo ingreso") se
+  descartó por dos casos reales que encontró la revisión: un reembolso chico cerraba el
+  plazo y escondía la renta, y la quincena de hoy sin registrar dejaba el disponible en
+  rojo. La definición nueva resuelve los dos sin reglas especiales.
+- Por pagar:
+  - **Tarjetas:** el último estado de cuenta vencido sin pagar (si no hay uno vigente
+    que ya lo incluya), lo que falta del vigente, y el estimado del primer ciclo sin
+    capturar. Entre todos nunca suman más que la deuda.
+  - **Pagos fijos:** cada fecha dentro de los 30 días, incluidos los vencidos sin
+    registrar.
 - **Línea de tiempo de 30 días:** pagos de tarjeta, pagos fijos, cortes e ingresos
   esperados, con el saldo que quedaría después de cada uno. El mismo día va primero lo
-  que sale. Avisa el primer día en que el saldo quedaría en negativo.
+  que sale. Avisa el primer día en que no alcanzaría (nunca con fecha pasada).
 - Es solo cálculo sobre los datos existentes: sin tablas nuevas ni migración.
-- Interfaz: el disponible reemplaza al total en cuentas como cifra principal (el total
-  sigue visible). El detalle va en una hoja inferior que se cierra con Atrás. El pago de
-  tarjeta lleva "−" en color neutro: saca dinero del débito, pero no es un gasto nuevo.
+- **Interfaz:**
+  - El disponible es la cifra principal de la tarjeta de saldos. Debajo va su cuenta
+    ("$X en cuentas − $Y para pagos"), el día del saldo más bajo y el acceso a los
+    próximos 30 días.
+  - La hoja divide lo que define el disponible de lo que viene después, y cada pago se
+    puede registrar desde ahí.
+  - El pago de tarjeta va sin signo y en color secundario, como en la lista de
+    movimientos (diseno-finanzas, sección 4).
 
 **Supuestos:**
-- S9. Sin estado de cuenta capturado, el pago de la tarjeta se estima con la deuda que el
-  estado vigente no cubre. Es prudente: exagera con compras a MSI (hasta que exista el
-  paso 4) y con compras posteriores al corte. Nunca subestima.
+- S9. Sin estado de cuenta capturado, el pago de la tarjeta se estima con la deuda que no
+  cubren los estados vencido y vigente. Exagera con compras a MSI (hasta el paso 4) y se
+  queda corto con las compras que todavía no se hacen.
 - S10. Los pagos fijos cuentan por su monto aproximado.
 - S11. Un ingreso cuya fecha ya pasó sin registrarse no se cuenta: no se sabe si llegó.
+- S12. Los ingresos esperados llegan en su fecha. Si se retrasan, el disponible sale más
+  alto de lo que conviene hasta registrarlos u omitirlos.
 
-**Descartado por ahora:** proyectar más de 30 días; elegir el horizonte a mano; sumar los
-ingresos al disponible.
+**Descartado por ahora:** proyectar más de 30 días; elegir el plazo a mano; avisos por
+notificación cuando el saldo proyectado quede en negativo.
 
-**Cómo se verifica:** `LineaDeTiempoTest` (13 pruebas, una de propiedades: el disponible
-nunca supera lo que hay en cuentas). Revisión visual pendiente en el S24 FE.
+**Cómo se verifica:** `LineaDeTiempoTest` (21 pruebas, con los casos de la revisión). La
+de propiedades comprueba que una tarjeta nunca pide más que su deuda, que el disponible
+no supera lo de hoy ni ningún saldo proyectado, y que es negativo justo cuando hay
+faltante. Quitar el tope por deuda la hace fallar. La revisión visual en el S24 FE sigue
+pendiente.
 
 ---
 
