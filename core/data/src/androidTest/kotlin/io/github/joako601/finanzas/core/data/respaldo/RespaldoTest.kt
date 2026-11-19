@@ -189,6 +189,39 @@ class RespaldoTest {
     }
 
     @Test
+    fun en_un_telefono_nuevo_no_se_reusan_ids_de_lo_borrado() = runTest {
+        // Tres movimientos y se borra el último: el siguiente id debe ser 4, nunca 3.
+        val efectivo = cuenta("Efectivo")
+        val super_ = cuenta("Súper y despensa")
+        repeat(3) { libro.registrar(Registro.gasto(hoy, Dinero.pesos(1L + it), efectivo, super_)) }
+        libro.eliminar(libro.observarMovimientos().first().maxBy { it.id!!.valor }.id!!)
+        val archivo = respaldo.crear(contrasena)
+
+        val nueva = FinanzasDatabase.enMemoria(contexto)
+        try {
+            Respaldo(contexto, nueva).restaurar(archivo, contrasena)
+            val libroNuevo = RepositorioLibroRoom(nueva)
+            val id = libroNuevo.registrar(Registro.gasto(hoy, Dinero.pesos(9), efectivo, super_))
+            assertEquals(4L, id.valor)
+        } finally {
+            nueva.close()
+        }
+    }
+
+    @Test
+    fun al_arrancar_se_borra_un_temporal_que_dejo_una_restauracion_interrumpida() {
+        val huerfano = contexto.getDatabasePath("respaldo-entrada.db")
+        huerfano.parentFile!!.mkdirs()
+        huerfano.writeText("datos sin cifrar")
+        contexto.getDatabasePath("respaldo-entrada.db-journal").writeText("más datos")
+
+        Respaldo(contexto, base)
+
+        assertTrue(!huerfano.exists(), "quedó ${huerfano.name}")
+        assertTrue(!contexto.getDatabasePath("respaldo-entrada.db-journal").exists())
+    }
+
+    @Test
     fun no_quedan_archivos_temporales_sin_cifrar() = runTest {
         llenar()
         val archivo = respaldo.crear(contrasena)

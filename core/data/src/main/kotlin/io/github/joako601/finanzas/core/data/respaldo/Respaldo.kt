@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
-import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.joako601.finanzas.core.data.FinanzasDatabase
@@ -33,6 +32,12 @@ public class Respaldo internal constructor(
     private val context: Context,
     private val base: FinanzasDatabase,
 ) {
+    init {
+        // Si el proceso murió a mitad de un respaldo, aquí quedó una copia sin cifrar.
+        SQLiteDatabase.deleteDatabase(context.getDatabasePath(SALIDA))
+        SQLiteDatabase.deleteDatabase(context.getDatabasePath(ENTRADA))
+    }
+
     /** El archivo cifrado con todos los datos, listo para guardarse donde el usuario elija. */
     public suspend fun crear(contrasena: CharArray): ByteArray = withContext(Dispatchers.IO) {
         conTemporal(SALIDA) { archivo ->
@@ -62,16 +67,12 @@ public class Respaldo internal constructor(
             revisar(archivo)
             val copia = abrirConRoom(archivo)
             try {
-                copia.openHelper.writableDatabase
+                // Abrirla corre las migraciones si el respaldo es de una versión anterior.
+                val origen = copia.openHelper.writableDatabase
+                base.runInTransaction { copiarTodo(origen = origen, destino = base.openHelper.writableDatabase) }
             } catch (e: IllegalStateException) {
                 // Room no reconoce el esquema (identity hash) o falta una migración.
-                copia.close()
                 throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
-            }
-            try {
-                base.runInTransaction {
-                    copiarTodo(origen = copia.openHelper.writableDatabase, destino = base.openHelper.writableDatabase)
-                }
             } catch (e: SQLiteException) {
                 throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
             } finally {
@@ -102,7 +103,7 @@ public class Respaldo internal constructor(
 
     /** Sin WAL: al cerrarse, todo queda en el archivo principal. Sin el catálogo inicial: llegan las filas copiadas. */
     private fun abrirConRoom(archivo: File): FinanzasDatabase =
-        Room.databaseBuilder(context.applicationContext, FinanzasDatabase::class.java, archivo.path)
+        FinanzasDatabase.constructor(context, archivo.path)
             .setJournalMode(RoomDatabase.JournalMode.TRUNCATE)
             .build()
 
@@ -141,6 +142,27 @@ internal fun copiarTodo(origen: SupportSQLiteDatabase, destino: SupportSQLiteDat
             while (cursor.moveToNext()) {
                 destino.insert(tabla, SQLiteDatabase.CONFLICT_ABORT, fila(cursor))
             }
+        }
+    }
+    copiarSecuencias(origen, destino)
+}
+
+/**
+ * Los contadores de AUTOINCREMENT (`sqlite_sequence`). Sin ellos, un respaldo restaurado
+ * en un teléfono nuevo reusaría el id de algo borrado, y un pago fijo nuevo podría heredar
+ * la marca de "aviso entregado" del viejo. Se queda el mayor de los dos: en el mismo
+ * teléfono la base principal ya puede ir más adelante.
+ */
+private fun copiarSecuencias(origen: SupportSQLiteDatabase, destino: SupportSQLiteDatabase) {
+    origen.query("SELECT name, seq FROM sqlite_sequence").use { cursor ->
+        while (cursor.moveToNext()) {
+            val tabla = cursor.getString(0)
+            val seq = cursor.getLong(1)
+            destino.execSQL("UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?", arrayOf<Any>(seq, tabla))
+            destino.execSQL(
+                "INSERT INTO sqlite_sequence (name, seq) SELECT ?, ? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = ?)",
+                arrayOf<Any>(tabla, seq, tabla),
+            )
         }
     }
 }
