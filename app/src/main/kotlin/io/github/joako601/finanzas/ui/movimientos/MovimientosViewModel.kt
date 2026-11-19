@@ -66,6 +66,8 @@ data class Captura(
     val guardando: Boolean = false,
     /** Movimiento que se está editando; `null` al capturar uno nuevo. */
     val editando: MovimientoId? = null,
+    /** Al editar: su cuenta o categoría si ya está archivada, para poder conservarla. */
+    val archivadas: List<Cuenta> = emptyList(),
 )
 
 /** Diálogo de transferencia entre cuentas propias abierto. */
@@ -79,6 +81,7 @@ data class Transferencia(
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
     val editando: MovimientoId? = null,
+    val archivadas: List<Cuenta> = emptyList(),
 )
 
 /** Diálogo de nueva cuenta abierto. */
@@ -163,6 +166,8 @@ class MovimientosViewModel(
     fun abrirEdicion(resumen: MovimientoResumido) {
         val movimiento = resumen.movimiento
         val id = movimiento.id ?: return
+        if (!esEditable(resumen)) return
+        val archivadas = listOfNotNull(resumen.cuenta, resumen.categoria, resumen.contraparte).filter { it.archivada }
         when (resumen.clase) {
             ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO -> _captura.value = Captura(
                 clase = if (resumen.clase == ClaseMovimiento.GASTO) ClaseRegistro.GASTO else ClaseRegistro.INGRESO,
@@ -172,6 +177,7 @@ class MovimientosViewModel(
                 fecha = movimiento.fecha,
                 nota = movimiento.descripcion,
                 editando = id,
+                archivadas = archivadas,
             )
             ClaseMovimiento.TRANSFERENCIA -> _transferencia.value = Transferencia(
                 montoTexto = resumen.monto.textoEditable(),
@@ -180,9 +186,22 @@ class MovimientosViewModel(
                 fecha = movimiento.fecha,
                 nota = movimiento.descripcion,
                 editando = id,
+                archivadas = archivadas,
             )
             else -> Unit
         }
+    }
+
+    /**
+     * Gastos, ingresos y transferencias entre efectivo y débito se editan. Una
+     * "transferencia" que toca una tarjeta (disposición de efectivo) no tiene formulario
+     * todavía; como los saldos iniciales y los pagos de tarjeta, solo se puede eliminar.
+     */
+    fun esEditable(resumen: MovimientoResumido): Boolean = when (resumen.clase) {
+        ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO -> true
+        ClaseMovimiento.TRANSFERENCIA ->
+            resumen.cuenta?.tipo == TipoCuenta.ACTIVO && resumen.contraparte?.tipo == TipoCuenta.ACTIVO
+        else -> false
     }
 
     fun cambiarClase(clase: ClaseRegistro) = editarCaptura {
@@ -260,6 +279,7 @@ class MovimientosViewModel(
             if (captura.clase == ClaseRegistro.GASTO) estado.value.tarjetas.forEach { put(it.id, it) }
             estado.value.categoriasDeGasto.forEach { put(it.id, it) }
             estado.value.categoriasDeIngreso.forEach { put(it.id, it) }
+            captura.archivadas.forEach { put(it.id, it) }
         }
         return Registro.desdeCaptura(
             clase = captura.clase,
@@ -315,7 +335,7 @@ class MovimientosViewModel(
     }
 
     private fun validar(transferencia: Transferencia): ResultadoRegistro {
-        val porId = estado.value.cuentasDeDinero.associate { it.cuenta.id to it.cuenta }
+        val porId = (estado.value.cuentasDeDinero.map { it.cuenta } + transferencia.archivadas).associateBy { it.id }
         return Registro.desdeTransferencia(
             montoTexto = transferencia.montoTexto,
             desde = transferencia.desdeId?.let(porId::get),

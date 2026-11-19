@@ -39,8 +39,10 @@ class MovimientosViewModelTest {
     private val debito = Cuenta(CuentaId(2), "Nu débito", TipoCuenta.ACTIVO)
     private val super_ = Cuenta(CuentaId(3), "Súper y despensa", TipoCuenta.GASTO)
     private val comida = Cuenta(CuentaId(4), "Comida fuera", TipoCuenta.GASTO)
+    private val gimnasio = Cuenta(CuentaId(5), "Gimnasio", TipoCuenta.GASTO, archivada = true)
+    private val nu = Cuenta(CuentaId(6), "Nu", TipoCuenta.PASIVO)
 
-    private val libro = LibroEnMemoria(listOf(efectivo, debito, super_, comida))
+    private val libro = LibroEnMemoria(listOf(efectivo, debito, super_, comida, gimnasio, nu))
 
     @Before
     fun antes() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -153,6 +155,66 @@ class MovimientosViewModelTest {
         assertEquals(id, unico.id)
         assertEquals(Dinero.pesos(700), saldosPorCuenta(listOf(unico))[efectivo.id])
     }
+
+    @Test
+    fun editar_un_gasto_de_categoria_archivada_la_conserva() = runTest {
+        val id = libro.registrar(Registro.gasto(hoy, Dinero.pesos(400), efectivo, gimnasio, "mensualidad"))
+        val vm = viewModel()
+        vm.abrirEdicion(resumenDe(vm, id))
+
+        vm.cambiarMonto("450")
+        vm.guardarCaptura()
+
+        assertNull("guardó sin pedir otra categoría", vm.captura.value)
+        assertEquals(Dinero.pesos(450), saldosPorCuenta(libro.movimientos.value)[gimnasio.id])
+    }
+
+    @Test
+    fun editar_un_gasto_con_tarjeta_conserva_la_tarjeta() = runTest {
+        val id = libro.registrar(Registro.gasto(hoy, Dinero.pesos(300), nu, super_))
+        val vm = viewModel()
+        vm.abrirEdicion(resumenDe(vm, id))
+
+        vm.cambiarMonto("350")
+        vm.guardarCaptura()
+
+        assertNull(vm.captura.value)
+        assertEquals(-Dinero.pesos(350), saldosPorCuenta(libro.movimientos.value)[nu.id])
+    }
+
+    @Test
+    fun una_transferencia_que_toca_una_tarjeta_no_se_abre_para_editar() = runTest {
+        // Disposición de efectivo: sube la deuda de la tarjeta y entra dinero a efectivo.
+        val id = libro.registrar(
+            Movimiento(
+                null, hoy, "",
+                listOf(
+                    io.github.joako601.finanzas.core.domain.libro.Asiento(efectivo.id, Dinero.pesos(1_000)),
+                    io.github.joako601.finanzas.core.domain.libro.Asiento(nu.id, -Dinero.pesos(1_000)),
+                ),
+            ),
+        )
+        val vm = viewModel()
+        val resumen = resumenDe(vm, id)
+
+        assertEquals(false, vm.esEditable(resumen))
+        vm.abrirEdicion(resumen)
+        assertNull(vm.transferencia.value)
+    }
+
+    @Test
+    fun si_la_base_falla_al_editar_queda_el_aviso_y_el_formulario() = runTest {
+        val id = libro.registrar(Registro.gasto(hoy, Dinero.pesos(100), efectivo, super_))
+        libro.fallarAlActualizar = true
+        val vm = viewModel()
+        vm.abrirEdicion(resumenDe(vm, id))
+
+        vm.cambiarMonto("90")
+        vm.guardarCaptura()
+
+        assertEquals(true, vm.captura.value?.errorAlGuardar)
+        assertEquals(false, vm.captura.value?.guardando)
+    }
 }
 
 /** Libro en memoria con registrar, actualizar y eliminar reales, para probar el ViewModel. */
@@ -160,6 +222,7 @@ private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
     private val cuentas = MutableStateFlow(cuentas)
     val movimientos = MutableStateFlow(emptyList<Movimiento>())
     private var siguiente = 1L
+    var fallarAlActualizar = false
 
     override fun observarCuentas(): Flow<List<Cuenta>> = cuentas
     override fun observarSaldos(): Flow<Map<CuentaId, Dinero>> = movimientos.map { saldosPorCuenta(it) }
@@ -170,6 +233,7 @@ private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
         return id
     }
     override suspend fun actualizar(movimiento: Movimiento) {
+        if (fallarAlActualizar) throw IllegalStateException("base no disponible")
         check(movimientos.value.any { it.id == movimiento.id })
         movimientos.value = movimientos.value.map { if (it.id == movimiento.id) movimiento else it }
     }

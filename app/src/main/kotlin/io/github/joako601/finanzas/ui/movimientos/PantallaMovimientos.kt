@@ -140,7 +140,7 @@ fun PantallaMovimientos(
         ),
         // Gastos, ingresos y transferencias se editan; lo demás solo se puede eliminar.
         onTocarMovimiento = {
-            if (it.clase in EDITABLES) viewModel.abrirEdicion(it) else porEliminar = it
+            if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
         },
         onRespaldo = { verRespaldo = true },
     )
@@ -202,13 +202,15 @@ fun PantallaMovimientos(
     captura?.let { actual ->
         HojaCaptura(
             captura = actual,
+            // Al editar, la categoría o cuenta archivada del movimiento sigue disponible.
             categorias = when (actual.clase) {
-                ClaseRegistro.GASTO -> estado.categoriasDeGasto
-                ClaseRegistro.INGRESO -> estado.categoriasDeIngreso
+                ClaseRegistro.GASTO -> estado.categoriasDeGasto + actual.archivadas.filter { it.tipo == TipoCuenta.GASTO }
+                ClaseRegistro.INGRESO -> estado.categoriasDeIngreso + actual.archivadas.filter { it.tipo == TipoCuenta.INGRESO }
             },
             // Un gasto se puede pagar con tarjeta; un ingreso solo llega a efectivo o débito.
             cuentas = estado.cuentasDeDinero.map { it.cuenta } +
-                if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList(),
+                (if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList()) +
+                actual.archivadas.filter { it.tipo.esDeDinero },
             acciones = AccionesCaptura(
                 cambiarClase = viewModel::cambiarClase,
                 cambiarMonto = viewModel::cambiarMonto,
@@ -226,7 +228,7 @@ fun PantallaMovimientos(
     transferencia?.let { actual ->
         DialogoTransferencia(
             transferencia = actual,
-            cuentas = estado.cuentasDeDinero.map { it.cuenta },
+            cuentas = estado.cuentasDeDinero.map { it.cuenta } + actual.archivadas,
             acciones = AccionesTransferencia(
                 editar = viewModel::editarTransferencia,
                 guardar = viewModel::guardarTransferencia,
@@ -538,8 +540,6 @@ private fun MenuPrincipal(onRespaldo: () -> Unit) {
         }
     }
 }
-
-private val EDITABLES = setOf(ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO, ClaseMovimiento.TRANSFERENCIA)
 
 /** Cierra el formulario de edición y abre la confirmación de borrado del mismo movimiento. */
 private fun pedirEliminar(
