@@ -104,13 +104,16 @@ internal const val CATEGORIA_PREDIAL = "Impuestos y predial"
 /**
  * Después de crear la tabla `recurrente`, agrega la categoría de impuestos al final del
  * catálogo si no existe. Corre dentro de la transacción de la migración.
+ *
+ * El MAX va en una subconsulta: un `SELECT MAX(...) FROM cuenta WHERE ...` siempre
+ * devuelve una fila aunque el WHERE no deje ninguna, y la insertaría dos veces.
  */
 internal class De3a4 : AutoMigrationSpec {
     override fun onPostMigrate(db: SupportSQLiteDatabase) {
         db.execSQL(
             """
             INSERT INTO cuenta (nombre, tipo, archivada, orden)
-            SELECT ?, 'GASTO', 0, COALESCE(MAX(orden), 0) + 1 FROM cuenta
+            SELECT ?, 'GASTO', 0, (SELECT COALESCE(MAX(orden), 0) + 1 FROM cuenta)
             WHERE NOT EXISTS (SELECT 1 FROM cuenta WHERE nombre = ?)
             """.trimIndent(),
             arrayOf<Any>(CATEGORIA_PREDIAL, CATEGORIA_PREDIAL),

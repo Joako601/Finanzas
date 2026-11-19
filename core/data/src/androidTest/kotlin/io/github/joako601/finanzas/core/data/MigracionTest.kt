@@ -55,7 +55,11 @@ class MigracionTest {
         val baseDeDatos = Room.databaseBuilder(contexto, FinanzasDatabase::class.java, nombre).build()
         try {
             val repositorio = RepositorioLibroRoom(baseDeDatos)
-            assertEquals(listOf("Efectivo", "Saldos iniciales", "Súper"), repositorio.observarCuentas().first().map { it.nombre })
+            // Room abre en la versión actual: pasa también por 3→4, que agrega la categoría de impuestos al final.
+            assertEquals(
+                listOf("Efectivo", "Saldos iniciales", "Súper", CATEGORIA_PREDIAL),
+                repositorio.observarCuentas().first().map { it.nombre },
+            )
 
             val movimientos = repositorio.observarMovimientos().first()
             assertEquals(2, movimientos.size)
