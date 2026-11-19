@@ -5,6 +5,7 @@ import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.AutoMigrationSpec
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.joako601.finanzas.core.data.libro.AsientoEntity
 import io.github.joako601.finanzas.core.data.libro.CuentaEntity
@@ -12,6 +13,8 @@ import io.github.joako601.finanzas.core.data.libro.LibroDao
 import io.github.joako601.finanzas.core.data.libro.MovimientoEntity
 import io.github.joako601.finanzas.core.data.recordatorios.RecordatorioEntregadoEntity
 import io.github.joako601.finanzas.core.data.recordatorios.RecordatoriosDao
+import io.github.joako601.finanzas.core.data.recurrentes.RecurrenteEntity
+import io.github.joako601.finanzas.core.data.recurrentes.RecurrentesDao
 import io.github.joako601.finanzas.core.data.tarjetas.EstadoDeCuentaEntity
 import io.github.joako601.finanzas.core.data.tarjetas.TarjetaEntity
 import io.github.joako601.finanzas.core.data.tarjetas.TarjetasDao
@@ -29,6 +32,8 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
  * - 2: tarjeta y estado_de_cuenta. Solo agrega tablas, así que Room genera la
  *   migración sola (AutoMigration) comparando los esquemas 1.json y 2.json.
  * - 3: recordatorio_entregado (avisos entregados y su retraso). También automática.
+ * - 4: recurrente (pagos e ingresos fijos). Automática, más [De3a4], que agrega la
+ *   categoría "Impuestos y predial" a las bases creadas antes de que existiera.
  *
  * Todavía sin cifrar. SQLCipher o no se decide con el modelo de amenazas, antes de la
  * primera versión que use alguien más.
@@ -41,10 +46,15 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
         TarjetaEntity::class,
         EstadoDeCuentaEntity::class,
         RecordatorioEntregadoEntity::class,
+        RecurrenteEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2),
+        AutoMigration(from = 2, to = 3),
+        AutoMigration(from = 3, to = 4, spec = De3a4::class),
+    ],
 )
 internal abstract class FinanzasDatabase : RoomDatabase() {
 
@@ -53,6 +63,8 @@ internal abstract class FinanzasDatabase : RoomDatabase() {
     abstract fun tarjetasDao(): TarjetasDao
 
     abstract fun recordatoriosDao(): RecordatoriosDao
+
+    abstract fun recurrentesDao(): RecurrentesDao
 
     companion object {
         const val NOMBRE_ARCHIVO = "finanzas.db"
@@ -83,5 +95,25 @@ internal object SembrarCatalogo : RoomDatabase.Callback() {
                 arrayOf<Any>(semilla.nombre, semilla.tipo.name, indice + 1),
             )
         }
+    }
+}
+
+/** Nombre de la categoría que llegó con la versión 4 (también está en [CatalogoInicial]). */
+internal const val CATEGORIA_PREDIAL = "Impuestos y predial"
+
+/**
+ * Después de crear la tabla `recurrente`, agrega la categoría de impuestos al final del
+ * catálogo si no existe. Corre dentro de la transacción de la migración.
+ */
+internal class De3a4 : AutoMigrationSpec {
+    override fun onPostMigrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            INSERT INTO cuenta (nombre, tipo, archivada, orden)
+            SELECT ?, 'GASTO', 0, COALESCE(MAX(orden), 0) + 1 FROM cuenta
+            WHERE NOT EXISTS (SELECT 1 FROM cuenta WHERE nombre = ?)
+            """.trimIndent(),
+            arrayOf<Any>(CATEGORIA_PREDIAL, CATEGORIA_PREDIAL),
+        )
     }
 }
