@@ -177,9 +177,13 @@ class TarjetasViewModel(
 
     // ---- Pago ----
 
-    fun abrirPago(resumen: ResumenTarjeta) {
-        // Sugiere lo que falta para no generar intereses, si hay un estado de cuenta vigente.
-        val sugerido = (resumen.situacion as? SituacionTarjeta.PagoPendiente)?.restante
+    /**
+     * Abre el pago. Sugiere [montoSugerido] si se indica (por ejemplo, desde la línea de
+     * tiempo: un estado vencido o el estimado sin estado de cuenta); si no, lo que falta
+     * para no generar intereses del estado vigente.
+     */
+    fun abrirPago(resumen: ResumenTarjeta, montoSugerido: Dinero? = null) {
+        val sugerido = montoSugerido ?: (resumen.situacion as? SituacionTarjeta.PagoPendiente)?.restante
         _pago.value = PagoTarjeta(
             tarjeta = resumen.tarjeta,
             montoTexto = sugerido?.formatear()?.removePrefix("$").orEmpty(),
