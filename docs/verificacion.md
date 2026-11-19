@@ -83,6 +83,25 @@ saldo de Efectivo baja en $85.50. Son tres toques más escribir el monto.
 
 La medición formal (cinco personas, con tiempo medido) llega con la decisión 3.
 
+## 6. Los recordatorios llegan, no se repiten y respetan los pagos (D-015)
+
+En el emulador (no hace falta esperar días: se mueve el reloj):
+
+```bash
+export ANDROID_SERIAL=emulator-5554
+adb shell settings put global auto_time 0
+adb shell cmd alarm set-time <milisegundos un minuto antes del aviso>
+adb shell dumpsys alarm | grep -A2 io.github.joako601.finanzas.debug   # hora y ventana
+adb shell dumpsys notification --noredact | grep -A40 io.github.joako601.finanzas.debug
+herramientas/medir-recordatorios.sh                                     # programado vs entregado
+adb reboot   # al volver, la alarma debe estar programada sin abrir la app
+adb shell settings put global auto_time 1
+```
+
+En el teléfono real: `herramientas/medir-recordatorios.sh` una vez por semana durante
+dos semanas. Pendiente: pruebas con `dumpsys deviceidle force-idle` y
+`am set-standby-bucket` (reposo profundo y app poco usada).
+
 ## Registro de resultados
 
 | Fecha | Qué | Dónde | Resultado | Quién |
@@ -92,6 +111,8 @@ La medición formal (cinco personas, con tiempo medido) llega con la decisión 3
 | 2026-11-18 | Actualización real de versionCode 1 a 2 con datos (gasto de $85.50 y cuenta con $5,000) | Emulador API 37 | Datos y saldos intactos; sección de tarjetas visible; sin cierres | Claude |
 | 2026-11-18 | Recorrido de tarjetas: alta con deuda $2,500 → captura de estado (corte 15 nov, límite 5 dic, $2,500) → pago de $1,000 desde débito → compra de $300 con tarjeta | Emulador API 37 | Deuda $1,800, falta pagar $1,500, faltan 17 días, total en cuentas sin cambio por la compra a crédito. Captura: `docs/evidencia/2026-11-18-tarjetas-emulador.png` | Claude |
 | 2026-11-19 | Estilo visual nuevo (claro y oscuro) y actualización de versionCode 2 a 3 con datos | Emulador API 37 | Datos intactos; capturas en `docs/evidencia/2026-11-19-*.png` | Claude |
+| 2026-11-19 | Recordatorios: permiso desde la tarjeta "Activa los avisos"; alarma del 2 dic 9:00 con ventana +1 h; reloj movido a las 8:59:30 → aviso "Paga $1,500.00 de Nu credito antes del 5 dic" entregado a las 9:00:22 (22 s); pago del saldo → la alarma del 4 dic desaparece y no llega aviso; reinicio → alarma reprogramada sin abrir la app | Emulador API 37 | Todo correcto. Captura: `docs/evidencia/2026-11-19-aviso-de-pago.png` | Claude |
+| 2026-11-19 | 15 pruebas instrumentadas, incluidas migraciones 1→2, 1→3 y 2→3 con tarjetas | Emulador API 37 | 15/15 pasan | Claude |
 
 Hallazgos abiertos del recorrido en emulador:
 - El botón flotante **Registrar** no expone su texto a accesibilidad (`NAF="true"` en

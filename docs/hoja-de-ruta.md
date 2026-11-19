@@ -1,6 +1,6 @@
 # Hoja de ruta
 
-Estado al 2026-11-19. Se actualiza al cerrar cada módulo. El detalle de cada decisión
+Estado al 2026-11-19 (tarde). Se actualiza al cerrar cada módulo. El detalle de cada decisión
 está en `decisiones.md` y la evidencia en `verificacion.md`.
 
 ## Hecho
@@ -11,16 +11,14 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Ingresos y egresos manuales con partida doble, cuentas de efectivo y débito | versionCode 1 | 23 pruebas de dominio, 7 de Room, prueba manual en el S24 FE |
 | Tarjetas de crédito: alta, compras, pagos, captura de estado de cuenta, situación del ciclo | versionCode 2 | 48 pruebas de dominio, 13 de Room con migración 1→2, recorrido en emulador |
 | Identidad visual propia en claro y oscuro; Guardar fijo sobre el teclado | versionCode 3 | Capturas en `evidencia/`, instalada en el S24 FE |
-| Registrador de notificaciones (herramienta de la fase 0) | — | Construido, **no instalado todavía** |
+| Registrador de notificaciones (herramienta de la fase 0) | — | Instalado en el S24 FE el 2026-11-19; falta que el autor conceda el acceso |
+| Recordatorios: antes del corte, capturar estado de cuenta, pago con monto | versionCode 4 | 12 pruebas del plan, 15 de Room, recorrido con reloj movido y reinicio en emulador; falta la medición de dos semanas en el S24 FE |
 
 ## Siguiente, en orden
 
-1. **Instalar el registrador de notificaciones** en el S24 FE y empezar las dos semanas
-   de captura. Es el único paso que depende del calendario; todo lo demás avanza en
-   paralelo.
-2. **Recordatorios:** antes del corte, antes de la fecha límite con el monto a pagar, y
-   "captura tu estado de cuenta". Medición de hora programada contra hora entregada en
-   el S24 FE durante dos semanas.
+1. ~~Instalar el registrador de notificaciones~~ (hecho; corre dos semanas).
+2. ~~Recordatorios~~ (hecho; corre la medición de dos semanas con
+   `herramientas/medir-recordatorios.sh`).
 3. **Pagos recurrentes e ingresos esperados:** servicios con cualquier periodicidad
    (CFE bimestral, internet mensual, predial anual), quincena, aguinaldo y PTU.
 4. **Compras a MSI:** repartidas en los estados de cuenta siguientes; el gasto cuenta
@@ -55,7 +53,7 @@ pendientes de confirmar con un toque.
 
 | Material | Estado |
 |---|---|
-| Notificaciones bancarias reales | Registrador construido; falta instalarlo |
+| Notificaciones bancarias reales | Registrador instalado; captura en curso desde que se conceda el acceso |
 | Estados de cuenta | Reemplazado por la captura dentro de la app (D-011) |
 | Regulación y contratos (Banxico, CONDUSEF, CNBV) | Pendiente |
 | Recibos de servicios | Pendiente; necesario para el paso 3 |

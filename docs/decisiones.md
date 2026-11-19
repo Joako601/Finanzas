@@ -302,6 +302,45 @@ hoja de captura con teclado).
 
 ---
 
+## D-015 Recordatorios con AlarmManager inexacto y plan recalculado
+
+**Fecha:** 2026-11-19
+
+**Decisión:**
+- Tres avisos por tarjeta: un día antes del corte (9:00); dos días después del corte si
+  falta capturar el estado de cuenta (19:00); tres días y un día antes de la fecha
+  límite si falta pagar, con el monto exacto (9:00).
+- El plan se recalcula con los datos del momento en cada ejecución: si ya pagaste, el
+  aviso de pago desaparece aunque la alarma ya estuviera programada.
+- Una sola alarma inexacta (`setAndAllowWhileIdle`) apunta siempre al siguiente aviso.
+  Se reprograma al abrir la app, al cambiar los datos, al sonar la alarma, al reiniciar,
+  al cambiar la hora o la zona horaria y al actualizar la app.
+- Cada entrega se registra con hora programada y hora real (`recordatorio_entregado`):
+  evita repetir avisos y es el oráculo de retraso (`herramientas/medir-recordatorios.sh`).
+- Privacidad: el aviso es privado; en la pantalla de bloqueo solo se lee "Tienes un
+  recordatorio de pago".
+- Permisos nuevos: `POST_NOTIFICATIONS` y `RECEIVE_BOOT_COMPLETED`, agregados a la lista
+  permitida de la guardia. Ninguno da red.
+
+**Descartado:**
+- WorkManager: trae su propia base Room y agrega `ACCESS_NETWORK_STATE`,
+  `FOREGROUND_SERVICE` y `WAKE_LOCK` al manifiesto.
+- Alarma exacta: `SCHEDULE_EXACT_ALARM` viene negado por defecto desde Android 14 y
+  `USE_EXACT_ALARM` es solo para apps de alarma o calendario. Se reconsidera solo si la
+  medición muestra retrasos inaceptables.
+
+**Hallazgo:** Android asigna a la alarma inexacta una ventana de hasta **+1 hora**
+(`dumpsys alarm`: `window=+1h0m0s`). Un aviso de las 9:00 puede llegar hasta las 10:00.
+Para avisos de pago con días de anticipación parece aceptable; el retraso máximo
+aceptable se fija con números en la decisión 3 (métricas).
+
+**Supuesto S6:** lo comprado el día del corte entra en ese estado de cuenta.
+
+**Cómo se verifica:** `PlanRecordatoriosTest` (12 pruebas, una de propiedades);
+recorrido en emulador de `verificacion.md` §6; dos semanas de medición en el S24 FE.
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |
