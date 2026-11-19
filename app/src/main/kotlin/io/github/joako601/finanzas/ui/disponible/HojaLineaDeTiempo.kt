@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -25,6 +26,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.disponible.EventoFuturo
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.disponible.TipoEvento
@@ -35,6 +37,7 @@ import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.iconoDeCategoria
 import io.github.joako601.finanzas.ui.formatoDiaCorto
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
+import kotlinx.coroutines.launch
 
 /**
  * El disponible real con su cuenta a la vista: cuánto hay en cuentas, cuánto se aparta
@@ -59,25 +62,37 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
         )
         val secundario = MaterialTheme.colorScheme.onSurfaceVariant
         val bajo = linea.puntoMasBajo
-        if (bajo == null) {
-            Text(stringResource(R.string.sin_pagos_30_dias), style = MaterialTheme.typography.bodyMedium, color = secundario)
-        } else {
-            Text(
-                stringResource(R.string.en_cuentas_para_pagos, linea.enCuentas.formatear(), linea.comprometido.formatear()),
-                style = MaterialTheme.typography.bodyMedium,
-                color = secundario,
-            )
-            Text(
-                stringResource(R.string.saldo_mas_bajo, bajo.fecha.formatoDiaCorto(linea.hoy)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = secundario,
-            )
-        }
-        linea.primerFaltante?.let { faltante ->
-            Text(
-                stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear()),
+        val faltante = linea.primerFaltante
+        when {
+            // En negativo, el aviso de faltante lo dice todo; la cuenta de lo apartado confundiría.
+            faltante != null -> Text(
+                when {
+                    faltante.fecha != linea.hoy ->
+                        stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
+                    linea.enCuentas.esNegativo -> stringResource(R.string.faltante_hoy, faltante.falta.formatear())
+                    else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
+                },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.error,
+            )
+            bajo != null -> {
+                Text(
+                    stringResource(R.string.en_cuentas_para_pagos, linea.enCuentas.formatear(), linea.comprometido.formatear()),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = secundario,
+                )
+                Text(
+                    stringResource(R.string.saldo_mas_bajo, (linea.diaMasBajo ?: bajo.fecha).formatoDiaCorto(linea.hoy)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = secundario,
+                )
+            }
+            else -> Text(
+                stringResource(
+                    if (linea.eventos.any { it.esSalida }) R.string.ingresos_cubren_pagos else R.string.sin_pagos_30_dias,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = secundario,
             )
         }
     }
@@ -86,7 +101,8 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
 /** Qué hacer al tocar algo de la línea de tiempo. */
 class AccionesLineaDeTiempo(
     val tocarFijo: (RecurrenteId) -> Unit,
-    val tocarTarjeta: (CuentaId) -> Unit,
+    /** La tarjeta y el monto que se sugiere pagar. */
+    val tocarTarjeta: (CuentaId, Dinero) -> Unit,
     val agregarFijo: () -> Unit,
     val cerrar: () -> Unit,
 )
@@ -100,9 +116,21 @@ class AccionesLineaDeTiempo(
 @Composable
 fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiempo) {
     val linea = estado.linea ?: return
+    val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val alcance = rememberCoroutineScope()
+    // La hoja baja con su animación y después se abre el diálogo, en lugar de desaparecer de golpe.
+    fun alCerrar(accion: () -> Unit) {
+        alcance.launch { estadoHoja.hide() }.invokeOnCompletion { accion() }
+    }
+    val conAnimacion = AccionesLineaDeTiempo(
+        tocarFijo = { id -> alCerrar { acciones.tocarFijo(id) } },
+        tocarTarjeta = { id, monto -> alCerrar { acciones.tocarTarjeta(id, monto) } },
+        agregarFijo = { alCerrar(acciones.agregarFijo) },
+        cerrar = acciones.cerrar,
+    )
     ModalBottomSheet(
         onDismissRequest = acciones.cerrar,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = estadoHoja,
         // Fondo de pantalla, no de tarjeta: así las tarjetas se distinguen, como en la pantalla principal.
         containerColor = MaterialTheme.colorScheme.background,
     ) {
@@ -140,23 +168,23 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                 val corte = bajo?.let { linea.eventos.indexOf(it) + 1 } ?: 0
                 if (bajo != null) {
                     Grupo(
-                        titulo = stringResource(R.string.grupo_definen, bajo.fecha.formatoDiaCorto(linea.hoy)),
+                        titulo = stringResource(R.string.grupo_definen, (linea.diaMasBajo ?: bajo.fecha).formatoDiaCorto(linea.hoy)),
                         eventos = linea.eventos.subList(0, corte),
                         linea = linea,
                         estado = estado,
-                        acciones = acciones,
+                        acciones = conAnimacion,
                     )
                 }
                 Grupo(
-                    titulo = bajo?.let { stringResource(R.string.grupo_despues, it.fecha.formatoDiaCorto(linea.hoy)) }
-                        ?: stringResource(R.string.grupo_lo_que_viene),
+                    // Sin fecha: el mismo día puede caer en los dos grupos (la renta antes que la quincena).
+                    titulo = stringResource(if (bajo != null) R.string.grupo_despues else R.string.grupo_lo_que_viene),
                     eventos = linea.eventos.subList(corte, linea.eventos.size),
                     linea = linea,
                     estado = estado,
-                    acciones = acciones,
+                    acciones = conAnimacion,
                 )
             }
-            TextButton(onClick = acciones.agregarFijo) { Text(stringResource(R.string.agregar_pago_o_cobro_fijo)) }
+            TextButton(onClick = conAnimacion.agregarFijo) { Text(stringResource(R.string.agregar_pago_o_cobro_fijo)) }
         }
     }
 }
@@ -211,15 +239,18 @@ private fun FilaEvento(evento: EventoFuturo, linea: LineaDeTiempo, estado: Estad
     }
 
     // Tocar un pago fijo o un ingreso abre su registro; tocar un pago de tarjeta abre el pago.
-    val recurrente = evento.recurrente
+    // Solo la fecha pendiente de cada pago fijo abre el registro: es la que se registra.
+    val recurrente = evento.recurrente?.takeIf { evento in estado.pendientes(linea) }
     val tarjeta = evento.tarjeta
+    val etiquetaAccion = stringResource(if (recurrente != null) R.string.accion_registrar else R.string.accion_pagar)
     val alTocar: (() -> Unit)? = when {
         recurrente != null -> { { acciones.tocarFijo(recurrente) } }
-        evento.tipo == TipoEvento.PAGO_TARJETA && tarjeta != null -> { { acciones.tocarTarjeta(tarjeta) } }
+        evento.tipo == TipoEvento.PAGO_TARJETA && tarjeta != null -> { { acciones.tocarTarjeta(tarjeta, evento.monto) } }
         else -> null
     }
-    // clickable ya une la fila para TalkBack; sin acción se une a mano.
-    val modificador = alTocar?.let { Modifier.clickable(onClick = it) } ?: Modifier.semantics(mergeDescendants = true) {}
+    // clickable ya une la fila para TalkBack y anuncia la acción; sin acción se une a mano.
+    val modificador = alTocar?.let { Modifier.clickable(onClickLabel = etiquetaAccion, onClick = it) }
+        ?: Modifier.semantics(mergeDescendants = true) {}
 
     ListItem(
         modifier = modificador,
@@ -253,3 +284,7 @@ private fun icono(evento: EventoFuturo, estado: EstadoLineaDeTiempo): Int = when
     TipoEvento.PAGO_TARJETA, TipoEvento.CORTE -> R.drawable.ic_cat_tarjeta
     TipoEvento.PAGO_FIJO, TipoEvento.INGRESO_ESPERADO -> iconoDeCategoria(evento.categoria?.let { estado.categorias[it]?.nombre })
 }
+
+/** La primera fecha de cada pago o cobro fijo: la pendiente, la única que se registra. */
+private fun EstadoLineaDeTiempo.pendientes(linea: LineaDeTiempo): Set<EventoFuturo> =
+    linea.eventos.filter { it.recurrente != null }.distinctBy { it.recurrente }.toSet()

@@ -15,8 +15,8 @@ private val localeMexico: Locale = Locale.forLanguageTag("es-MX")
 private val formatoDia: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM", localeMexico)
 private val formatoDiaConAnio: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d 'de' MMMM 'de' yyyy", localeMexico)
 private val formatoCorto: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", localeMexico)
-private val patronDiaCorto: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM", localeMexico)
-private val patronDiaCortoOtroAnio: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE d MMM yyyy", localeMexico)
+private val patronDiaCorto: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMM", localeMexico)
+private val patronDiaCortoOtroAnio: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMM yyyy", localeMexico)
 
 /** La fecha de hoy según la zona horaria del teléfono. */
 fun hoy(): LocalDate = java.time.LocalDate.now().toKotlinLocalDate()
@@ -30,6 +30,6 @@ fun LocalDate.formatoEncabezado(hoy: LocalDate): String {
 /** "16 nov 2026". */
 fun LocalDate.formatoCorto(): String = toJavaLocalDate().format(formatoCorto)
 
-/** "vie 5 dic"; agrega el año si no es el de [hoy]. Para listas de pocos días. */
+/** "viernes 5 dic"; agrega el año si no es el de [hoy]. Día completo: "mar" sería martes o marzo. */
 fun LocalDate.formatoDiaCorto(hoy: LocalDate): String =
     toJavaLocalDate().format(if (year == hoy.year) patronDiaCorto else patronDiaCortoOtroAnio)

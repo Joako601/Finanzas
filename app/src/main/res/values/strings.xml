@@ -127,16 +127,19 @@
 
     <!-- Disponible real y próximos 30 días (D-017) -->
     <string name="disponible_real">Disponible real</string>
-    <string name="en_cuentas_para_pagos">%1$s\u00A0en cuentas − %2$s\u00A0para pagos</string>
-    <string name="saldo_mas_bajo">Tu saldo más bajo llega el %1$s.</string>
-    <string name="sin_pagos_30_dias">Sin pagos que lo reduzcan en 30 días.</string>
+    <string name="en_cuentas_para_pagos">De tus %1$s, apartamos %2$s para que no te falte.</string>
+    <string name="saldo_mas_bajo">Te tiene que alcanzar hasta el %1$s.</string>
+    <string name="sin_pagos_30_dias">No tienes pagos en los próximos 30 días.</string>
+    <string name="ingresos_cubren_pagos">Tus ingresos esperados cubren tus pagos de los próximos 30 días.</string>
     <string name="faltante">El %1$s te faltarían %2$s, aun con lo que esperas recibir.</string>
+    <string name="faltante_hoy">Hoy te faltan %1$s en efectivo y débito.</string>
+    <string name="faltante_hoy_vencidos">Con lo vencido, hoy te faltarían %1$s.</string>
     <string name="sin_cuentas_para_disponible">Agrega tu efectivo o tu débito para saber cuánto tienes disponible.</string>
     <string name="ver_proximos_30_dias">Ver próximos 30 días</string>
     <string name="proximos_30_dias">Próximos 30 días</string>
     <string name="explicacion_disponible">Es lo que puedes gastar hoy sin quedar en negativo ningún día de los próximos 30, contando tus pagos y los ingresos que esperas. Los pagos fijos usan su monto aproximado.</string>
-    <string name="grupo_definen">Hasta el %1$s: definen tu disponible</string>
-    <string name="grupo_despues">Después del %1$s</string>
+    <string name="grupo_definen">Hasta el %1$s: ya incluido en tu disponible</string>
+    <string name="grupo_despues">Lo que sigue: no cambia tu disponible</string>
     <string name="grupo_lo_que_viene">Lo que viene</string>
     <string name="evento_pago_tarjeta">Pagar %1$s</string>
     <string name="evento_corte">Corte de %1$s</string>
@@ -145,6 +148,8 @@
     <string name="queda_saldo">te quedan %1$s</string>
     <string name="sin_eventos">No hay pagos ni ingresos en los próximos 30 días.</string>
     <string name="agregar_pago_o_cobro_fijo">Agregar pago o cobro fijo</string>
+    <string name="accion_registrar">Registrar</string>
+    <string name="accion_pagar">Pagar</string>
 
     <string name="canal_recordatorios">Recordatorios de pago</string>
     <string name="canal_recordatorios_descripcion">Avisos antes del corte, antes de la fecha límite, para capturar tu estado de cuenta y antes de tus pagos fijos.</string>

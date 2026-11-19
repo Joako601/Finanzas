@@ -17,7 +17,10 @@ import io.github.joako601.finanzas.ui.hoy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.LocalDate
@@ -36,13 +39,22 @@ class LineaDeTiempoViewModel(
     libro: RepositorioLibro,
     tarjetas: RepositorioTarjetas,
     recurrentes: RepositorioRecurrentes,
-    private val fechaDeHoy: () -> LocalDate,
+    fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
+
+    /** La fecha de hoy, revisada cada minuto: si la app queda abierta pasada la medianoche, todo se recalcula. */
+    private val dias = flow {
+        while (true) {
+            emit(fechaDeHoy())
+            delay(60_000)
+        }
+    }.distinctUntilChanged()
 
     val estado: StateFlow<EstadoLineaDeTiempo> = combine(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
         combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
-    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes) ->
+        dias,
+    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), hoy ->
         val porId = cuentas.associateBy { it.id }
         EstadoLineaDeTiempo(
             linea = LineaDeTiempo.calcular(
@@ -52,7 +64,7 @@ class LineaDeTiempoViewModel(
                 estados = estados,
                 pagos = pagosATarjetas(movimientos, porId),
                 recurrentes = listaRecurrentes,
-                hoy = fechaDeHoy(),
+                hoy = hoy,
             ),
             categorias = porId,
         )

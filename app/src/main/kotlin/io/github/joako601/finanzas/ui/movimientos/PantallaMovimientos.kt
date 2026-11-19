@@ -144,10 +144,10 @@ fun PantallaMovimientos(
                         recurrentesViewModel.abrirRegistro(it)
                     }
                 },
-                tocarTarjeta = { id ->
+                tocarTarjeta = { id, monto ->
                     estadoTarjetas.tarjetas.firstOrNull { it.tarjeta.id == id }?.let {
                         verLineaDeTiempo = false
-                        tarjetasViewModel.abrirPago(it)
+                        tarjetasViewModel.abrirPago(it, monto)
                     }
                 },
                 agregarFijo = {
@@ -297,8 +297,7 @@ fun ContenidoMovimientos(
             )
         },
     ) { margenes ->
-        // Se espera también a la línea de tiempo: así la cifra principal no cambia de significado al cargar.
-        if (estado.cargando || lineaDeTiempo == null) {
+        if (estado.cargando) {
             Box(Modifier.fillMaxSize().padding(margenes), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -387,7 +386,7 @@ fun ContenidoMovimientos(
 @Composable
 private fun TarjetaSaldos(
     estado: EstadoMovimientos,
-    linea: LineaDeTiempo,
+    linea: LineaDeTiempo?,
     onAgregarCuenta: () -> Unit,
     onVerLineaDeTiempo: () -> Unit,
 ) {
@@ -400,10 +399,14 @@ private fun TarjetaSaldos(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            } else if (linea == null) {
+                // Solo esta tarjeta espera a la línea de tiempo; la lista de movimientos ya se ve.
+                // No se muestra otra cifra mientras tanto, para que la principal no cambie de significado.
+                CircularProgressIndicator(Modifier.padding(vertical = 8.dp))
             } else {
                 ResumenDisponible(linea)
             }
-            TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp)) {
+            TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp), enabled = linea != null) {
                 Text(stringResource(R.string.ver_proximos_30_dias))
             }
             if (estado.cuentasDeDinero.isNotEmpty()) {
