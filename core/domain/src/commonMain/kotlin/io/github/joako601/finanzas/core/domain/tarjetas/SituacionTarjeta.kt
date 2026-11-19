@@ -97,6 +97,9 @@ public data class PagoATarjeta(val tarjeta: CuentaId, val fecha: LocalDate, val 
  * (sale dinero de efectivo o débito y baja la deuda). Usa la misma regla que la lista de
  * movimientos para que un traspaso entre tarjetas, una compra o un saldo inicial nunca
  * cuenten como pago.
+ *
+ * shortcut: un solo movimiento que pague varias tarjetas a la vez se descarta (resumir no
+ * elige una tarjeta); hoy Registro.pagoDeTarjeta paga una sola. Repartir el pago si eso cambia.
  */
 public fun pagosATarjetas(movimientos: Iterable<Movimiento>, cuentas: Map<CuentaId, Cuenta>): List<PagoATarjeta> =
     movimientos

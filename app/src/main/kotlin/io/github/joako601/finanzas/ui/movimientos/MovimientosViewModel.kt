@@ -239,10 +239,10 @@ class MovimientosViewModel(
     }
 
     fun cambiarNombreCuenta(nombre: String) =
-        _nuevaCuenta.update { it?.copy(nombre = nombre.take(Cuenta.LARGO_MAXIMO_NOMBRE), errorNombre = false) }
+        _nuevaCuenta.update { it?.copy(nombre = nombre.take(Cuenta.LARGO_MAXIMO_NOMBRE), errorNombre = false, errorAlGuardar = false) }
 
     fun cambiarSaldoCuenta(texto: String) = _nuevaCuenta.update {
-        it?.copy(saldoTexto = limpiarMonto(texto), errorSaldo = false)
+        it?.copy(saldoTexto = limpiarMonto(texto), errorSaldo = false, errorAlGuardar = false)
     }
 
     fun guardarNuevaCuenta() {
@@ -252,7 +252,7 @@ class MovimientosViewModel(
         val errorNombre = actual.nombre.isBlank()
         val errorSaldo = saldo == null
         if (errorNombre || errorSaldo) {
-            _nuevaCuenta.value = actual.copy(errorNombre = errorNombre, errorSaldo = errorSaldo)
+            _nuevaCuenta.value = actual.copy(errorNombre = errorNombre, errorSaldo = errorSaldo, errorAlGuardar = false)
             return
         }
         _nuevaCuenta.value = actual.copy(guardando = true, errorAlGuardar = false)
