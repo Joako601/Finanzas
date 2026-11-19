@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Variante oscura: evita el destello blanco al abrir la app con el tema oscuro activo. -->
 <resources>
-    <style name="Theme.Finanzas" parent="android:Theme.Material.NoActionBar" />
+    <style name="Theme.Finanzas" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/fondo_ventana</item>
+    </style>
 </resources>

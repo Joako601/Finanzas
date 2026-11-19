@@ -5,5 +5,7 @@
   Material Components para no agregar esa librería solo por esto.
 -->
 <resources>
-    <style name="Theme.Finanzas" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Finanzas" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo_ventana</item>
+    </style>
 </resources>

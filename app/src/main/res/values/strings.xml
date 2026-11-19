@@ -55,7 +55,9 @@
     <string name="tarjetas_de_credito">Tarjetas de crédito</string>
     <string name="agregar_tarjeta">Agregar tarjeta</string>
     <string name="sin_tarjetas">Agrega tus tarjetas para saber cuánto pagar y antes de cuándo.</string>
-    <string name="deuda_y_disponible">Debes %1$s · Disponible %2$s</string>
+    <string name="credito">Crédito</string>
+    <string name="debes">Debes</string>
+    <string name="disponible_de">Disponible %1$s de %2$s</string>
     <string name="situacion_pago_pendiente">Paga %1$s antes del %2$s para no generar intereses</string>
     <string name="vence_hoy">Vence hoy</string>
     <plurals name="dias_restantes">
