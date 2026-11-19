@@ -107,6 +107,7 @@ fun PantallaMovimientos(
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
     val nuevaCuenta by viewModel.nuevaCuenta.collectAsStateWithLifecycle()
+    val transferencia by viewModel.transferencia.collectAsStateWithLifecycle()
     val estadoTarjetas by tarjetasViewModel.estado.collectAsStateWithLifecycle()
     val nuevaTarjeta by tarjetasViewModel.nuevaTarjeta.collectAsStateWithLifecycle()
     val pago by tarjetasViewModel.pago.collectAsStateWithLifecycle()
@@ -124,6 +125,7 @@ fun PantallaMovimientos(
         estadoTarjetas = estadoTarjetas,
         onRegistrar = viewModel::abrirCaptura,
         onAgregarCuenta = viewModel::abrirNuevaCuenta,
+        onTransferir = viewModel::abrirTransferencia,
         lineaDeTiempo = estadoLinea.linea,
         onVerLineaDeTiempo = { verLineaDeTiempo = true },
         accionesTarjetas = AccionesTarjetas(
@@ -136,7 +138,10 @@ fun PantallaMovimientos(
             agregar = recurrentesViewModel::abrirNuevo,
             tocar = recurrentesViewModel::abrirRegistro,
         ),
-        onTocarMovimiento = { porEliminar = it },
+        // Gastos, ingresos y transferencias se editan; lo demás solo se puede eliminar.
+        onTocarMovimiento = {
+            if (it.clase in EDITABLES) viewModel.abrirEdicion(it) else porEliminar = it
+        },
         onRespaldo = { verRespaldo = true },
     )
 
@@ -213,6 +218,20 @@ fun PantallaMovimientos(
                 cambiarNota = viewModel::cambiarNota,
                 guardar = viewModel::guardarCaptura,
                 cerrar = viewModel::cerrarCaptura,
+                eliminar = actual.editando?.let { id -> { pedirEliminar(id, estado, viewModel::cerrarCaptura) { porEliminar = it } } },
+            ),
+        )
+    }
+
+    transferencia?.let { actual ->
+        DialogoTransferencia(
+            transferencia = actual,
+            cuentas = estado.cuentasDeDinero.map { it.cuenta },
+            acciones = AccionesTransferencia(
+                editar = viewModel::editarTransferencia,
+                guardar = viewModel::guardarTransferencia,
+                eliminar = actual.editando?.let { id -> { pedirEliminar(id, estado, viewModel::cerrarTransferencia) { porEliminar = it } } },
+                cerrar = viewModel::cerrarTransferencia,
             ),
         )
     }
@@ -289,6 +308,7 @@ fun ContenidoMovimientos(
     estadoTarjetas: EstadoTarjetas,
     onRegistrar: () -> Unit,
     onAgregarCuenta: () -> Unit,
+    onTransferir: () -> Unit,
     lineaDeTiempo: LineaDeTiempo?,
     onVerLineaDeTiempo: () -> Unit,
     accionesTarjetas: AccionesTarjetas,
@@ -329,7 +349,7 @@ fun ContenidoMovimientos(
             ),
         ) {
             item(key = "saldos") {
-                TarjetaSaldos(estado, lineaDeTiempo, onAgregarCuenta, onVerLineaDeTiempo)
+                TarjetaSaldos(estado, lineaDeTiempo, onAgregarCuenta, onTransferir, onVerLineaDeTiempo)
             }
 
             if (estadoTarjetas.tarjetas.isNotEmpty()) {
@@ -403,6 +423,7 @@ private fun TarjetaSaldos(
     estado: EstadoMovimientos,
     linea: LineaDeTiempo?,
     onAgregarCuenta: () -> Unit,
+    onTransferir: () -> Unit,
     onVerLineaDeTiempo: () -> Unit,
 ) {
     TarjetaFinanzas(Modifier.fillMaxWidth().padding(16.dp)) {
@@ -435,8 +456,16 @@ private fun TarjetaSaldos(
                     }
                 }
             }
-            TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
-                Text(stringResource(R.string.agregar_cuenta))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+                TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
+                    Text(stringResource(R.string.agregar_cuenta))
+                }
+                // Con una sola cuenta no hay a dónde transferir.
+                if (estado.cuentasDeDinero.size >= 2) {
+                    TextButton(onClick = onTransferir, contentPadding = PaddingValues(0.dp)) {
+                        Text(stringResource(R.string.transferir))
+                    }
+                }
             }
         }
     }
@@ -454,8 +483,15 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
         // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.
         ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO -> "" to neutro
     }
+    val origenDestino = if (movimiento.clase == ClaseMovimiento.TRANSFERENCIA) {
+        val desde = movimiento.cuenta?.nombre
+        val hacia = movimiento.contraparte?.nombre
+        if (desde != null && hacia != null) stringResource(R.string.de_a, desde, hacia) else null
+    } else {
+        movimiento.cuenta?.nombre
+    }
     val detalle = listOfNotNull(
-        movimiento.cuenta?.nombre,
+        origenDestino,
         movimiento.movimiento.descripcion.ifBlank { null }?.takeIf { movimiento.clase != ClaseMovimiento.SALDO_INICIAL },
     ).joinToString(" · ")
 
@@ -501,4 +537,18 @@ private fun MenuPrincipal(onRespaldo: () -> Unit) {
             )
         }
     }
+}
+
+private val EDITABLES = setOf(ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO, ClaseMovimiento.TRANSFERENCIA)
+
+/** Cierra el formulario de edición y abre la confirmación de borrado del mismo movimiento. */
+private fun pedirEliminar(
+    id: io.github.joako601.finanzas.core.domain.libro.MovimientoId,
+    estado: EstadoMovimientos,
+    cerrar: () -> Unit,
+    confirmar: (MovimientoResumido) -> Unit,
+) {
+    val resumen = estado.dias.firstNotNullOfOrNull { dia -> dia.movimientos.firstOrNull { it.movimiento.id == id } } ?: return
+    cerrar()
+    confirmar(resumen)
 }

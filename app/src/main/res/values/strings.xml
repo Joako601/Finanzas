@@ -11,6 +11,8 @@
     <string name="ayer">Ayer</string>
     <string name="saldo_inicial">Saldo inicial</string>
     <string name="transferencia">Transferencia</string>
+    <string name="transferir">Transferir</string>
+    <string name="de_a">%1$s → %2$s</string>
     <string name="movimiento">Movimiento</string>
 
     <!-- Captura -->

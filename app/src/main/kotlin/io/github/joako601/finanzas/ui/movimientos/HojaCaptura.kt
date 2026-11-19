@@ -3,12 +3,14 @@ package io.github.joako601.finanzas.ui.movimientos
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -18,10 +20,12 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -48,6 +52,8 @@ class AccionesCaptura(
     val cambiarNota: (String) -> Unit,
     val guardar: () -> Unit,
     val cerrar: () -> Unit,
+    /** Solo al editar un movimiento guardado: pide confirmación antes de borrarlo. */
+    val eliminar: (() -> Unit)? = null,
 )
 
 /**
@@ -167,17 +173,28 @@ fun HojaCaptura(
                 }
             }
 
-            BotonPrincipal(
-                texto = stringResource(R.string.guardar),
-                onClick = acciones.guardar,
-                habilitado = !captura.guardando,
-                modifier = Modifier.padding(16.dp),
-            )
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                acciones.eliminar?.let { eliminar ->
+                    TextButton(
+                        onClick = eliminar,
+                        enabled = !captura.guardando,
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.padding(end = 8.dp),
+                    ) { Text(stringResource(R.string.eliminar)) }
+                }
+                BotonPrincipal(
+                    texto = stringResource(R.string.guardar),
+                    onClick = acciones.guardar,
+                    habilitado = !captura.guardando,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 
     // El monto es lo primero que se escribe: el cursor y el teclado aparecen ahí solos.
-    LaunchedEffect(Unit) { foco.requestFocus() }
+    // Al editar no: lo que se corrige puede ser la categoría, y el teclado la taparía.
+    LaunchedEffect(Unit) { if (captura.editando == null) foco.requestFocus() }
 }
 
 @Composable
