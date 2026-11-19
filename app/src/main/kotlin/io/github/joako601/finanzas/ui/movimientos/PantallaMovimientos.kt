@@ -6,10 +6,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -50,6 +48,7 @@ import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.iconoDe
+import io.github.joako601.finanzas.ui.disponible.AccionesLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.HojaLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.LineaDeTiempoViewModel
 import io.github.joako601.finanzas.ui.disponible.ResumenDisponible
@@ -135,7 +134,29 @@ fun PantallaMovimientos(
     )
 
     if (verLineaDeTiempo) {
-        HojaLineaDeTiempo(estado = estadoLinea, onCerrar = { verLineaDeTiempo = false })
+        // Al tocar algo se cierra la hoja y se abre el diálogo que corresponde.
+        HojaLineaDeTiempo(
+            estado = estadoLinea,
+            acciones = AccionesLineaDeTiempo(
+                tocarFijo = { id ->
+                    estadoRecurrentes.recurrentes.firstOrNull { it.recurrente.id == id }?.let {
+                        verLineaDeTiempo = false
+                        recurrentesViewModel.abrirRegistro(it)
+                    }
+                },
+                tocarTarjeta = { id ->
+                    estadoTarjetas.tarjetas.firstOrNull { it.tarjeta.id == id }?.let {
+                        verLineaDeTiempo = false
+                        tarjetasViewModel.abrirPago(it)
+                    }
+                },
+                agregarFijo = {
+                    verLineaDeTiempo = false
+                    recurrentesViewModel.abrirNuevo()
+                },
+                cerrar = { verLineaDeTiempo = false },
+            ),
+        )
     }
 
     nuevoRecurrente?.let { actual ->
@@ -276,7 +297,8 @@ fun ContenidoMovimientos(
             )
         },
     ) { margenes ->
-        if (estado.cargando) {
+        // Se espera también a la línea de tiempo: así la cifra principal no cambia de significado al cargar.
+        if (estado.cargando || lineaDeTiempo == null) {
             Box(Modifier.fillMaxSize().padding(margenes), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -359,44 +381,44 @@ fun ContenidoMovimientos(
 }
 
 /**
- * Saldos: el disponible real arriba (o el total en cuentas mientras se calcula), las
- * cuentas debajo, y las acciones de agregar cuenta y ver los próximos 30 días.
+ * Saldos: el disponible real con su cuenta y el acceso a los próximos 30 días; debajo,
+ * separado, el saldo de cada cuenta y la acción de agregar otra.
  */
 @Composable
 private fun TarjetaSaldos(
     estado: EstadoMovimientos,
-    linea: LineaDeTiempo?,
+    linea: LineaDeTiempo,
     onAgregarCuenta: () -> Unit,
     onVerLineaDeTiempo: () -> Unit,
 ) {
     TarjetaFinanzas(Modifier.fillMaxWidth().padding(16.dp)) {
         Column(Modifier.padding(20.dp)) {
-            if (linea != null) {
-                ResumenDisponible(linea)
-            } else {
+            if (estado.cuentasDeDinero.isEmpty()) {
+                // Sin efectivo ni débito el disponible sería una alarma falsa.
                 Text(
-                    stringResource(R.string.total_en_cuentas),
-                    style = MaterialTheme.typography.bodyMedium,
+                    stringResource(R.string.sin_cuentas_para_disponible),
+                    style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(estado.totalEnCuentas.formatear(), style = MaterialTheme.typography.headlineLarge)
+            } else {
+                ResumenDisponible(linea)
             }
-            Spacer(Modifier.height(12.dp))
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                estado.cuentasDeDinero.forEach { (cuenta, saldo) ->
-                    Column {
-                        Text(cuenta.nombre, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(saldo.formatear(), style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp)) {
+                Text(stringResource(R.string.ver_proximos_30_dias))
+            }
+            if (estado.cuentasDeDinero.isNotEmpty()) {
+                HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    estado.cuentasDeDinero.forEach { (cuenta, saldo) ->
+                        Column {
+                            Text(cuenta.nombre, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(saldo.formatear(), style = MaterialTheme.typography.titleMedium)
+                        }
                     }
                 }
             }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
-                    Text(stringResource(R.string.agregar_cuenta))
-                }
-                TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp), enabled = linea != null) {
-                    Text(stringResource(R.string.proximos_30_dias))
-                }
+            TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
+                Text(stringResource(R.string.agregar_cuenta))
             }
         }
     }
