@@ -33,8 +33,6 @@ public enum class TipoCuenta {
 
     /** Cuentas donde vive el dinero, en contraste con las categorías. */
     public val esDeDinero: Boolean get() = this == ACTIVO || this == PASIVO
-
-    public val esCategoria: Boolean get() = this == INGRESO || this == GASTO
 }
 
 @JvmInline
