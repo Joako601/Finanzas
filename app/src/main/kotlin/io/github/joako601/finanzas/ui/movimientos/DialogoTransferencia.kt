@@ -41,7 +41,9 @@ fun DialogoTransferencia(transferencia: Transferencia, cuentas: List<Cuenta>, ac
     val erroresMonto = setOf(ErrorRegistro.MONTO_VACIO, ErrorRegistro.MONTO_INVALIDO, ErrorRegistro.MONTO_CERO)
     AlertDialog(
         onDismissRequest = acciones.cerrar,
-        title = { Text(stringResource(R.string.transferencia)) },
+        title = {
+            Text(stringResource(if (transferencia.editando == null) R.string.transferencia else R.string.editar_transferencia))
+        },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Campo(

@@ -13,6 +13,9 @@
     <string name="transferencia">Transferencia</string>
     <string name="transferir">Transferir</string>
     <string name="de_a">%1$s → %2$s</string>
+    <string name="de_a_hablado">de %1$s a %2$s</string>
+    <string name="editar_movimiento">Editar movimiento</string>
+    <string name="editar_transferencia">Editar transferencia</string>
     <string name="movimiento">Movimiento</string>
 
     <!-- Captura -->

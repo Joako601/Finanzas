@@ -30,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -90,6 +92,14 @@ fun HojaCaptura(
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // Al editar, el título lo dice; capturar uno nuevo sigue igual de corto.
+                if (captura.editando != null) {
+                    Text(
+                        stringResource(R.string.editar_movimiento),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                }
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     ClaseRegistro.entries.forEachIndexed { indice, clase ->
                         SegmentedButton(

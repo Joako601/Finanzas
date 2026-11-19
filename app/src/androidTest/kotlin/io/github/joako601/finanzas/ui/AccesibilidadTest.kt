@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -124,6 +125,14 @@ class AccesibilidadTest {
         }
 
         assertEquals("Elementos tocables de menos de 48 dp (de ${tocables.size})", emptyList<String>(), chicos)
+    }
+
+    @Test
+    fun la_transferencia_se_lee_de_una_cuenta_a_otra_sin_flecha() {
+        mostrarPantalla()
+
+        regla.onNode(hasContentDescription("de Nu débito a Efectivo", substring = true), useUnmergedTree = true)
+            .assertExists()
     }
 
     private fun nombre(nodo: SemanticsNode): String {

@@ -5,7 +5,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -42,7 +46,8 @@ fun Campo(
         prefix = prefijo?.let { { Text(it) } },
         singleLine = true,
         isError = error != null,
-        supportingText = error?.let { { Text(it) } },
+        // El error se anuncia solo: tras tocar Guardar, TalkBack sigue en el botón.
+        supportingText = error?.let { { Text(it, Modifier.semantics { liveRegion = LiveRegionMode.Polite }) } },
         keyboardOptions = teclado,
         visualTransformation = if (oculto) PasswordVisualTransformation() else VisualTransformation.None,
     )

@@ -38,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -485,12 +487,16 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
         // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.
         ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO -> "" to neutro
     }
-    val origenDestino = if (movimiento.clase == ClaseMovimiento.TRANSFERENCIA) {
-        val desde = movimiento.cuenta?.nombre
-        val hacia = movimiento.contraparte?.nombre
-        if (desde != null && hacia != null) stringResource(R.string.de_a, desde, hacia) else null
+    val desde = movimiento.cuenta?.nombre
+    val hacia = movimiento.contraparte?.nombre
+    val esTransferencia = movimiento.clase == ClaseMovimiento.TRANSFERENCIA && desde != null && hacia != null
+    val origenDestino = if (esTransferencia) stringResource(R.string.de_a, desde!!, hacia!!) else desde
+    val nota = movimiento.movimiento.descripcion.ifBlank { null }?.takeIf { movimiento.clase != ClaseMovimiento.SALDO_INICIAL }
+    // TalkBack leería la flecha como "flecha derecha"; se le da la frase completa.
+    val detalleHablado = if (esTransferencia) {
+        listOfNotNull(stringResource(R.string.de_a_hablado, desde!!, hacia!!), nota).joinToString(", ")
     } else {
-        movimiento.cuenta?.nombre
+        null
     }
     val detalle = listOfNotNull(
         origenDestino,
@@ -502,7 +508,16 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { IconoEnCirculo(iconoDe(movimiento)) },
         headlineContent = { Text(etiqueta(movimiento), style = MaterialTheme.typography.titleSmall) },
-        supportingContent = if (detalle.isNotEmpty()) ({ Text(detalle) }) else null,
+        supportingContent = if (detalle.isNotEmpty()) {
+            {
+                Text(
+                    detalle,
+                    modifier = if (detalleHablado != null) Modifier.semantics { contentDescription = detalleHablado } else Modifier,
+                )
+            }
+        } else {
+            null
+        },
         trailingContent = {
             Text(signo + movimiento.monto.formatear(), color = color, style = MaterialTheme.typography.titleMedium)
         },
