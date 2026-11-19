@@ -5,6 +5,8 @@ import io.github.joako601.finanzas.core.data.Datos
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
+import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
+import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.ServicioTarjetas
 import io.github.joako601.finanzas.recordatorios.Avisos
@@ -37,26 +39,31 @@ class Contenedor(context: Context) {
     val repositorioTarjetas: RepositorioTarjetas = datos.repositorioTarjetas
     val servicioTarjetas: ServicioTarjetas = ServicioTarjetas(repositorioLibro, repositorioTarjetas)
 
+    val repositorioRecurrentes: RepositorioRecurrentes = datos.repositorioRecurrentes
+    val servicioRecurrentes: ServicioRecurrentes = ServicioRecurrentes(repositorioLibro, repositorioRecurrentes)
+
     val repositorioRecordatorios: RepositorioRecordatorios = datos.repositorioRecordatorios
     val avisos: Avisos = Avisos(context.applicationContext)
     val programador: Programador = Programador(
         context.applicationContext,
         repositorioLibro,
         repositorioTarjetas,
+        repositorioRecurrentes,
         repositorioRecordatorios,
         avisos,
     )
 
     init {
         avisos.crearCanal()
-        // Cada vez que cambian tarjetas, estados de cuenta o movimientos, se reprograma.
+        // Cada vez que cambian tarjetas, estados de cuenta, movimientos o pagos fijos, se reprograma.
         // collectLatest + espera de 1 s: una ráfaga de cambios produce una sola ejecución.
         alcance.launch {
             combine(
                 repositorioTarjetas.observarTarjetas(),
                 repositorioTarjetas.observarEstadosDeCuenta(),
                 repositorioLibro.observarMovimientos(),
-            ) { _, _, _ -> }.collectLatest {
+                repositorioRecurrentes.observarRecurrentes(),
+            ) { _, _, _, _ -> }.collectLatest {
                 delay(1_000)
                 programador.ejecutar()
             }

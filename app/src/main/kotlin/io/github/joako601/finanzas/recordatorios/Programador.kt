@@ -8,6 +8,7 @@ import android.content.Intent
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.recordatorios.PlanRecordatorios
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
+import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
 import kotlinx.coroutines.flow.first
@@ -41,6 +42,7 @@ class Programador(
     private val context: Context,
     private val libro: RepositorioLibro,
     private val tarjetas: RepositorioTarjetas,
+    private val recurrentes: RepositorioRecurrentes,
     private val recordatorios: RepositorioRecordatorios,
     private val avisos: Avisos,
 ) {
@@ -56,6 +58,7 @@ class Programador(
             estados = tarjetas.observarEstadosDeCuenta().first(),
             pagos = pagosATarjetas(libro.observarMovimientos().first(), cuentas),
             hoy = ahora.date,
+            recurrentes = recurrentes.observarRecurrentes().first(),
         )
         val seleccion = PlanRecordatorios.seleccionar(plan, ahora, recordatorios.clavesEntregadas())
 

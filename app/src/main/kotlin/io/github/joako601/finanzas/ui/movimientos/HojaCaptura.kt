@@ -191,8 +191,9 @@ private fun Seccion(titulo: String, error: ErrorRegistro?, contenido: @Composabl
     }
 }
 
+/** Texto de un error de captura; también lo usa el registro de pagos fijos. */
 @Composable
-private fun textoError(error: ErrorRegistro): String = stringResource(
+fun textoError(error: ErrorRegistro): String = stringResource(
     when (error) {
         ErrorRegistro.MONTO_VACIO -> R.string.error_monto_vacio
         ErrorRegistro.MONTO_INVALIDO -> R.string.error_monto_invalido

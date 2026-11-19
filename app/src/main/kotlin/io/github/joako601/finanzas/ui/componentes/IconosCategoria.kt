@@ -30,6 +30,7 @@ internal val iconosPorNombre: Map<String, Int> = mapOf(
     "Mascotas" to R.drawable.ic_cat_mascotas,
     "Regalos" to R.drawable.ic_cat_regalos,
     "Otros gastos" to R.drawable.ic_cat_otros,
+    "Impuestos y predial" to R.drawable.ic_cat_impuestos,
     "Sueldo" to R.drawable.ic_cat_sueldo,
     "Aguinaldo" to R.drawable.ic_cat_aguinaldo,
     "PTU" to R.drawable.ic_cat_ptu,
@@ -38,10 +39,13 @@ internal val iconosPorNombre: Map<String, Int> = mapOf(
     "Otros ingresos" to R.drawable.ic_cat_otros_ingresos,
 )
 
+/** Ícono de una categoría por su nombre; el genérico si no está en el catálogo. */
+@DrawableRes
+fun iconoDeCategoria(nombre: String?): Int = iconosPorNombre[nombre] ?: R.drawable.ic_cat_otros
+
 @DrawableRes
 fun iconoDe(movimiento: MovimientoResumido): Int = when (movimiento.clase) {
-    ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO ->
-        iconosPorNombre[movimiento.categoria?.nombre] ?: R.drawable.ic_cat_otros
+    ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO -> iconoDeCategoria(movimiento.categoria?.nombre)
     ClaseMovimiento.SALDO_INICIAL ->
         if (movimiento.cuenta?.tipo == TipoCuenta.PASIVO) R.drawable.ic_cat_tarjeta else R.drawable.ic_cat_cartera
     ClaseMovimiento.PAGO_TARJETA -> R.drawable.ic_cat_tarjeta

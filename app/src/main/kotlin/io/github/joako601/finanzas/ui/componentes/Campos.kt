@@ -1,11 +1,14 @@
 package io.github.joako601.finanzas.ui.componentes
 
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import io.github.joako601.finanzas.R
 
 /**
  * Solo caracteres que pueden formar un monto; el teclado numérico a veces deja pasar
@@ -35,4 +38,10 @@ fun Campo(
         supportingText = error?.let { { Text(it) } },
         keyboardOptions = teclado,
     )
+}
+
+/** "No se pudo guardar" debajo de un formulario, cuando falla la base. */
+@Composable
+fun ErrorAlGuardar(hayError: Boolean) {
+    if (hayError) Text(stringResource(R.string.error_al_guardar), color = MaterialTheme.colorScheme.error)
 }

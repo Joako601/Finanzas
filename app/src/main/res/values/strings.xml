@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<!-- tools:locale: los textos base están en español de México; lint usa ese diccionario. -->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
     <string name="app_name">Finanzas</string>
 
     <!-- Pantalla principal -->
@@ -62,6 +63,7 @@
     <string name="vence_hoy">Vence hoy</string>
     <plurals name="dias_restantes">
         <item quantity="one">Falta %d día</item>
+        <item quantity="many">Faltan %d días</item>
         <item quantity="other">Faltan %d días</item>
     </plurals>
     <string name="situacion_pagado">Pagado: este ciclo no genera intereses</string>
@@ -99,6 +101,31 @@
     <string name="error_limite_antes_del_corte">La fecha límite debe ser posterior al corte</string>
 
     <!-- Recordatorios -->
+    <!-- Pagos y cobros fijos -->
+    <string name="recurrentes_titulo">Pagos y cobros fijos</string>
+    <string name="agregar_recurrente">Agregar</string>
+    <string name="sin_recurrentes">Agrega la luz, el internet o tu quincena. Te avisamos antes de cada pago y lo registras con un toque.</string>
+    <string name="nuevo_recurrente">Pago o cobro fijo</string>
+    <string name="pago">Pago</string>
+    <string name="nombre_recurrente">Nombre (por ejemplo, CFE o Quincena)</string>
+    <string name="monto_aproximado">Monto aproximado</string>
+    <string name="se_repite">Se repite</string>
+    <string name="proxima_fecha">Próxima fecha</string>
+    <string name="ayuda_recurrente">Quincenal es el 15 y el último día de cada mes. Si eliges una fecha que ya pasó, la app calcula la siguiente.</string>
+    <string name="frecuencia_semanal">Semanal</string>
+    <string name="frecuencia_catorcenal">Catorcenal</string>
+    <string name="frecuencia_quincenal">Quincenal</string>
+    <string name="frecuencia_mensual">Mensual</string>
+    <string name="frecuencia_bimestral">Bimestral</string>
+    <string name="frecuencia_anual">Anual</string>
+    <string name="frecuencia_otra">Fijo</string>
+    <string name="manana">Mañana</string>
+    <string name="pendiente_desde">Pendiente desde el %1$s</string>
+    <string name="registrar_recurrente">Registrar %1$s</string>
+    <string name="llega_a">Llega a</string>
+    <string name="omitir">Omitir esta vez</string>
+    <string name="ayuda_omitir">Omitir pasa a la siguiente fecha sin registrar nada.</string>
+
     <string name="canal_recordatorios">Recordatorios de pago</string>
     <string name="canal_recordatorios_descripcion">Avisos antes del corte, antes de la fecha límite, para capturar tu estado de cuenta y antes de tus pagos fijos.</string>
     <string name="aviso_publico">Tienes un recordatorio de pago</string>
@@ -111,6 +138,7 @@
     <string name="aviso_pago_titulo">Paga %1$s de %2$s antes del %3$s</string>
     <plurals name="aviso_pago_texto">
         <item quantity="one">Falta %d día para la fecha límite. Así no generas intereses.</item>
+        <item quantity="many">Faltan %d días para la fecha límite. Así no generas intereses.</item>
         <item quantity="other">Faltan %d días para la fecha límite. Así no generas intereses.</item>
     </plurals>
     <string name="activar_avisos_titulo">Activa los avisos</string>

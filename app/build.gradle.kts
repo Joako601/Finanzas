@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.joako601.finanzas"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 4
-        versionName = "0.1.0-dev.4"
+        versionCode = 5
+        versionName = "0.1.0-dev.5"
     }
 
     buildTypes {
@@ -66,6 +66,7 @@ dependencies {
 
     // Pruebas en la JVM (sin teléfono) de la lógica de la interfaz.
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 /**
