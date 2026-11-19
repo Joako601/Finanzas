@@ -524,7 +524,11 @@ recomendaciones.
 - Todo en memoria: un respaldo de decenas de MB necesitaría flujos. Hoy pesa kilobytes.
 - Mientras se restaura, el archivo descifrado vive unos segundos en la carpeta privada de la
   app y se borra al terminar, igual de protegido que la base, que tampoco está cifrada
-  (SQLCipher se decide con el modelo de amenazas).
+  (SQLCipher se decide con el modelo de amenazas). Si el proceso muere a mitad, queda ahí
+  hasta el siguiente arranque de la app, que lo borra.
+- Restaurar un respaldo viejo reemplaza también el registro de avisos entregados: puede
+  repetirse un aviso de hoy o de ayer que ya se había mostrado. Se acepta; conservar las
+  entregas recientes complicaría la restauración por un aviso duplicado.
 - La contraseña pasa por un `String` de Compose y no se puede borrar de memoria a mano.
 
 **Cómo se verifica:**
@@ -541,6 +545,23 @@ recomendaciones.
   - Un respaldo de una versión más nueva se rechaza.
   - No quedan temporales sin cifrar.
 - `RespaldoViewModelTest`: 8 pruebas.
+
+**Revisión de un subagente (2026-11-19)** con las skills code-review-and-quality,
+security-and-hardening, test-driven-development, diseno-finanzas, impeccable y
+accessibility-engineering. No encontró nada grave. Lo que se corrigió:
+- Un respaldo fallido dejaba un archivo vacío en el destino. Ahora se borra y se avisa;
+  también si Android cerró la app mientras se elegía la carpeta.
+- Los contadores de ids (`sqlite_sequence`) no viajaban en el respaldo. En un teléfono
+  nuevo se habrían reusado ids de lo borrado.
+- Los temporales descifrados se borran también al arrancar, y la copia se cierra ante
+  cualquier error.
+- La base de la app y las copias de respaldo comparten la configuración de Room, para que
+  una migración manual futura no falte al restaurar.
+- Quitar la autenticación del encabezado no lo detectaba ninguna prueba. Ahora hay una que
+  arma el mismo sobre con y sin ella; quitar `updateAAD` la hace fallar.
+- El CSV tiene prueba para textos que empiezan con tabulador o retorno.
+- El aviso de la hoja ya no queda viejo al reabrirla.
+- TalkBack anuncia los errores de los campos.
 
 
 ## D-019 Editar movimientos y transferir entre cuentas propias
@@ -575,7 +596,14 @@ recomendaciones.
   - Editar conserva el id y el lugar, y no deja asientos del original.
   - Si falla, no cambia nada.
   - No se puede editar un movimiento borrado.
-- `MovimientosViewModelTest`: 6 pruebas.
+- `MovimientosViewModelTest`: 10 pruebas.
+
+**Tras la revisión del subagente:**
+- Al editar, la cuenta o categoría archivada del movimiento sigue disponible y se conserva.
+- Una "transferencia" que toca una tarjeta (disposición de efectivo) no se abre en el
+  formulario de transferencia; solo se puede eliminar.
+- La fila se lee "de Débito a Efectivo" con TalkBack, en lugar de "flecha derecha".
+- La hoja de captura y el diálogo de transferencia dicen "Editar" al editar.
 
 ---
 
