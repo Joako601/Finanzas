@@ -240,6 +240,39 @@ llave reemplaza a la de depuración y su custodia es otro tema (Play App Signing
 
 ---
 
+## D-013 Módulo de tarjetas: modelo y supuestos explícitos
+
+**Fecha:** 2026-11-18
+
+**Decisión:**
+- La tarjeta es una cuenta de PASIVO del libro más una fila en `tarjeta` (línea, día de
+  corte, día límite). Comprar con tarjeta es un gasto contra el pasivo; pagarla es un
+  movimiento de activo a pasivo que NO cuenta como gasto (el gasto ya se registró al
+  comprar). La deuda inicial es un saldo inicial negativo contra "Saldos iniciales".
+- Cada estado de cuenta capturado guarda la predicción que había para ese ciclo (D-011).
+- Lo que falta pagar = pago para no generar intereses − pagos posteriores al corte.
+- Recordatorios: fuera de este módulo (permiso de notificaciones, alarmas, reinicio).
+
+**Supuestos (sin fuente; se miden con las capturas reales, ver `CalendarioTarjeta.kt`
+y `SituacionTarjeta.kt`):**
+- **S1.** Si el mes no tiene el día de corte, el corte cae el último día del mes.
+- **S2.** El límite es la primera fecha posterior al corte con el día límite indicado.
+- **S3.** No se ajusta por días inhábiles; el banco puede recorrer fechas.
+- **S4.** Un pago hecho el mismo día del corte ya quedó en ese estado de cuenta y no
+  cuenta para el siguiente.
+- **S5.** Un estado capturado hasta 5 días antes o después del corte predicho
+  corresponde a ese corte.
+
+**Descartado:** calcular el pago para no generar intereses a partir de las compras
+(requiere MSI, devoluciones y reglas de cada banco; D-011 lo vuelve innecesario).
+
+**Cómo se verifica:** `CalendarioTarjetaTest` (casos y propiedades de 2020 a 2035),
+`TarjetasTest`, `RepositorioTarjetasRoomTest` y el recorrido en emulador de
+`docs/verificacion.md`. Los supuestos S1–S5 se confirman o se corrigen comparando
+`corte_predicho`/`limite_predicho` con las fechas reales capturadas.
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |
@@ -253,4 +286,5 @@ llave reemplaza a la de depuración y su custodia es otro tema (Play App Signing
 | kotest-property (solo pruebas) | Pruebas basadas en propiedades | Generadores escritos a mano |
 | kotlinx-coroutines-test (solo pruebas) | `runTest` para funciones suspend | `runBlocking`: sin control del tiempo virtual |
 | androidx.test runner y ext-junit (solo pruebas) | Pruebas instrumentadas de Room en el teléfono | Robolectric: otra dependencia grande, y no es SQLite real del teléfono |
+| room-testing (solo pruebas) | `MigrationTestHelper`: crea la base en una versión anterior desde su esquema exportado, migra y valida contra el esquema nuevo (D-012) | Probar la migración con SQL suelto: no compara contra el esquema que Room espera |
 | material-icons | **No se usa**: el único ícono se copió como vector XML | — |
