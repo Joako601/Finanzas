@@ -2,8 +2,10 @@ package io.github.joako601.finanzas.core.data
 
 import android.content.Context
 import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
+import io.github.joako601.finanzas.core.data.recordatorios.RepositorioRecordatoriosRoom
 import io.github.joako601.finanzas.core.data.tarjetas.RepositorioTarjetasRoom
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
+import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 
 /**
@@ -17,6 +19,9 @@ public class Datos private constructor(baseDeDatos: FinanzasDatabase) {
 
     /** Comparte la base con el libro: `repositorioLibro.enTransaccion` cubre a ambos. */
     public val repositorioTarjetas: RepositorioTarjetas = RepositorioTarjetasRoom(baseDeDatos.tarjetasDao())
+
+    public val repositorioRecordatorios: RepositorioRecordatorios =
+        RepositorioRecordatoriosRoom(baseDeDatos.recordatoriosDao())
 
     public companion object {
         /** Debe crearse una sola vez por proceso (lo hace el contenedor de la app). */
