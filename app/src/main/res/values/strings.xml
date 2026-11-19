@@ -191,7 +191,8 @@
     <string name="aviso_respaldo_guardado">Respaldo guardado.</string>
     <string name="aviso_datos_restaurados">Listo, tus datos se restauraron.</string>
     <string name="aviso_csv_guardado">Movimientos exportados.</string>
-    <string name="aviso_no_se_pudo_escribir">No se pudo guardar el archivo. Intenta en otra carpeta.</string>
+    <string name="aviso_no_se_pudo_escribir">No se pudo guardar el archivo y se borró. Intenta en otra carpeta.</string>
+    <string name="aviso_respaldo_interrumpido">No se terminó el respaldo porque Android cerró la app. Vuelve a crearlo.</string>
     <string name="aviso_no_se_pudo_leer">No se pudo abrir el archivo.</string>
     <string name="aviso_no_es_respaldo">Ese archivo no es un respaldo de Finanzas. Busca uno que termine en .respaldo.</string>
     <string name="contrasena_respaldo_titulo">Contraseña del respaldo</string>

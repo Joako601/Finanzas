@@ -63,7 +63,10 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
     val libre = estado.tarea == null
 
     ModalBottomSheet(
-        onDismissRequest = onCerrar,
+        onDismissRequest = {
+            viewModel.cerrarHoja()
+            onCerrar()
+        },
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.background,
     ) {
@@ -180,7 +183,7 @@ private fun Progreso(estado: EstadoRespaldo) {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             aviso != null -> {
-                val esError = aviso in setOf(Aviso.NO_SE_PUDO_ESCRIBIR, Aviso.NO_SE_PUDO_LEER, Aviso.NO_ES_RESPALDO)
+                val esError = aviso in setOf(Aviso.NO_SE_PUDO_ESCRIBIR, Aviso.NO_SE_PUDO_LEER, Aviso.NO_ES_RESPALDO, Aviso.RESPALDO_INTERRUMPIDO)
                 Text(
                     stringResource(
                         when (aviso) {
@@ -190,6 +193,7 @@ private fun Progreso(estado: EstadoRespaldo) {
                             Aviso.NO_SE_PUDO_ESCRIBIR -> R.string.aviso_no_se_pudo_escribir
                             Aviso.NO_SE_PUDO_LEER -> R.string.aviso_no_se_pudo_leer
                             Aviso.NO_ES_RESPALDO -> R.string.aviso_no_es_respaldo
+                            Aviso.RESPALDO_INTERRUMPIDO -> R.string.aviso_respaldo_interrumpido
                         },
                     ),
                     style = MaterialTheme.typography.labelLarge,

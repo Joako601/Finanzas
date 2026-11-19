@@ -2,6 +2,7 @@ package io.github.joako601.finanzas.ui.respaldo
 
 import android.content.ContentResolver
 import android.content.Context
+import android.provider.DocumentsContract
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +35,10 @@ class ArchivosDelSistema(private val resolver: ContentResolver) : Archivos {
             resolver.openOutputStream(destino, "w")
         } ?: throw IOException("Sin acceso a $uri")
         salida.use { it.write(datos) }
+    }
+
+    override suspend fun borrar(uri: String): Unit = withContext(Dispatchers.IO) {
+        DocumentsContract.deleteDocument(resolver, uri.toUri())
     }
 
     private companion object {

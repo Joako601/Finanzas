@@ -23,6 +23,9 @@ import kotlinx.datetime.LocalDate
 interface Archivos {
     suspend fun leer(uri: String): ByteArray
     suspend fun escribir(uri: String, datos: ByteArray)
+
+    /** Borra un archivo que el selector creó pero que quedó vacío o a medias. */
+    suspend fun borrar(uri: String)
 }
 
 /** Fecha del último respaldo guardado, para recordarle al usuario cuándo fue. */
@@ -42,7 +45,17 @@ class OperacionesRespaldo(
 enum class Tarea { CREANDO, EXPORTANDO }
 
 /** Resultado de la última acción, que la hoja muestra hasta la siguiente. */
-enum class Aviso { RESPALDO_GUARDADO, DATOS_RESTAURADOS, CSV_GUARDADO, NO_SE_PUDO_ESCRIBIR, NO_SE_PUDO_LEER, NO_ES_RESPALDO }
+enum class Aviso {
+    RESPALDO_GUARDADO,
+    DATOS_RESTAURADOS,
+    CSV_GUARDADO,
+    NO_SE_PUDO_ESCRIBIR,
+    NO_SE_PUDO_LEER,
+    NO_ES_RESPALDO,
+
+    /** Android cerró la app mientras se elegía la carpeta y se perdió la contraseña. */
+    RESPALDO_INTERRUMPIDO,
+}
 
 enum class ErrorContrasena { CORTA, NO_COINCIDE }
 
@@ -113,14 +126,27 @@ class RespaldoViewModel(
         return error == null
     }
 
-    /** [uri] es null si el usuario canceló el selector: el diálogo sigue abierto. */
+    /**
+     * [uri] es null si el usuario canceló el selector: el diálogo sigue abierto.
+     *
+     * El selector ya creó el archivo (vacío) al devolver [uri]. Si no se puede llenar, se
+     * borra: un "respaldo" de 0 bytes descubierto meses después sería peor que ninguno.
+     */
     fun guardarRespaldo(uri: String?) {
-        val actual = _nuevo.value ?: return
         if (uri == null) return
+        val actual = _nuevo.value
+        if (actual == null) {
+            // Android cerró la app mientras el selector estaba abierto: la contraseña ya no existe.
+            viewModelScope.launch {
+                borrarSinFallar(uri)
+                avisar(Aviso.RESPALDO_INTERRUMPIDO)
+            }
+            return
+        }
         _nuevo.value = null
-        trabajar(Tarea.CREANDO) {
+        trabajar(Tarea.CREANDO, archivo = uri) {
             val sobre = operaciones.crear(actual.contrasena.toCharArray())
-            if (!escribir(uri, sobre)) return@trabajar
+            archivos.escribir(uri, sobre)
             val hoy = fechaDeHoy()
             ultimoRespaldo.guardar(hoy)
             _estado.update { it.copy(ultimo = hoy, aviso = Aviso.RESPALDO_GUARDADO) }
@@ -129,9 +155,15 @@ class RespaldoViewModel(
 
     fun exportarCsv(uri: String?) {
         if (uri == null) return
-        trabajar(Tarea.EXPORTANDO) {
-            if (escribir(uri, operaciones.csv().encodeToByteArray())) avisar(Aviso.CSV_GUARDADO)
+        trabajar(Tarea.EXPORTANDO, archivo = uri) {
+            archivos.escribir(uri, operaciones.csv().encodeToByteArray())
+            avisar(Aviso.CSV_GUARDADO)
         }
+    }
+
+    /** Al cerrar la hoja: la próxima vez abre sin el resultado de hoy. */
+    fun cerrarHoja() {
+        if (_estado.value.tarea == null) avisar(null)
     }
 
     /** Lee el archivo elegido y, si parece un respaldo, pide la contraseña. */
@@ -185,17 +217,18 @@ class RespaldoViewModel(
 
     private fun avisar(aviso: Aviso?) = _estado.update { it.copy(aviso = aviso) }
 
-    private suspend fun escribir(uri: String, datos: ByteArray): Boolean = try {
-        archivos.escribir(uri, datos)
-        true
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        avisar(Aviso.NO_SE_PUDO_ESCRIBIR)
-        false
+    private suspend fun borrarSinFallar(uri: String) {
+        try {
+            archivos.borrar(uri)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Si ni borrar se puede, el aviso de error ya le dice al usuario que no sirvió.
+        }
     }
 
-    private fun trabajar(tarea: Tarea, bloque: suspend () -> Unit) {
+    /** Corre [bloque]; si falla (base, cifrado o escritura), borra [archivo] y avisa. */
+    private fun trabajar(tarea: Tarea, archivo: String, bloque: suspend () -> Unit) {
         if (_estado.value.tarea != null) return
         _estado.update { it.copy(tarea = tarea, aviso = null) }
         viewModelScope.launch {
@@ -204,7 +237,7 @@ class RespaldoViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // Falló la base o el cifrado al crear: no se escribió nada.
+                borrarSinFallar(archivo)
                 avisar(Aviso.NO_SE_PUDO_ESCRIBIR)
             } finally {
                 _estado.update { it.copy(tarea = null) }

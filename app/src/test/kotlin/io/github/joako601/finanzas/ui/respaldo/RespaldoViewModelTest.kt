@@ -28,12 +28,17 @@ class RespaldoViewModelTest {
     private class ArchivosFalsos : Archivos {
         val escritos = mutableMapOf<String, ByteArray>()
         val paraLeer = mutableMapOf<String, ByteArray>()
+        val borrados = mutableListOf<String>()
         var fallaAlEscribir = false
 
         override suspend fun leer(uri: String): ByteArray = paraLeer[uri] ?: throw IOException("no existe")
         override suspend fun escribir(uri: String, datos: ByteArray) {
             if (fallaAlEscribir) throw IOException("sin espacio")
             escritos[uri] = datos
+        }
+        override suspend fun borrar(uri: String) {
+            borrados += uri
+            escritos.remove(uri)
         }
     }
 
@@ -49,9 +54,14 @@ class RespaldoViewModelTest {
     private var contrasenaUsada: String? = null
     private var restaurado: Pair<ByteArray, String>? = null
     private var errorAlRestaurar: Exception? = null
+    private var errorAlCrear: Exception? = null
 
     private val operaciones = OperacionesRespaldo(
-        crear = { contrasena -> contrasenaUsada = String(contrasena); sobre },
+        crear = { contrasena ->
+            errorAlCrear?.let { throw it }
+            contrasenaUsada = String(contrasena)
+            sobre
+        },
         restaurar = { datos, contrasena ->
             errorAlRestaurar?.let { throw it }
             restaurado = datos to String(contrasena)
@@ -114,6 +124,58 @@ class RespaldoViewModelTest {
 
         assertNull(ultimo.fecha)
         assertEquals(Aviso.NO_SE_PUDO_ESCRIBIR, vm.estado.value.aviso)
+        assertEquals("el archivo a medias no se queda", listOf("content://lleno"), archivos.borrados)
+    }
+
+    @Test
+    fun si_falla_el_cifrado_se_borra_el_archivo_vacio_y_se_avisa() = runTest {
+        errorAlCrear = IllegalStateException("base cerrada")
+        val vm = viewModel()
+        vm.abrirNuevoRespaldo()
+        vm.editarNuevo { copy(contrasena = "quincena del 15", confirmacion = "quincena del 15") }
+
+        vm.guardarRespaldo("content://drive/vacio")
+
+        assertEquals(listOf("content://drive/vacio"), archivos.borrados)
+        assertEquals(Aviso.NO_SE_PUDO_ESCRIBIR, vm.estado.value.aviso)
+        assertNull(vm.estado.value.tarea)
+        assertNull(ultimo.fecha)
+    }
+
+    @Test
+    fun si_android_cerro_la_app_mientras_elegia_carpeta_se_borra_el_archivo_y_se_avisa() = runTest {
+        // Tras la muerte del proceso el ViewModel es nuevo: no tiene la contraseña.
+        val vm = viewModel()
+
+        vm.guardarRespaldo("content://drive/huerfano")
+
+        assertEquals(listOf("content://drive/huerfano"), archivos.borrados)
+        assertEquals(Aviso.RESPALDO_INTERRUMPIDO, vm.estado.value.aviso)
+    }
+
+    @Test
+    fun un_error_inesperado_al_restaurar_se_muestra_como_respaldo_danado() = runTest {
+        archivos.paraLeer["content://respaldo"] = sobre
+        errorAlRestaurar = IllegalStateException("disco lleno")
+        val vm = viewModel()
+        vm.elegirParaRestaurar("content://respaldo")
+        vm.editarRestaurar("quincena del 15")
+
+        vm.confirmarRestaurar()
+
+        assertEquals(ErrorRespaldo.Motivo.BASE_INVALIDA, vm.porRestaurar.value?.error)
+        assertFalse(vm.porRestaurar.value!!.trabajando)
+    }
+
+    @Test
+    fun al_cerrar_la_hoja_se_olvida_el_ultimo_aviso() = runTest {
+        val vm = viewModel()
+        vm.exportarCsv("content://descargas/movimientos.csv")
+        assertEquals(Aviso.CSV_GUARDADO, vm.estado.value.aviso)
+
+        vm.cerrarHoja()
+
+        assertNull(vm.estado.value.aviso)
     }
 
     @Test
