@@ -202,5 +202,7 @@ fun textoError(error: ErrorRegistro): String = stringResource(
         ErrorRegistro.SIN_CATEGORIA -> R.string.error_sin_categoria
         ErrorRegistro.CATEGORIA_NO_CORRESPONDE -> R.string.error_categoria_no_corresponde
         ErrorRegistro.NOTA_DEMASIADO_LARGA -> R.string.error_nota_larga
+        ErrorRegistro.SIN_DESTINO -> R.string.error_sin_destino
+        ErrorRegistro.MISMA_CUENTA -> R.string.error_misma_cuenta
     },
 )

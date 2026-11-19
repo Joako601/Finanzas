@@ -19,7 +19,8 @@ class ExportacionCsvTest {
     private val capital = Cuenta(CuentaId(3), "Saldos iniciales", TipoCuenta.CAPITAL)
     private val super_ = Cuenta(CuentaId(4), "Súper", TipoCuenta.GASTO)
     private val sueldo = Cuenta(CuentaId(5), "Sueldo", TipoCuenta.INGRESO)
-    private val cuentas = listOf(efectivo, nu, capital, super_, sueldo).associateBy { it.id }
+    private val debito = Cuenta(CuentaId(6), "Débito", TipoCuenta.ACTIVO)
+    private val cuentas = listOf(efectivo, nu, capital, super_, sueldo, debito).associateBy { it.id }
 
     private fun mov(id: Long, dia: Int, descripcion: String, vararg asientos: Pair<Cuenta, Long>) = Movimiento(
         MovimientoId(id),
@@ -34,7 +35,7 @@ class ExportacionCsvTest {
     fun empieza_con_bom_y_encabezado_y_usa_crlf() {
         val csv = ExportacionCsv.generar(emptyList(), cuentas)
         assertTrue(csv.startsWith("\uFEFF"), "Excel necesita el BOM para leer acentos en UTF-8")
-        assertEquals("\uFEFFFecha,Tipo,Descripción,Cuenta,Categoría o tarjeta,Monto\r\n", csv)
+        assertEquals("\uFEFFFecha,Tipo,Descripción,Cuenta,Categoría o destino,Monto\r\n", csv)
     }
 
     @Test
@@ -48,7 +49,7 @@ class ExportacionCsvTest {
         )
         assertEquals(
             listOf(
-                "Fecha,Tipo,Descripción,Cuenta,Categoría o tarjeta,Monto",
+                "Fecha,Tipo,Descripción,Cuenta,Categoría o destino,Monto",
                 "2026-11-05,Gasto,Despensa,Efectivo,Súper,1234.50",
                 "2026-11-15,Ingreso,Quincena,Efectivo,Sueldo,0.05",
             ),
@@ -70,12 +71,13 @@ class ExportacionCsvTest {
     }
 
     @Test
-    fun pago_de_tarjeta_saldo_inicial_y_deuda_inicial() {
+    fun pago_de_tarjeta_transferencia_saldo_inicial_y_deuda_inicial() {
         val csv = ExportacionCsv.generar(
             listOf(
                 mov(1, 1, "", efectivo to 100_000, capital to -100_000),
                 mov(2, 1, "", nu to -50_000, capital to 50_000),
                 mov(3, 2, "", nu to 20_000, efectivo to -20_000),
+                mov(4, 3, "cajero", efectivo to 50_000, debito to -50_000),
             ),
             cuentas,
         )
@@ -84,6 +86,7 @@ class ExportacionCsvTest {
                 "2026-11-01,Saldo inicial,,Efectivo,,1000.00",
                 "2026-11-01,Deuda inicial,,Nu,,500.00",
                 "2026-11-02,Pago de tarjeta,,Efectivo,Nu,200.00",
+                "2026-11-03,Transferencia,cajero,Débito,Efectivo,500.00",
             ),
             filas(csv).drop(1),
         )

@@ -33,6 +33,8 @@
     <string name="error_sin_categoria">Elige una categoría</string>
     <string name="error_categoria_no_corresponde">La categoría no corresponde al tipo de movimiento</string>
     <string name="error_nota_larga">La nota es demasiado larga</string>
+    <string name="error_sin_destino">Elige a qué cuenta llega</string>
+    <string name="error_misma_cuenta">Elige dos cuentas distintas</string>
     <string name="error_al_guardar">No se pudo guardar. Intenta de nuevo.</string>
 
     <!-- Detalle -->

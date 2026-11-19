@@ -128,6 +128,7 @@ private class LibroFalso(cuentas: List<Cuenta>) : RepositorioLibro {
         return MovimientoId(registrados.size.toLong())
     }
     override suspend fun eliminar(id: MovimientoId) = Unit
+    override suspend fun actualizar(movimiento: Movimiento) = Unit
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = error("no se usa")
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = error("no se usa")
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()

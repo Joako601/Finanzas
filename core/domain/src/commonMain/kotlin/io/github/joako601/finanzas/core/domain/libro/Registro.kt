@@ -15,6 +15,12 @@ public enum class ErrorRegistro {
     SIN_CATEGORIA,
     CATEGORIA_NO_CORRESPONDE,
     NOTA_DEMASIADO_LARGA,
+
+    /** Transferencia sin cuenta de destino, o con un destino que no es efectivo ni débito. */
+    SIN_DESTINO,
+
+    /** Transferencia de una cuenta a ella misma. */
+    MISMA_CUENTA,
 }
 
 public sealed interface ResultadoRegistro {
@@ -100,6 +106,32 @@ public object Registro {
     }
 
     /**
+     * Dinero que pasa entre cuentas propias de efectivo o débito (retirar del cajero,
+     * mover a otra cuenta): baja el origen y sube el destino. No es gasto ni ingreso y no
+     * cambia el total en cuentas. Pasar dinero a una tarjeta es [pagoDeTarjeta].
+     */
+    public fun transferencia(
+        fecha: LocalDate,
+        monto: Dinero,
+        desde: Cuenta,
+        hacia: Cuenta,
+        nota: String = "",
+    ): Movimiento {
+        require(monto.esPositivo) { "El monto de una transferencia debe ser positivo" }
+        require(desde.tipo == TipoCuenta.ACTIVO && hacia.tipo == TipoCuenta.ACTIVO) { "Solo entre efectivo y débito" }
+        require(desde.id != hacia.id) { "Origen y destino deben ser distintos" }
+        return Movimiento(
+            id = null,
+            fecha = fecha,
+            descripcion = nota.trim(),
+            asientos = listOf(
+                Asiento(hacia.id, monto),
+                Asiento(desde.id, -monto),
+            ),
+        )
+    }
+
+    /**
      * Saldo con el que arranca una cuenta. La contrapartida es una cuenta de capital,
      * así el dinero que "ya existía" no se cuenta como ingreso del mes.
      */
@@ -137,18 +169,7 @@ public object Registro {
         nota: String,
     ): ResultadoRegistro {
         val errores = mutableSetOf<ErrorRegistro>()
-
-        val monto = if (montoTexto.isBlank()) {
-            errores += ErrorRegistro.MONTO_VACIO
-            null
-        } else {
-            Dinero.parsear(montoTexto).also {
-                when {
-                    it == null -> errores += ErrorRegistro.MONTO_INVALIDO
-                    it.esCero -> errores += ErrorRegistro.MONTO_CERO
-                }
-            }
-        }
+        val monto = montoCapturado(montoTexto, errores)
 
         if (cuenta == null || !cuenta.tipo.esDeDinero) errores += ErrorRegistro.SIN_CUENTA
 
@@ -173,5 +194,38 @@ public object Registro {
             ClaseRegistro.INGRESO -> ingreso(fecha, monto!!, cuenta!!, categoria!!, nota)
         }
         return ResultadoRegistro.Valido(movimiento)
+    }
+
+    /** Valida la captura de una transferencia; como [desdeCaptura], junta todos los errores. */
+    public fun desdeTransferencia(
+        montoTexto: String,
+        desde: Cuenta?,
+        hacia: Cuenta?,
+        fecha: LocalDate,
+        nota: String,
+    ): ResultadoRegistro {
+        val errores = mutableSetOf<ErrorRegistro>()
+        val monto = montoCapturado(montoTexto, errores)
+        if (desde == null || desde.tipo != TipoCuenta.ACTIVO) errores += ErrorRegistro.SIN_CUENTA
+        if (hacia == null || hacia.tipo != TipoCuenta.ACTIVO) errores += ErrorRegistro.SIN_DESTINO
+        if (desde != null && desde.id == hacia?.id) errores += ErrorRegistro.MISMA_CUENTA
+        if (nota.trim().length > Movimiento.LARGO_MAXIMO_DESCRIPCION) errores += ErrorRegistro.NOTA_DEMASIADO_LARGA
+
+        if (errores.isNotEmpty()) return ResultadoRegistro.Invalido(errores)
+        return ResultadoRegistro.Valido(transferencia(fecha, monto!!, desde!!, hacia!!, nota))
+    }
+
+    /** El monto escrito, o null con su error agregado a [errores]. */
+    private fun montoCapturado(texto: String, errores: MutableSet<ErrorRegistro>): Dinero? {
+        if (texto.isBlank()) {
+            errores += ErrorRegistro.MONTO_VACIO
+            return null
+        }
+        return Dinero.parsear(texto).also {
+            when {
+                it == null -> errores += ErrorRegistro.MONTO_INVALIDO
+                it.esCero -> errores += ErrorRegistro.MONTO_CERO
+            }
+        }
     }
 }

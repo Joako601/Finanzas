@@ -480,7 +480,7 @@ recomendaciones.
   - Pide confirmar con un botón rojo, "Reemplazar mis datos".
 - **Exportar a CSV:**
   - Es para leer en Excel o Google Sheets, no para recuperar datos.
-  - Una fila por movimiento: fecha, tipo, descripción, cuenta, categoría o tarjeta y monto.
+  - Una fila por movimiento: fecha, tipo, descripción, cuenta, categoría o destino (la tarjeta pagada o la cuenta que recibe) y monto.
   - UTF-8 con BOM, coma como separador y punto decimal.
   - Los textos que empiezan con `= + - @` llevan un apóstrofo delante para que Excel no los
     ejecute como fórmula (inyección de CSV de OWASP). Eso importará cuando las

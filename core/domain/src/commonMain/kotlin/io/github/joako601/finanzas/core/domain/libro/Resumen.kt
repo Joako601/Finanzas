@@ -10,7 +10,8 @@ public enum class ClaseMovimiento { GASTO, INGRESO, SALDO_INICIAL, PAGO_TARJETA,
  * Vista de un movimiento en los términos del usuario: "gasté $100 de Efectivo en Súper".
  * [monto] siempre es positivo; el sentido lo da [clase].
  * [cuenta] es la cuenta de dinero de la que sale o a la que llega; [categoria] la
- * categoría de gasto o ingreso; [contraparte] la tarjeta en un pago de tarjeta.
+ * categoría de gasto o ingreso; [contraparte] la tarjeta en un pago de tarjeta o el
+ * destino de una transferencia.
  * Cualquiera es `null` cuando no aplica o cuando el movimiento involucra varias.
  */
 public data class MovimientoResumido(
@@ -72,8 +73,14 @@ public fun Movimiento.resumir(cuentas: Map<CuentaId, Cuenta>): MovimientoResumid
                 unicaDe { it == TipoCuenta.ACTIVO }, null, unicaDe { it == TipoCuenta.PASIVO },
             )
 
+        // Entre cuentas propias: [cuenta] es de donde sale y [contraparte] a donde llega
+        // (null si el movimiento toca más de dos cuentas).
         tipos.all { it in DE_DINERO } ->
-            MovimientoResumido(this, ClaseMovimiento.TRANSFERENCIA, montoBruto(), null, null)
+            MovimientoResumido(
+                this, ClaseMovimiento.TRANSFERENCIA, montoBruto(),
+                conCuenta.singleOrNull { it.first.monto.esNegativo }?.second, null,
+                conCuenta.singleOrNull { it.first.monto.esPositivo }?.second,
+            )
 
         else -> MovimientoResumido(this, ClaseMovimiento.OTRO, montoBruto(), null, null)
     }
