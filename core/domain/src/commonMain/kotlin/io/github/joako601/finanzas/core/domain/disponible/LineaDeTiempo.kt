@@ -84,6 +84,12 @@ public data class LineaDeTiempo(
     /** El evento tras el que el saldo queda más bajo, si baja de lo que hay hoy. */
     val puntoMasBajo: EventoFuturo? = eventos.filter { it.saldoDespues < enCuentas }.minByOrNull { it.saldoDespues }
 
+    /**
+     * El día hasta el que tiene que alcanzar el disponible: el del [puntoMasBajo], o hoy si
+     * ese punto es un pago vencido (nunca una fecha pasada).
+     */
+    val diaMasBajo: LocalDate? get() = puntoMasBajo?.let { maxOf(it.fecha, hoy) }
+
     val primerFaltante: Faltante?
         get() = if (enCuentas.esNegativo) {
             Faltante(hoy, -enCuentas)

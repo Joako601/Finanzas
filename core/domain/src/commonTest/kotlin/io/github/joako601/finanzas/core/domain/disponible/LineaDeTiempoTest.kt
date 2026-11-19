@@ -280,6 +280,30 @@ class LineaDeTiempoTest {
     }
 
     @Test
+    fun el_dia_mas_bajo_nunca_es_una_fecha_pasada() {
+        // Caso del revisor: el internet venció el 10 nov y no se ha pagado; hoy es 19 nov.
+        val internet = fijo(1, "Internet", ClaseRegistro.GASTO, 400, Periodicidad.MENSUAL, "2026-11-10")
+        val quincena = fijo(2, "Quincena", ClaseRegistro.INGRESO, 12_000, Periodicidad.QUINCENAL, "2026-11-30")
+        val l = linea(hoy = "2026-11-19", recurrentes = listOf(internet, quincena))
+        assertEquals(fecha("2026-11-19"), l.diaMasBajo)
+    }
+
+    @Test
+    fun un_corte_el_31_cae_en_el_ultimo_dia_de_un_mes_corto() {
+        val fin31 = Tarjeta(cuentaNu, Dinero.pesos(30_000), diaDeCorte = 31, diaLimite = 20)
+        val l = linea(hoy = "2027-02-10", tarjetas = listOf(fin31))
+        assertEquals(listOf(fecha("2027-02-28")), l.eventos.filter { it.tipo == TipoEvento.CORTE }.map { it.fecha })
+    }
+
+    @Test
+    fun el_dia_30_entra_y_el_31_no() {
+        val dia30 = fijo(1, "Dia 30", ClaseRegistro.GASTO, 100, Periodicidad.ANUAL, "2026-12-19")
+        val dia31 = fijo(2, "Dia 31", ClaseRegistro.GASTO, 100, Periodicidad.ANUAL, "2026-12-20")
+        val l = linea(hoy = "2026-11-19", recurrentes = listOf(dia30, dia31))
+        assertEquals(listOf("Dia 30"), l.eventos.map { it.nombre })
+    }
+
+    @Test
     fun si_hoy_ya_esta_en_negativo_el_faltante_es_hoy() {
         val l = linea(hoy = "2026-11-19", enDebito = -500, tarjetas = listOf(nu))
         assertEquals(Faltante(fecha("2026-11-19"), Dinero.pesos(500)), l.primerFaltante)
@@ -306,7 +330,11 @@ class LineaDeTiempoTest {
                 tarjetas = listOf(nu),
                 estados = listOf(estado("2026-10-15", "2026-11-05", sinIntereses)),
                 pagos = listOf(PagoATarjeta(nu.id, fecha("2026-10-20"), Dinero.pesos(pagado))).filter { pagado > 0 },
-                recurrentes = listOf(fijo(1, "X", ClaseRegistro.GASTO, monto.toLong(), Periodicidad.SEMANAL, "2026-10-03")),
+                recurrentes = listOf(
+                    fijo(1, "X", ClaseRegistro.GASTO, monto.toLong(), Periodicidad.SEMANAL, "2026-10-03"),
+                    // Un ingreso hace que el saldo baje y vuelva a subir.
+                    fijo(2, "Quincena", ClaseRegistro.INGRESO, monto.toLong() * 3, Periodicidad.QUINCENAL, "2026-10-15"),
+                ),
                 hoy = hoy,
             )
             val deTarjeta = l.pagosDeTarjeta().map { it.monto }.sumar()
@@ -315,6 +343,8 @@ class LineaDeTiempoTest {
             assertTrue(l.eventos.all { l.disponible <= it.saldoDespues })
             assertEquals(l.disponible.esNegativo, l.primerFaltante != null)
             assertTrue(l.primerFaltante?.let { it.fecha >= hoy } ?: true)
+            assertTrue(l.diaMasBajo?.let { it >= hoy } ?: true, "día más bajo en el pasado")
+            assertEquals(l.puntoMasBajo == null, l.diaMasBajo == null)
         }
     }
 }
