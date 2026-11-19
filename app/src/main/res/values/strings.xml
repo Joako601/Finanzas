@@ -126,6 +126,26 @@
     <string name="omitir">Omitir esta vez</string>
     <string name="ayuda_omitir">Omitir pasa a la siguiente fecha sin registrar nada.</string>
 
+    <!-- Disponible real y próximos 30 días -->
+    <string name="disponible_real">Disponible real</string>
+    <string name="disponible_hasta_ingreso">Hasta tu %1$s del %2$s</string>
+    <string name="disponible_hasta_fecha">Hasta el %1$s</string>
+    <string name="en_cuentas_por_pagar">En cuentas %1$s · Por pagar %2$s</string>
+    <string name="faltante">El %1$s te faltarían %2$s si no entra más dinero.</string>
+    <string name="proximos_30_dias">Próximos 30 días</string>
+    <string name="explicacion_disponible_ingreso">Lo que tienes en efectivo y débito (%1$s) menos lo que pagas antes de tu %2$s del %3$s (%4$s). Los montos aproximados y estimados pueden cambiar.</string>
+    <string name="explicacion_disponible_fecha">Lo que tienes en efectivo y débito (%1$s) menos lo que pagas hasta el %2$s (%3$s). Agrega tu quincena en Pagos y cobros fijos para calcularlo hasta tu próximo ingreso.</string>
+    <string name="grupo_antes_de_ingreso">Antes de tu %1$s</string>
+    <string name="grupo_hasta_fecha">Hasta el %1$s</string>
+    <string name="grupo_despues">Después</string>
+    <string name="evento_pago_tarjeta">Pagar %1$s</string>
+    <string name="evento_corte">Corte de %1$s</string>
+    <string name="etiqueta_aproximado">aproximado</string>
+    <string name="etiqueta_estimado">estimado con tu deuda</string>
+    <string name="etiqueta_vencido">vencido</string>
+    <string name="queda_saldo">quedan %1$s</string>
+    <string name="sin_eventos">No hay pagos ni ingresos en los próximos 30 días. Agrega tus pagos fijos y tu quincena para verlos aquí.</string>
+
     <string name="canal_recordatorios">Recordatorios de pago</string>
     <string name="canal_recordatorios_descripcion">Avisos antes del corte, antes de la fecha límite, para capturar tu estado de cuenta y antes de tus pagos fijos.</string>
     <string name="aviso_publico">Tienes un recordatorio de pago</string>

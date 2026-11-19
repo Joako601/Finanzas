@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
@@ -48,6 +50,9 @@ import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.iconoDe
+import io.github.joako601.finanzas.ui.disponible.HojaLineaDeTiempo
+import io.github.joako601.finanzas.ui.disponible.LineaDeTiempoViewModel
+import io.github.joako601.finanzas.ui.disponible.ResumenDisponible
 import io.github.joako601.finanzas.ui.formatoCorto
 import io.github.joako601.finanzas.ui.formatoEncabezado
 import io.github.joako601.finanzas.ui.hoy
@@ -93,6 +98,7 @@ fun PantallaMovimientos(
     viewModel: MovimientosViewModel = viewModel(factory = MovimientosViewModel.Fabrica),
     tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
+    lineaDeTiempoViewModel: LineaDeTiempoViewModel = viewModel(factory = LineaDeTiempoViewModel.Fabrica),
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
@@ -104,6 +110,8 @@ fun PantallaMovimientos(
     val estadoRecurrentes by recurrentesViewModel.estado.collectAsStateWithLifecycle()
     val nuevoRecurrente by recurrentesViewModel.nuevo.collectAsStateWithLifecycle()
     val registroRecurrente by recurrentesViewModel.registro.collectAsStateWithLifecycle()
+    val estadoLinea by lineaDeTiempoViewModel.estado.collectAsStateWithLifecycle()
+    var verLineaDeTiempo by rememberSaveable { mutableStateOf(false) }
     var porEliminar by remember { mutableStateOf<MovimientoResumido?>(null) }
 
     ContenidoMovimientos(
@@ -111,6 +119,8 @@ fun PantallaMovimientos(
         estadoTarjetas = estadoTarjetas,
         onRegistrar = viewModel::abrirCaptura,
         onAgregarCuenta = viewModel::abrirNuevaCuenta,
+        lineaDeTiempo = estadoLinea.linea,
+        onVerLineaDeTiempo = { verLineaDeTiempo = true },
         accionesTarjetas = AccionesTarjetas(
             agregar = tarjetasViewModel::abrirNuevaTarjeta,
             pagar = tarjetasViewModel::abrirPago,
@@ -123,6 +133,10 @@ fun PantallaMovimientos(
         ),
         onTocarMovimiento = { porEliminar = it },
     )
+
+    if (verLineaDeTiempo) {
+        HojaLineaDeTiempo(estado = estadoLinea, onCerrar = { verLineaDeTiempo = false })
+    }
 
     nuevoRecurrente?.let { actual ->
         DialogoNuevoRecurrente(
@@ -243,6 +257,8 @@ fun ContenidoMovimientos(
     estadoTarjetas: EstadoTarjetas,
     onRegistrar: () -> Unit,
     onAgregarCuenta: () -> Unit,
+    lineaDeTiempo: LineaDeTiempo?,
+    onVerLineaDeTiempo: () -> Unit,
     accionesTarjetas: AccionesTarjetas,
     estadoRecurrentes: EstadoRecurrentes,
     accionesRecurrentes: AccionesRecurrentes,
@@ -277,7 +293,7 @@ fun ContenidoMovimientos(
             ),
         ) {
             item(key = "saldos") {
-                TarjetaSaldos(estado, onAgregarCuenta)
+                TarjetaSaldos(estado, lineaDeTiempo, onAgregarCuenta, onVerLineaDeTiempo)
             }
 
             if (estadoTarjetas.tarjetas.isNotEmpty()) {
@@ -342,16 +358,29 @@ fun ContenidoMovimientos(
     }
 }
 
+/**
+ * Saldos: el disponible real arriba (o el total en cuentas mientras se calcula), las
+ * cuentas debajo, y las acciones de agregar cuenta y ver los próximos 30 días.
+ */
 @Composable
-private fun TarjetaSaldos(estado: EstadoMovimientos, onAgregarCuenta: () -> Unit) {
+private fun TarjetaSaldos(
+    estado: EstadoMovimientos,
+    linea: LineaDeTiempo?,
+    onAgregarCuenta: () -> Unit,
+    onVerLineaDeTiempo: () -> Unit,
+) {
     TarjetaFinanzas(Modifier.fillMaxWidth().padding(16.dp)) {
         Column(Modifier.padding(20.dp)) {
-            Text(
-                stringResource(R.string.total_en_cuentas),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(estado.totalEnCuentas.formatear(), style = MaterialTheme.typography.headlineLarge)
+            if (linea != null) {
+                ResumenDisponible(linea)
+            } else {
+                Text(
+                    stringResource(R.string.total_en_cuentas),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(estado.totalEnCuentas.formatear(), style = MaterialTheme.typography.headlineLarge)
+            }
             Spacer(Modifier.height(12.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 estado.cuentasDeDinero.forEach { (cuenta, saldo) ->
@@ -361,8 +390,13 @@ private fun TarjetaSaldos(estado: EstadoMovimientos, onAgregarCuenta: () -> Unit
                     }
                 }
             }
-            TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
-                Text(stringResource(R.string.agregar_cuenta))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TextButton(onClick = onAgregarCuenta, contentPadding = PaddingValues(0.dp)) {
+                    Text(stringResource(R.string.agregar_cuenta))
+                }
+                TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp), enabled = linea != null) {
+                    Text(stringResource(R.string.proximos_30_dias))
+                }
             }
         }
     }
