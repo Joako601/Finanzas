@@ -128,6 +128,13 @@ dos semanas. Pendiente: pruebas con `dumpsys deviceidle force-idle` y
 | 2026-11-19 | Tras las correcciones: 112 pruebas del dominio, 10 de cifrado, 27 de la app en la JVM; lint sin advertencias | Computadora de desarrollo | Todo pasa | Claude |
 | 2026-11-19 | 36 pruebas instrumentadas de Room, 2 nuevas del respaldo (no se reusan ids en un teléfono nuevo; se borran temporales huérfanos al arrancar) | Samsung Galaxy S24 FE, paquete de prueba aparte | 36/36 | Claude |
 | 2026-11-19 | Prueba de accesibilidad de la pantalla principal (`AccesibilidadTest`, 4 casos) con el tipo de compilación `pruebas` | Samsung Galaxy S24 FE | Primera corrida: falló al arrancar por Espresso 3.5.0 (no corre en Android 17); se fijó 3.7.0. Segunda: no encontró la pantalla porque el teléfono estaba bloqueado. Tercera, desbloqueado: **encontró un error real**: el botón Registrar no tenía nombre en el árbol de accesibilidad (TalkBack diría solo "Botón"). Corregido en `64ac8f5`. Mi primera versión de la prueba medía el tamaño dibujado (40 dp) y marcaba en falso 6 botones; se cambió a leer `AccessibilityNodeInfo`, donde miden 48 dp. Final: 4/4. Sin el arreglo, 2 fallan. La app del autor no se tocó (sigue en versionCode 7) | Claude |
+| 2026-11-19 | v8 instalada como actualización (respaldo previo en `evidencia/privado/`). Capturas de la pantalla principal en oscuro, claro y texto al 130 %, y del diálogo de transferencia | Samsung Galaxy S24 FE | Base **idéntica** antes y después; versionCode 8, targetSdk 37; abre sin cierres. "Transferir" junto a "Agregar cuenta"; nada cortado al 130 % ("Estado de cuenta" pasa a dos líneas). Capturas con datos del autor solo en `evidencia/privado/`. Se vieron dos detalles previos, anotados abajo | Claude |
+
+Hallazgos abiertos de la revisión de la v8 en el S24 FE (2026-11-19):
+- Con saldo negativo en cuentas y pagos vencidos, el disponible dice −$3,128.50 pero el
+  texto dice "Hoy te faltan $1,128.50": cuenta solo lo de las cuentas y no lo vencido.
+- Una tarjeta con saldo a favor (se pagó de más) muestra "Debes −$950.00" y "Disponible
+  $1,950.00 de $1,000.00".
 
 Hallazgos abiertos del recorrido en emulador:
 - ~~El botón flotante **Registrar** no expone su texto a accesibilidad (`NAF="true"` en
