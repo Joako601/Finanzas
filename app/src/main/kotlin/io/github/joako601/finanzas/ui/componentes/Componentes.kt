@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.ui.componentes
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
@@ -57,7 +58,11 @@ fun BotonPrincipal(texto: String, onClick: () -> Unit, modifier: Modifier = Modi
     }
 }
 
-/** Botón de una acción secundaria: con borde (negro en claro, gris en oscuro), del mismo tamaño que [BotonPrincipal]. */
+/**
+ * Botón de una acción secundaria: borde y texto del color del texto (negro en claro, blanco
+ * en oscuro), del mismo tamaño que [BotonPrincipal]. El estilo de Material 3 por omisión
+ * los pone grises y parecen deshabilitados; es el mismo trato que "Estado de cuenta".
+ */
 @Composable
 fun BotonSecundario(texto: String, onClick: () -> Unit, modifier: Modifier = Modifier, habilitado: Boolean = true) {
     OutlinedButton(
@@ -65,6 +70,11 @@ fun BotonSecundario(texto: String, onClick: () -> Unit, modifier: Modifier = Mod
         enabled = habilitado,
         modifier = modifier.fillMaxWidth().heightIn(min = 52.dp),
         shape = MaterialTheme.shapes.small,
+        border = BorderStroke(
+            1.dp,
+            if (habilitado) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface),
     ) {
         Text(texto, style = MaterialTheme.typography.labelLarge)
     }
