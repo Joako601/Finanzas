@@ -39,6 +39,10 @@ public sealed interface SituacionTarjeta {
  */
 private const val TOLERANCIA_DIAS_CORTE = 5
 
+/** ¿Alguno de [estados] es el estado de cuenta del [corte] predicho? Misma regla para la pantalla y los avisos. */
+internal fun corteCapturado(estados: List<EstadoDeCuenta>, corte: LocalDate): Boolean =
+    estados.any { abs(it.fechaCorte.daysUntil(corte)) <= TOLERANCIA_DIAS_CORTE }
+
 /**
  * Calcula la situación de la tarjeta en [hoy].
  *
@@ -75,7 +79,7 @@ public fun situacionTarjeta(
 
     // El estado de cuenta se genera al cierre del día de corte: se pide a partir del día siguiente.
     val ultimoCorte = CalendarioTarjeta.ultimoCorteHasta(tarjeta, hoy.minus(1, DateTimeUnit.DAY))
-    val yaCapturado = propios.any { abs(it.fechaCorte.daysUntil(ultimoCorte)) <= TOLERANCIA_DIAS_CORTE }
+    val yaCapturado = corteCapturado(propios, ultimoCorte)
     val limitePredicho = CalendarioTarjeta.limiteParaCorte(tarjeta, ultimoCorte)
     if (!yaCapturado && limitePredicho >= hoy) {
         return SituacionTarjeta.CapturaPendiente(ultimoCorte, limitePredicho)

@@ -6,16 +6,15 @@ import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.corteCapturado
 import io.github.joako601.finanzas.core.domain.tarjetas.situacionTarjeta
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.atTime
-import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
-import kotlin.math.abs
 
 public enum class TipoRecordatorio {
     /** Un día antes del corte: lo que se compre después entra al siguiente estado de cuenta. */
@@ -70,9 +69,6 @@ public object PlanRecordatorios {
     /** Días después del corte en que se pide capturar el estado de cuenta. */
     public const val DIAS_PARA_CAPTURAR: Int = 2
 
-    /** Un estado capturado dentro de este margen corresponde al corte predicho (S5). */
-    private const val TOLERANCIA_DIAS_CORTE = 5
-
     /**
      * Todos los recordatorios cuyo día es [hoy] o posterior, más los de días anteriores
      * que siguen siendo útiles (por ejemplo, capturar un estado cuyo límite no ha pasado).
@@ -111,7 +107,7 @@ public object PlanRecordatorios {
         // 2. Capturar el estado de cuenta del último corte y del próximo, si faltan.
         val ultimoCorte = CalendarioTarjeta.ultimoCorteHasta(tarjeta, hoy)
         for (corte in listOf(ultimoCorte, proximoCorte).distinct()) {
-            val capturado = estados.any { abs(it.fechaCorte.daysUntil(corte)) <= TOLERANCIA_DIAS_CORTE }
+            val capturado = corteCapturado(estados, corte)
             val diaAviso = corte.plus(DIAS_PARA_CAPTURAR, DateTimeUnit.DAY)
             val limitePredicho = CalendarioTarjeta.limiteParaCorte(tarjeta, corte)
             // Pedir la captura solo mientras sirve: antes de que pase su fecha límite.
