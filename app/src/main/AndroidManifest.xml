@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Sin <uses-permission>: la app no pide ningún permiso, en particular no pide INTERNET.
-  La tarea verificarPermisos* de app/build.gradle.kts falla si alguna librería agrega uno.
+  Permisos: solo los dos que necesitan los recordatorios (D-015). Ninguno da acceso a red
+  ni a datos de otras apps. La tarea verificarPermisos* de app/build.gradle.kts falla si
+  aparece cualquier otro en el manifiesto fusionado, en particular INTERNET.
 
   Respaldo:
   - allowBackup="false" desactiva el respaldo en la nube de Google en todas las versiones.
@@ -13,6 +14,11 @@
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Mostrar los avisos. En Android 13+ el usuario lo concede desde la app. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Volver a programar los avisos después de reiniciar el teléfono. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".FinanzasApp"
@@ -34,6 +40,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Alarma del siguiente aviso. Solo la invoca nuestra propia PendingIntent. -->
+        <receiver
+            android:name=".recordatorios.ReceptorAlarma"
+            android:exported="false" />
+
+        <!--
+          Eventos del sistema que borran o mueven las alarmas. Todos son "broadcasts
+          protegidos" que solo el sistema puede enviar; el receptor además valida la acción.
+        -->
+        <receiver
+            android:name=".recordatorios.ReceptorSistema"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

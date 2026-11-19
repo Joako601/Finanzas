@@ -2,10 +2,11 @@ package io.github.joako601.finanzas.core.domain.tarjetas
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.dinero.sumar
+import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.Movimiento
-import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.libro.resumir
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -38,6 +39,10 @@ public sealed interface SituacionTarjeta {
  * el banco puede recorrer el corte unos días (días inhábiles, supuesto S3).
  */
 private const val TOLERANCIA_DIAS_CORTE = 5
+
+/** ¿Alguno de [estados] es el estado de cuenta del [corte] predicho? Misma regla para la pantalla y los avisos. */
+internal fun corteCapturado(estados: List<EstadoDeCuenta>, corte: LocalDate): Boolean =
+    estados.any { abs(it.fechaCorte.daysUntil(corte)) <= TOLERANCIA_DIAS_CORTE }
 
 /**
  * Calcula la situación de la tarjeta en [hoy].
@@ -75,7 +80,7 @@ public fun situacionTarjeta(
 
     // El estado de cuenta se genera al cierre del día de corte: se pide a partir del día siguiente.
     val ultimoCorte = CalendarioTarjeta.ultimoCorteHasta(tarjeta, hoy.minus(1, DateTimeUnit.DAY))
-    val yaCapturado = propios.any { abs(it.fechaCorte.daysUntil(ultimoCorte)) <= TOLERANCIA_DIAS_CORTE }
+    val yaCapturado = corteCapturado(propios, ultimoCorte)
     val limitePredicho = CalendarioTarjeta.limiteParaCorte(tarjeta, ultimoCorte)
     if (!yaCapturado && limitePredicho >= hoy) {
         return SituacionTarjeta.CapturaPendiente(ultimoCorte, limitePredicho)
@@ -88,22 +93,19 @@ public fun situacionTarjeta(
 public data class PagoATarjeta(val tarjeta: CuentaId, val fecha: LocalDate, val monto: Dinero)
 
 /**
- * Extrae los pagos a tarjetas: movimientos donde una tarjeta (pasivo) recibe un cargo
- * positivo y la contrapartida son solo cuentas de activo. Las compras (cargo a gasto,
- * abono a la tarjeta) y los saldos iniciales no cuentan.
+ * Extrae los pagos a tarjetas: los movimientos que [resumir] reconoce como pago de tarjeta
+ * (sale dinero de efectivo o débito y baja la deuda). Usa la misma regla que la lista de
+ * movimientos para que un traspaso entre tarjetas, una compra o un saldo inicial nunca
+ * cuenten como pago.
+ *
+ * shortcut: un solo movimiento que pague varias tarjetas a la vez se descarta (resumir no
+ * elige una tarjeta); hoy Registro.pagoDeTarjeta paga una sola. Repartir el pago si eso cambia.
  */
 public fun pagosATarjetas(movimientos: Iterable<Movimiento>, cuentas: Map<CuentaId, Cuenta>): List<PagoATarjeta> =
-    movimientos.flatMap { movimiento ->
-        val tipos = movimiento.asientos.map { cuentas[it.cuenta]?.tipo }
-        val esPago = TipoCuenta.PASIVO in tipos && tipos.all { it == TipoCuenta.PASIVO || it == TipoCuenta.ACTIVO }
-        if (!esPago) {
-            emptyList()
-        } else {
-            movimiento.asientos
-                .filter { cuentas[it.cuenta]?.tipo == TipoCuenta.PASIVO && it.monto.esPositivo }
-                .map { PagoATarjeta(it.cuenta, movimiento.fecha, it.monto) }
-        }
-    }
+    movimientos
+        .map { it.resumir(cuentas) }
+        .filter { it.clase == ClaseMovimiento.PAGO_TARJETA }
+        .mapNotNull { pago -> pago.contraparte?.let { PagoATarjeta(it.id, pago.movimiento.fecha, pago.monto) } }
 
 /** Deuda actual de la tarjeta: el saldo de un pasivo es negativo cuando se debe. */
 public fun deudaDe(tarjeta: Tarjeta, saldos: Map<CuentaId, Dinero>): Dinero = -(saldos[tarjeta.id] ?: Dinero.CERO)

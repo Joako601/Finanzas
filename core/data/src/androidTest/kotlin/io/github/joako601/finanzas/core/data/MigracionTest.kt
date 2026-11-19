@@ -71,4 +71,46 @@ class MigracionTest {
             baseDeDatos.close()
         }
     }
+
+    /** Quien instala hoy desde la versión 1 pasa por 1→2→3 de un jalón. */
+    @Test
+    fun de_1_a_3_en_cadena() {
+        ayudante.createDatabase(nombre, 1).use { db ->
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (1, 'Efectivo', 'ACTIVO', 0, 1)")
+        }
+        ayudante.runMigrationsAndValidate(nombre, 3, true).use { db ->
+            db.query("SELECT COUNT(*) FROM recordatorio_entregado").use { c ->
+                c.moveToFirst()
+                assertEquals(0, c.getInt(0))
+            }
+            db.query("SELECT nombre FROM cuenta").use { c ->
+                c.moveToFirst()
+                assertEquals("Efectivo", c.getString(0))
+            }
+        }
+    }
+
+    /** El caso del teléfono del autor: versión 2 con tarjeta y estado de cuenta capturado. */
+    @Test
+    fun de_2_a_3_conserva_tarjetas_y_estados() {
+        ayudante.createDatabase(nombre, 2).use { db ->
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (5, 'Nu', 'PASIVO', 0, 5)")
+            db.execSQL("INSERT INTO tarjeta (cuenta_id, linea_centavos, dia_corte, dia_limite) VALUES (5, 3000000, 15, 5)")
+            db.execSQL(
+                "INSERT INTO estado_de_cuenta (tarjeta_id, fecha_corte, fecha_limite, pago_sin_intereses, pago_minimo, " +
+                    "corte_predicho, limite_predicho, capturado_en) VALUES (5, 20772, 20792, 250000, 25000, 20772, 20792, 0)",
+            )
+        }
+        ayudante.runMigrationsAndValidate(nombre, 3, true).use { db ->
+            db.query("SELECT dia_corte, linea_centavos FROM tarjeta WHERE cuenta_id = 5").use { c ->
+                c.moveToFirst()
+                assertEquals(15, c.getInt(0))
+                assertEquals(3_000_000L, c.getLong(1))
+            }
+            db.query("SELECT pago_sin_intereses FROM estado_de_cuenta WHERE tarjeta_id = 5").use { c ->
+                c.moveToFirst()
+                assertEquals(250_000L, c.getLong(0))
+            }
+        }
+    }
 }

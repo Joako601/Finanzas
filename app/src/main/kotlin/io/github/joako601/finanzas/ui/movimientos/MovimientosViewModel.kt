@@ -20,6 +20,7 @@ import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.libro.resumir
 import io.github.joako601.finanzas.core.domain.libro.totalEnCuentas
+import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 import io.github.joako601.finanzas.ui.hoy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +70,7 @@ data class NuevaCuenta(
     val saldoTexto: String = "",
     val errorNombre: Boolean = false,
     val errorSaldo: Boolean = false,
+    val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
 )
 
@@ -151,8 +153,7 @@ class MovimientosViewModel(
     }
 
     fun cambiarMonto(texto: String) = editarCaptura {
-        // Solo caracteres que pueden formar un monto; el teclado numérico a veces deja pasar otros.
-        it.copy(montoTexto = texto.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(20))
+        it.copy(montoTexto = limpiarMonto(texto))
     }
 
     fun elegirCategoria(id: CuentaId) = editarCaptura { it.copy(categoriaId = id) }
@@ -238,10 +239,10 @@ class MovimientosViewModel(
     }
 
     fun cambiarNombreCuenta(nombre: String) =
-        _nuevaCuenta.update { it?.copy(nombre = nombre.take(Cuenta.LARGO_MAXIMO_NOMBRE), errorNombre = false) }
+        _nuevaCuenta.update { it?.copy(nombre = nombre.take(Cuenta.LARGO_MAXIMO_NOMBRE), errorNombre = false, errorAlGuardar = false) }
 
     fun cambiarSaldoCuenta(texto: String) = _nuevaCuenta.update {
-        it?.copy(saldoTexto = texto.filter { c -> c.isDigit() || c == '.' || c == ',' }.take(20), errorSaldo = false)
+        it?.copy(saldoTexto = limpiarMonto(texto), errorSaldo = false, errorAlGuardar = false)
     }
 
     fun guardarNuevaCuenta() {
@@ -251,13 +252,19 @@ class MovimientosViewModel(
         val errorNombre = actual.nombre.isBlank()
         val errorSaldo = saldo == null
         if (errorNombre || errorSaldo) {
-            _nuevaCuenta.value = actual.copy(errorNombre = errorNombre, errorSaldo = errorSaldo)
+            _nuevaCuenta.value = actual.copy(errorNombre = errorNombre, errorSaldo = errorSaldo, errorAlGuardar = false)
             return
         }
-        _nuevaCuenta.value = actual.copy(guardando = true)
+        _nuevaCuenta.value = actual.copy(guardando = true, errorAlGuardar = false)
         viewModelScope.launch {
-            servicio.crearCuentaDeDinero(actual.nombre, saldo, fechaDeHoy())
-            _nuevaCuenta.value = null
+            try {
+                servicio.crearCuentaDeDinero(actual.nombre, saldo, fechaDeHoy())
+                _nuevaCuenta.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _nuevaCuenta.update { it?.copy(guardando = false, errorAlGuardar = true) }
+            }
         }
     }
 

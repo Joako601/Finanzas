@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.joako601.finanzas"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 3
-        versionName = "0.1.0-dev.3"
+        versionCode = 4
+        versionName = "0.1.0-dev.4"
     }
 
     buildTypes {
@@ -63,6 +63,9 @@ dependencies {
 
     // Vista previa de Compose en Android Studio; solo en debug, no llega al APK de release.
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // Pruebas en la JVM (sin teléfono) de la lógica de la interfaz.
+    testImplementation(libs.junit)
 }
 
 /**
@@ -119,7 +122,17 @@ androidComponents {
             // androidx.core declara un permiso propio con nivel "signature" para que solo
             // nuestra app pueda enviar broadcasts a sus receptores no exportados. No da
             // acceso a nada del sistema.
-            permitidos.set(variant.applicationId.map { listOf("$it.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION") })
+            // Los otros dos son los de los recordatorios (D-015): mostrar avisos y
+            // reprogramarlos al reiniciar el teléfono. Ninguno da acceso a red.
+            permitidos.set(
+                variant.applicationId.map {
+                    listOf(
+                        "$it.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+                        "android.permission.POST_NOTIFICATIONS",
+                        "android.permission.RECEIVE_BOOT_COMPLETED",
+                    )
+                },
+            )
             reporte.set(layout.buildDirectory.file("reportes/permisos/${variant.name}.txt"))
         }
         tasks.named("check") { dependsOn(tarea) }

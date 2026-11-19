@@ -10,6 +10,8 @@ import io.github.joako601.finanzas.core.data.libro.AsientoEntity
 import io.github.joako601.finanzas.core.data.libro.CuentaEntity
 import io.github.joako601.finanzas.core.data.libro.LibroDao
 import io.github.joako601.finanzas.core.data.libro.MovimientoEntity
+import io.github.joako601.finanzas.core.data.recordatorios.RecordatorioEntregadoEntity
+import io.github.joako601.finanzas.core.data.recordatorios.RecordatoriosDao
 import io.github.joako601.finanzas.core.data.tarjetas.EstadoDeCuentaEntity
 import io.github.joako601.finanzas.core.data.tarjetas.TarjetaEntity
 import io.github.joako601.finanzas.core.data.tarjetas.TarjetasDao
@@ -26,6 +28,7 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
  * - 1: cuenta, movimiento, asiento.
  * - 2: tarjeta y estado_de_cuenta. Solo agrega tablas, así que Room genera la
  *   migración sola (AutoMigration) comparando los esquemas 1.json y 2.json.
+ * - 3: recordatorio_entregado (avisos entregados y su retraso). También automática.
  *
  * Todavía sin cifrar. SQLCipher o no se decide con el modelo de amenazas, antes de la
  * primera versión que use alguien más.
@@ -37,16 +40,19 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
         AsientoEntity::class,
         TarjetaEntity::class,
         EstadoDeCuentaEntity::class,
+        RecordatorioEntregadoEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 internal abstract class FinanzasDatabase : RoomDatabase() {
 
     abstract fun libroDao(): LibroDao
 
     abstract fun tarjetasDao(): TarjetasDao
+
+    abstract fun recordatoriosDao(): RecordatoriosDao
 
     companion object {
         const val NOMBRE_ARCHIVO = "finanzas.db"

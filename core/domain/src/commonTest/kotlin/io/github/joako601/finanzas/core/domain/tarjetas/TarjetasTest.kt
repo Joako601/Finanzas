@@ -1,9 +1,11 @@
 package io.github.joako601.finanzas.core.domain.tarjetas
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.Asiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.Movimiento
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioEnMemoria
 import io.github.joako601.finanzas.core.domain.libro.RepositorioTarjetasEnMemoria
@@ -134,6 +136,19 @@ class TarjetasTest {
             Registro.saldoInicial(f, cuentaNu, -Dinero.pesos(1_000), capital),
         )
         assertEquals(listOf(PagoATarjeta(nu.id, f, Dinero.pesos(500))), pagosATarjetas(movimientos, cuentas))
+    }
+
+    @Test
+    fun pasar_deuda_de_una_tarjeta_a_otra_no_es_un_pago() {
+        // Baja la deuda de Nu y sube la de Otra: no salió dinero de efectivo ni débito.
+        val traspaso = Movimiento(
+            id = null,
+            fecha = fecha("2026-11-20"),
+            descripcion = "",
+            asientos = listOf(Asiento(cuentaNu.id, Dinero.pesos(100)), Asiento(cuentaOtra.id, -Dinero.pesos(100))),
+        )
+        assertEquals(ClaseMovimiento.TRANSFERENCIA, traspaso.resumir(cuentas).clase)
+        assertEquals(emptyList(), pagosATarjetas(listOf(traspaso), cuentas))
     }
 
     @Test
