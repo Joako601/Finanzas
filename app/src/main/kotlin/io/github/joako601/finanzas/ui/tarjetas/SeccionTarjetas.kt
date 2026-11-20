@@ -1,16 +1,21 @@
 package io.github.joako601.finanzas.ui.tarjetas
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -19,13 +24,18 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
@@ -48,11 +58,12 @@ fun SeccionTarjetas(
     onPagar: (ResumenTarjeta) -> Unit,
     onCapturar: (ResumenTarjeta) -> Unit,
 ) {
+    // Sin margen lateral propio: el carrusel ocupa todo el ancho para que se asome la tarjeta siguiente.
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(
                 stringResource(R.string.tarjetas_de_credito),
                 style = MaterialTheme.typography.titleMedium,
@@ -65,18 +76,84 @@ fun SeccionTarjetas(
                 stringResource(R.string.sin_tarjetas),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 16.dp),
             )
         }
-        estado.tarjetas.forEach { resumen ->
+        when (estado.tarjetas.size) {
+            0 -> Unit
+            1 -> estado.tarjetas.single().let { resumen ->
+                TarjetaCredito(
+                    resumen,
+                    onPagar = { onPagar(resumen) },
+                    onCapturar = { onCapturar(resumen) },
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+            }
+            else -> CarruselTarjetas(estado.tarjetas, onPagar, onCapturar)
+        }
+    }
+}
+
+/** Etiqueta para encontrar el carrusel en las pruebas. */
+const val ETIQUETA_CARRUSEL = "carrusel_tarjetas"
+
+/**
+ * Las tarjetas una al lado de otra: se desliza de izquierda a derecha. La siguiente se
+ * asoma por la derecha para que se note que hay más, y los círculos de abajo dicen cuál
+ * se ve y cuántas hay.
+ */
+@Composable
+private fun CarruselTarjetas(
+    tarjetas: List<ResumenTarjeta>,
+    onPagar: (ResumenTarjeta) -> Unit,
+    onCapturar: (ResumenTarjeta) -> Unit,
+) {
+    val estadoCarrusel = rememberPagerState { tarjetas.size }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalPager(
+            state = estadoCarrusel,
+            modifier = Modifier.fillMaxWidth().testTag(ETIQUETA_CARRUSEL),
+            // Alineada con el resto de la pantalla a la izquierda; a la derecha deja ver la siguiente.
+            contentPadding = PaddingValues(start = 16.dp, end = 40.dp),
+            pageSpacing = 12.dp,
+            verticalAlignment = Alignment.Top,
+            key = { tarjetas[it].tarjeta.id.valor },
+        ) { pagina ->
+            val resumen = tarjetas[pagina]
             TarjetaCredito(resumen, onPagar = { onPagar(resumen) }, onCapturar = { onCapturar(resumen) })
+        }
+        Indicador(actual = estadoCarrusel.currentPage, total = tarjetas.size)
+    }
+}
+
+/** Un círculo por tarjeta; el de la que se ve, relleno. TalkBack dice "Tarjeta 1 de 2". */
+@Composable
+private fun Indicador(actual: Int, total: Int) {
+    val descripcion = stringResource(R.string.tarjeta_n_de_total, actual + 1, total)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clearAndSetSemantics { contentDescription = descripcion },
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+    ) {
+        repeat(total) { indice ->
+            val color by animateColorAsState(
+                if (indice == actual) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                label = "circulo",
+            )
+            Box(Modifier.size(8.dp).clip(CircleShape).background(color))
         }
     }
 }
 
 @Composable
-private fun TarjetaCredito(resumen: ResumenTarjeta, onPagar: () -> Unit, onCapturar: () -> Unit) {
-    TarjetaFinanzas(Modifier.fillMaxWidth()) {
+private fun TarjetaCredito(
+    resumen: ResumenTarjeta,
+    onPagar: () -> Unit,
+    onCapturar: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    TarjetaFinanzas(modifier.fillMaxWidth()) {
         // "Plástico": nombre, ícono y crédito disponible.
         Box(
             Modifier

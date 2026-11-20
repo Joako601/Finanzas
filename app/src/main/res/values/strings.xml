@@ -67,6 +67,7 @@
     <string name="disponible_de">Disponible %1$s de %2$s</string>
     <string name="disponible_con_saldo_a_favor">Disponible %1$s: tu línea de %2$s más tu saldo a favor</string>
     <string name="saldo_a_favor">Saldo a favor</string>
+    <string name="tarjeta_n_de_total">Tarjeta %1$d de %2$d</string>
     <string name="situacion_pago_pendiente">Paga %1$s antes del %2$s para no generar intereses</string>
     <string name="vence_hoy">Vence hoy</string>
     <plurals name="dias_restantes">
