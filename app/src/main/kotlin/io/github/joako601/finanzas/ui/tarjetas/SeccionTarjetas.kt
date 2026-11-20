@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.ui.tarjetas
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -126,7 +127,7 @@ private fun CarruselTarjetas(
     }
 }
 
-/** Un círculo por tarjeta; el de la que se ve, relleno. TalkBack dice "Tarjeta 1 de 2". */
+/** Un círculo por tarjeta; el de la que se ve, oscuro y alargado. TalkBack dice "Tarjeta 1 de 2". */
 @Composable
 private fun Indicador(actual: Int, total: Int) {
     val descripcion = stringResource(R.string.tarjeta_n_de_total, actual + 1, total)
@@ -137,11 +138,15 @@ private fun Indicador(actual: Int, total: Int) {
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
         repeat(total) { indice ->
+            val elegida = indice == actual
+            // Gris medio (≥3:1 sobre el fondo en claro y oscuro) y la elegida más larga:
+            // se distingue por forma, no solo por color.
             val color by animateColorAsState(
-                if (indice == actual) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outlineVariant,
+                if (elegida) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                 label = "circulo",
             )
-            Box(Modifier.size(8.dp).clip(CircleShape).background(color))
+            val ancho by animateDpAsState(if (elegida) 20.dp else 8.dp, label = "ancho_circulo")
+            Box(Modifier.size(width = ancho, height = 8.dp).clip(CircleShape).background(color))
         }
     }
 }

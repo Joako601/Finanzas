@@ -36,6 +36,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 
 /**
  * Accesibilidad de la pantalla principal, revisada en el árbol de semántica que Compose
@@ -102,6 +103,8 @@ class AccesibilidadTest {
 
     }
 
+    private var raizActual: AccessibilityNodeInfo? = null
+
     /** Lo que Android le entrega a TalkBack: los nodos de accesibilidad de la ventana. */
     private fun nodosTocables(): List<AccessibilityNodeInfo> {
         regla.waitForIdle()
@@ -112,6 +115,7 @@ class AccesibilidadTest {
         var raiz: AccessibilityNodeInfo? = null
         repeat(50) { if (raiz == null) raiz = automatizacion.rootInActiveWindow ?: null.also { Thread.sleep(100) } }
         checkNotNull(raiz) { "Sin ventana activa" }
+        raizActual = raiz
         val lista = mutableListOf<AccessibilityNodeInfo>()
         fun visitar(nodo: AccessibilityNodeInfo) {
             if (nodo.isClickable) lista += nodo
@@ -149,7 +153,15 @@ class AccesibilidadTest {
     fun todo_lo_tocable_mide_al_menos_48dp() {
         mostrarPantalla()
 
-        val tocables = nodosTocables()
+        // Android reporta solo la parte visible: un elemento cortado por la orilla de la
+        // pantalla (pasa con letra grande) mediría de menos sin serlo, así que no se mide.
+        val todos = nodosTocables()
+        val pantalla = Rect().also { checkNotNull(raizActual).getBoundsInScreen(it) }
+        val tocables = todos.filter { nodo ->
+            val r = Rect().also(nodo::getBoundsInScreen)
+            r.top > pantalla.top && r.bottom < pantalla.bottom
+        }
+        assertTrue("Casi nada quedó a la vista para medir (${tocables.size})", tocables.size >= 5)
         val chicos = tocables.filter { val (ancho, alto) = dp(it); ancho < 47.5f || alto < 47.5f }
             .map { "${nombre(it)}: ${dp(it)}" }
 
