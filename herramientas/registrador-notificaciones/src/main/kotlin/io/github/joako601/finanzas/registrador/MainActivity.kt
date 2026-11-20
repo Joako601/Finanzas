@@ -47,6 +47,8 @@ import java.util.Date
 
 /** Foto del estado del registrador que muestra la pantalla. */
 private data class Estado(
+    /** Apagado = Android no despierta al registrador; el acceso concedido se conserva. */
+    val encendido: Boolean,
     val acceso: Boolean,
     val conectado: Boolean,
     val cambioDeConexionMillis: Long,
@@ -84,6 +86,7 @@ class MainActivity : ComponentActivity() {
     private fun leerEstado(): Estado {
         val permitidos = preferencias.paquetesPermitidos
         return Estado(
+            encendido = Interruptor.encendido(this),
             acceso = getSystemService(NotificationManager::class.java)
                 .isNotificationListenerAccessGranted(ComponentName(this, RegistradorService::class.java)),
             conectado = preferencias.conectado,
@@ -145,6 +148,32 @@ class MainActivity : ComponentActivity() {
                 "Herramienta de la fase 0. Guarda el contenido de las notificaciones de las apps " +
                     "activadas abajo, solo en este teléfono. No tiene internet.",
                 style = MaterialTheme.typography.bodyMedium,
+            )
+
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("Registrar notificaciones", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (estado.encendido) {
+                            "Encendido. Android lo despierta solo cuando llega una notificación."
+                        } else {
+                            "Apagado: no gasta batería y no registra nada. Lo que siga en la barra al prenderlo sí se guarda."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(
+                    checked = estado.encendido,
+                    onCheckedChange = { encender ->
+                        Interruptor.cambiar(this@MainActivity, encender)
+                        refresco++
+                    },
+                )
+            }
+            Text(
+                "Atajo: baja el panel de ajustes rápidos, toca el lápiz y agrega \"Registrador\".",
+                style = MaterialTheme.typography.bodySmall,
             )
 
             HorizontalDivider()
