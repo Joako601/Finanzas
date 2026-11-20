@@ -65,16 +65,26 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
         val faltante = linea.primerFaltante
         when {
             // En negativo, el aviso de faltante lo dice todo; la cuenta de lo apartado confundiría.
-            faltante != null -> Text(
-                when {
-                    faltante.fecha != linea.hoy ->
-                        stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
-                    linea.enCuentas.esNegativo -> stringResource(R.string.faltante_hoy, faltante.falta.formatear())
-                    else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
-                },
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.error,
-            )
+            faltante != null -> {
+                Text(
+                    when {
+                        faltante.fecha != linea.hoy ->
+                            stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
+                        linea.enCuentas.esNegativo -> stringResource(R.string.faltante_hoy, faltante.falta.formatear())
+                        else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.error,
+                )
+                // Si más adelante falta más, se dice cuándo: así cuadra con la cifra de arriba.
+                linea.faltanteMayor?.let { mayor ->
+                    Text(
+                        stringResource(R.string.faltante_mayor, mayor.fecha.formatoDiaCorto(linea.hoy), mayor.falta.formatear()),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
             bajo != null -> {
                 Text(
                     stringResource(R.string.en_cuentas_para_pagos, linea.enCuentas.formatear(), linea.comprometido.formatear()),

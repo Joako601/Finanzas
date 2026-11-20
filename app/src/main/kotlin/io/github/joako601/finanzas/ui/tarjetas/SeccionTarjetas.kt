@@ -101,8 +101,14 @@ private fun TarjetaCredito(resumen: ResumenTarjeta, onPagar: () -> Unit, onCaptu
                 }
                 Text(resumen.tarjeta.cuenta.nombre, style = MaterialTheme.typography.titleLarge, color = TextoSobreTarjeta)
                 Spacer(Modifier.height(16.dp))
+                val aFavor = resumen.deuda.esNegativo
                 Text(
-                    stringResource(R.string.disponible_de, resumen.disponible.formatear(), resumen.tarjeta.lineaDeCredito.formatear()),
+                    stringResource(
+                        // Con saldo a favor el disponible supera la línea; se dice por qué.
+                        if (aFavor) R.string.disponible_con_saldo_a_favor else R.string.disponible_de,
+                        resumen.disponible.formatear(),
+                        resumen.tarjeta.lineaDeCredito.formatear(),
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextoSobreTarjeta,
                 )
@@ -111,12 +117,14 @@ private fun TarjetaCredito(resumen: ResumenTarjeta, onPagar: () -> Unit, onCaptu
 
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Si se pagó de más, la tarjeta no debe: tiene saldo a favor (sin signo, como un monto).
+                val aFavor = resumen.deuda.esNegativo
                 Text(
-                    stringResource(R.string.debes),
+                    stringResource(if (aFavor) R.string.saldo_a_favor else R.string.debes),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f),
                 )
-                Text(resumen.deuda.formatear(), style = MaterialTheme.typography.titleLarge)
+                Text(resumen.deuda.absoluto().formatear(), style = MaterialTheme.typography.titleLarge)
             }
             LineaSituacion(resumen.situacion)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

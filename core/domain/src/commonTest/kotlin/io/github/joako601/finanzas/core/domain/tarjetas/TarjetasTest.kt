@@ -84,6 +84,33 @@ class TarjetasTest {
     }
 
     @Test
+    fun con_saldo_a_favor_el_estado_de_cuenta_ya_esta_cubierto() {
+        // Caso real del S24 FE: pago de $1,000 el mismo día del corte (S4 no lo cuenta para
+        // ese estado), pero la tarjeta quedó con $950 a favor.
+        val situacion = situacionTarjeta(
+            nu,
+            listOf(estado("2026-11-19", "2026-12-10", 1_000)),
+            listOf(pago("2026-11-19", 1_000)),
+            hoy = fecha("2026-11-20"),
+            deuda = -Dinero.pesos(950),
+        )
+        assertIs<SituacionTarjeta.Pagado>(situacion)
+    }
+
+    @Test
+    fun nunca_pide_pagar_mas_de_lo_que_se_debe_hoy() {
+        val situacion = situacionTarjeta(
+            nu,
+            listOf(estado("2026-11-15", "2026-12-05", 4_000)),
+            emptyList(),
+            hoy = fecha("2026-11-20"),
+            deuda = Dinero.pesos(1_500),
+        )
+        assertIs<SituacionTarjeta.PagoPendiente>(situacion)
+        assertEquals(Dinero.pesos(1_500), situacion.restante)
+    }
+
+    @Test
     fun el_dia_limite_todavia_es_vigente() {
         val situacion = situacionTarjeta(
             nu, listOf(estado("2026-11-15", "2026-12-05", 4_000)), emptyList(), hoy = fecha("2026-12-05"),

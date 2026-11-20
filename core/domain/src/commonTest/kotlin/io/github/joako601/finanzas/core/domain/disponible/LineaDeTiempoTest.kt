@@ -309,6 +309,23 @@ class LineaDeTiempoTest {
         assertEquals(Faltante(fecha("2026-11-19"), Dinero.pesos(500)), l.primerFaltante)
     }
 
+    @Test
+    fun si_mas_adelante_falta_mas_que_hoy_se_dice_cuanto_y_cuando() {
+        // Caso real del S24 FE: hoy −$1,128.50 en cuentas y un pago de $2,000 el 29 nov.
+        val bbva = fijo(1, "BBVA", ClaseRegistro.GASTO, 2_000, Periodicidad.MENSUAL, "2026-11-29")
+        val l = linea(hoy = "2026-11-19", enDebito = -1_128, recurrentes = listOf(bbva))
+
+        assertEquals(Faltante(fecha("2026-11-19"), Dinero.pesos(1_128)), l.primerFaltante)
+        assertEquals(Faltante(fecha("2026-11-29"), Dinero.pesos(3_128)), l.faltanteMayor)
+        assertEquals(-l.faltanteMayor!!.falta, l.disponible)
+    }
+
+    @Test
+    fun si_el_primer_faltante_es_el_peor_no_hay_faltante_mayor() {
+        val l = linea(hoy = "2026-11-19", enDebito = -500, tarjetas = listOf(nu))
+        assertNull(l.faltanteMayor)
+    }
+
     // ---- Propiedades ----
 
     /**
@@ -342,6 +359,11 @@ class LineaDeTiempoTest {
             assertTrue(l.disponible <= l.enCuentas)
             assertTrue(l.eventos.all { l.disponible <= it.saldoDespues })
             assertEquals(l.disponible.esNegativo, l.primerFaltante != null)
+            // El faltante mayor, si existe, es la cifra del disponible y supera al primero.
+            l.faltanteMayor?.let { mayor ->
+                assertEquals(-mayor.falta, l.disponible)
+                assertTrue(mayor.falta > l.primerFaltante!!.falta)
+            }
             assertTrue(l.primerFaltante?.let { it.fecha >= hoy } ?: true)
             assertTrue(l.diaMasBajo?.let { it >= hoy } ?: true, "día más bajo en el pasado")
             assertEquals(l.puntoMasBajo == null, l.diaMasBajo == null)

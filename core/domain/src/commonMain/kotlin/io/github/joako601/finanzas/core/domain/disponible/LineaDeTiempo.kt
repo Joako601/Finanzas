@@ -97,6 +97,18 @@ public data class LineaDeTiempo(
             eventos.firstOrNull { it.saldoDespues.esNegativo }?.let { Faltante(maxOf(it.fecha, hoy), -it.saldoDespues) }
         }
 
+    /**
+     * Si más adelante falta más que en el [primerFaltante], cuánto y cuándo: es la cifra
+     * del disponible. Sin esto, "Hoy te faltan $1,128.50" no cuadraba con un disponible de
+     * −$3,128.50 (caso real del S24 FE).
+     */
+    val faltanteMayor: Faltante?
+        get() {
+            val primero = primerFaltante ?: return null
+            val dia = diaMasBajo ?: return null
+            return if (-disponible > primero.falta) Faltante(dia, -disponible) else null
+        }
+
     public companion object {
         public const val DIAS: Int = 30
 
@@ -158,7 +170,7 @@ public data class LineaDeTiempo(
                 }
             }
 
-            when (val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy)) {
+            when (val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy, deuda)) {
                 is SituacionTarjeta.PagoPendiente -> pago(situacion.estado.fechaLimite, situacion.restante, exacto = true)
                 is SituacionTarjeta.Pagado -> Unit
                 else -> propios.filter { it.fechaLimite < hoy }.maxByOrNull { it.fechaCorte }?.let { vencido ->
