@@ -55,12 +55,17 @@ internal fun corteCapturado(estados: List<EstadoDeCuenta>, corte: LocalDate): Bo
  * 2. Si no hay vigente y ya pasó un corte predicho sin captura, se pide capturarlo
  *    mientras su fecha límite predicha no haya pasado.
  * 3. Si no, se muestra el siguiente corte.
+ *
+ * Nunca se pide pagar más que la [deuda] de hoy: con saldo a favor (se pagó de más) el
+ * estado de cuenta ya está cubierto, aunque S4 no cuente el pago del día del corte.
+ * [deuda] `null` = desconocida, sin tope (solo para pruebas que no la necesitan).
  */
 public fun situacionTarjeta(
     tarjeta: Tarjeta,
     estados: List<EstadoDeCuenta>,
     pagos: List<PagoATarjeta>,
     hoy: LocalDate,
+    deuda: Dinero? = null,
 ): SituacionTarjeta {
     val propios = estados.filter { it.tarjeta == tarjeta.id }
 
@@ -70,7 +75,8 @@ public fun situacionTarjeta(
             .filter { it.tarjeta == tarjeta.id && it.fecha > vigente.fechaCorte }
             .map { it.monto }
             .sumar()
-        val restante = vigente.pagoSinIntereses - pagado
+        val sinTope = vigente.pagoSinIntereses - pagado
+        val restante = if (deuda == null) sinTope else minOf(sinTope, maxOf(deuda, Dinero.CERO))
         return if (restante.esPositivo) {
             SituacionTarjeta.PagoPendiente(vigente, pagado, restante, hoy.daysUntil(vigente.fechaLimite))
         } else {

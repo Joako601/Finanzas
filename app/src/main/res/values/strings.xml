@@ -65,6 +65,9 @@
     <string name="credito">Crédito</string>
     <string name="debes">Debes</string>
     <string name="disponible_de">Disponible %1$s de %2$s</string>
+    <string name="disponible_con_saldo_a_favor">Disponible %1$s: tu línea de %2$s más tu saldo a favor</string>
+    <string name="saldo_a_favor">Saldo a favor</string>
+    <string name="tarjeta_n_de_total">Tarjeta %1$d de %2$d</string>
     <string name="situacion_pago_pendiente">Paga %1$s antes del %2$s para no generar intereses</string>
     <string name="vence_hoy">Vence hoy</string>
     <plurals name="dias_restantes">
@@ -140,6 +143,7 @@
     <string name="ingresos_cubren_pagos">Tus ingresos esperados cubren tus pagos de los próximos 30 días.</string>
     <string name="faltante">El %1$s te faltarían %2$s, aun con lo que esperas recibir.</string>
     <string name="faltante_hoy">Hoy te faltan %1$s en efectivo y débito.</string>
+    <string name="faltante_mayor">El %1$s te faltarían %2$s.</string>
     <string name="faltante_hoy_vencidos">Con lo vencido, hoy te faltarían %1$s.</string>
     <string name="sin_cuentas_para_disponible">Agrega tu efectivo o tu débito para saber cuánto tienes disponible.</string>
     <string name="ver_proximos_30_dias">Ver próximos 30 días</string>

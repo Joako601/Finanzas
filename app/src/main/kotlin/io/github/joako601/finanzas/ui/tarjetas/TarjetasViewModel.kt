@@ -115,7 +115,7 @@ class TarjetasViewModel(
                     tarjeta = tarjeta,
                     deuda = deuda,
                     disponible = tarjeta.lineaDeCredito - deuda,
-                    situacion = situacionTarjeta(tarjeta, estadosDeCuenta, pagos, hoy),
+                    situacion = situacionTarjeta(tarjeta, estadosDeCuenta, pagos, hoy, deuda),
                 )
             },
             cuentasParaPagar = cuentas.filter { it.tipo == TipoCuenta.ACTIVO && !it.archivada },

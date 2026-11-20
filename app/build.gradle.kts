@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.joako601.finanzas"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = 8
-        versionName = "0.1.0-dev.8"
+        versionCode = 11
+        versionName = "0.1.0-dev.11"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

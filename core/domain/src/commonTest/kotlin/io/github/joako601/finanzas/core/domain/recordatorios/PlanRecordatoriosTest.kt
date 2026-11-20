@@ -36,6 +36,15 @@ class PlanRecordatoriosTest {
         PlanRecordatorios.calcular(listOf(nu), estados, pagos, fecha(hoy))
 
     @Test
+    fun con_saldo_a_favor_no_avisa_que_pague() {
+        val avisos = PlanRecordatorios.calcular(
+            listOf(nu), listOf(estado("2026-11-15", "2026-12-05", 1_000)), emptyList(), fecha("2026-11-20"),
+            saldos = mapOf(nu.id to Dinero.pesos(950)),
+        )
+        assertTrue(avisos.none { it.tipo == TipoRecordatorio.PAGO_PROXIMO })
+    }
+
+    @Test
     fun avisa_un_dia_antes_del_proximo_corte() {
         val corte = plan("2026-11-19").single { it.tipo == TipoRecordatorio.ANTES_DEL_CORTE }
         assertEquals(fecha("2026-12-15"), corte.fechaReferencia)

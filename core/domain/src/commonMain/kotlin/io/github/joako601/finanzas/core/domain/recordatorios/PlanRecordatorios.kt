@@ -2,6 +2,7 @@ package io.github.joako601.finanzas.core.domain.recordatorios
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
+import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
@@ -9,6 +10,7 @@ import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.corteCapturado
+import io.github.joako601.finanzas.core.domain.tarjetas.deudaDe
 import io.github.joako601.finanzas.core.domain.tarjetas.situacionTarjeta
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
@@ -87,10 +89,14 @@ public object PlanRecordatorios {
         pagos: List<PagoATarjeta>,
         hoy: LocalDate,
         recurrentes: List<Recurrente> = emptyList(),
+        /** Saldos del libro, para no avisar que se pague con saldo a favor. `null` = sin tope. */
+        saldos: Map<CuentaId, Dinero>? = null,
     ): List<Recordatorio> = (
         tarjetas
             .filterNot { it.cuenta.archivada }
-            .flatMap { tarjeta -> paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy) } +
+            .flatMap { tarjeta ->
+                paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy, saldos?.let { deudaDe(tarjeta, it) })
+            } +
             recurrentes.mapNotNull { paraRecurrente(it, hoy) }
         ).sortedBy { it.momento }
 
@@ -115,6 +121,7 @@ public object PlanRecordatorios {
         estados: List<EstadoDeCuenta>,
         pagos: List<PagoATarjeta>,
         hoy: LocalDate,
+        deuda: Dinero?,
     ): List<Recordatorio> = buildList {
         val id = tarjeta.id.valor
 
@@ -151,7 +158,7 @@ public object PlanRecordatorios {
         }
 
         // 3. Pago pendiente del estado de cuenta vigente.
-        val situacion = situacionTarjeta(tarjeta, estados, pagos, hoy)
+        val situacion = situacionTarjeta(tarjeta, estados, pagos, hoy, deuda)
         if (situacion is SituacionTarjeta.PagoPendiente) {
             val limite = situacion.estado.fechaLimite
             for (dias in DIAS_AVISO_PAGO) {

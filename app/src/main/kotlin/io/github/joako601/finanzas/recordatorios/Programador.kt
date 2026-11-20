@@ -59,6 +59,7 @@ class Programador(
             pagos = pagosATarjetas(libro.observarMovimientos().first(), cuentas),
             hoy = ahora.date,
             recurrentes = recurrentes.observarRecurrentes().first(),
+            saldos = libro.observarSaldos().first(),
         )
         val seleccion = PlanRecordatorios.seleccionar(plan, ahora, recordatorios.clavesEntregadas())
 
