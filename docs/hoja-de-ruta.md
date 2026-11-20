@@ -17,7 +17,7 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Respaldo cifrado con contraseña, restauración con simulacro y exportación a CSV (D-018) | versionCode 7 | 15 pruebas en la JVM, 7 de Room en el S24 FE con el simulacro, 8 del ViewModel; instalada en el S24 FE y simulacro real hecho por el autor |
 | Editar movimientos, transferencias entre cuentas propias y `targetSdk` 37 (D-019) | versionCode 8 | 5 pruebas de dominio, 3 de Room en el S24 FE, 6 del ViewModel; instalada en el S24 FE |
 | Saldo a favor en la tarjeta y faltante que cuadra con el disponible | versionCode 9 | 5 pruebas de dominio, una con el caso real; instalada en el S24 FE |
-| Tarjetas en carrusel de lado con círculos de posición | versionCode 10 | `CarruselTarjetasTest` en el S24 FE; capturas en claro, oscuro y al 130 % |
+| Tarjetas en carrusel de lado con círculos de posición; todas del mismo tamaño | versionCode 10 y 11 | `CarruselTarjetasTest` (3 casos) en el S24 FE al 0.9 y al 130 %; capturas en claro, oscuro y al 130 % |
 | Pagos y cobros fijos: periodicidades, registro de un toque, aviso un día antes, categoría de impuestos (D-016) | versionCode 5 | 14 pruebas de dominio, 4 del ViewModel, 24 de Room en el S24 FE; instalada en el S24 FE con migración 3→4 verificada sobre datos reales |
 
 ## Siguiente, en orden

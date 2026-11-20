@@ -8,7 +8,6 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -105,24 +104,11 @@ class AccesibilidadTest {
 
     private var raizActual: AccessibilityNodeInfo? = null
 
-    /** Lo que Android le entrega a TalkBack: los nodos de accesibilidad de la ventana. */
+    /** Los nodos tocables que Android le entrega a TalkBack. */
     private fun nodosTocables(): List<AccessibilityNodeInfo> {
-        regla.waitForIdle()
-        val automatizacion = InstrumentationRegistry.getInstrumentation().uiAutomation
-        automatizacion.serviceInfo = automatizacion.serviceInfo.apply {
-            flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-        }
-        var raiz: AccessibilityNodeInfo? = null
-        repeat(50) { if (raiz == null) raiz = automatizacion.rootInActiveWindow ?: null.also { Thread.sleep(100) } }
-        checkNotNull(raiz) { "Sin ventana activa" }
+        val raiz = raizDeAccesibilidad(regla)
         raizActual = raiz
-        val lista = mutableListOf<AccessibilityNodeInfo>()
-        fun visitar(nodo: AccessibilityNodeInfo) {
-            if (nodo.isClickable) lista += nodo
-            for (i in 0 until nodo.childCount) nodo.getChild(i)?.let(::visitar)
-        }
-        visitar(raiz!!)
-        return lista
+        return todosLosNodos(raiz).filter { it.isClickable }
     }
 
     /** Lo que TalkBack diría: el texto o descripción del nodo, o el de sus descendientes. */

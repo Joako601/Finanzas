@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -17,9 +18,12 @@ import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
 import io.github.joako601.finanzas.ui.tarjetas.ETIQUETA_CARRUSEL
 import io.github.joako601.finanzas.ui.tarjetas.ResumenTarjeta
+import io.github.joako601.finanzas.ui.tarjetas.etiquetaPlastico
+import io.github.joako601.finanzas.ui.tarjetas.etiquetaTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.SeccionTarjetas
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 import kotlinx.datetime.LocalDate
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -31,11 +35,16 @@ class CarruselTarjetasTest {
     @get:Rule
     val regla = createComposeRule()
 
-    private fun resumen(id: Long, nombre: String) = ResumenTarjeta(
+    private fun resumen(
+        id: Long,
+        nombre: String,
+        deuda: Dinero = Dinero.pesos(1_000),
+        situacion: SituacionTarjeta = SituacionTarjeta.EnCiclo(LocalDate(2026, 12, 15)),
+    ) = ResumenTarjeta(
         tarjeta = Tarjeta(Cuenta(CuentaId(id), nombre, TipoCuenta.PASIVO), Dinero.pesos(10_000), 15, 5),
-        deuda = Dinero.pesos(1_000),
-        disponible = Dinero.pesos(9_000),
-        situacion = SituacionTarjeta.EnCiclo(LocalDate(2026, 12, 15)),
+        deuda = deuda,
+        disponible = Dinero.pesos(10_000) - deuda,
+        situacion = situacion,
     )
 
     private fun mostrar(vararg tarjetas: ResumenTarjeta) {
@@ -57,6 +66,29 @@ class CarruselTarjetasTest {
 
         regla.onNodeWithTag(ETIQUETA_CARRUSEL).performTouchInput { swipeRight() }
         regla.onNodeWithContentDescription("Tarjeta 1 de 2").assertIsDisplayed()
+    }
+
+    /**
+     * Una con texto largo (saldo a favor y aviso de captura) y otra con texto corto: el
+     * amarillo y la tarjeta entera deben medir lo mismo para que no cambie al deslizar.
+     */
+    @Test
+    fun las_tarjetas_miden_lo_mismo_aunque_su_texto_no() {
+        val larga = resumen(
+            1, "Nu",
+            deuda = -Dinero.pesos(950),
+            situacion = SituacionTarjeta.CapturaPendiente(LocalDate(2026, 11, 15), LocalDate(2026, 12, 5)),
+        )
+        val corta = resumen(2, "BBVA credito")
+        mostrar(larga, corta)
+
+        fun alto(etiqueta: String) = regla.onNodeWithTag(etiqueta, useUnmergedTree = true).getBoundsInRoot().let { it.bottom - it.top }
+
+        assertEquals("Parte amarilla", alto(etiquetaPlastico(larga)), alto(etiquetaPlastico(corta)))
+        assertEquals("Tarjeta completa", alto(etiquetaTarjeta(larga)), alto(etiquetaTarjeta(corta)))
+        // Medir las tarjetas usa copias que no se dibujan; TalkBack no debe leerlas.
+        val conNu = todosLosNodos(raizDeAccesibilidad(regla)).filter { it.text?.toString() == "Nu" }
+        assertEquals("Nodos de accesibilidad con el nombre de la tarjeta", 1, conNu.size)
     }
 
     @Test
