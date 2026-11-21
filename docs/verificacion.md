@@ -19,27 +19,51 @@ Contraprueba de la guardia de pureza: crear
 `core/domain/src/commonMain/kotlin/Prueba.kt` con `internal fun p(): Any = java.math.BigDecimal.ONE`,
 correr el mismo comando y ver `Unresolved reference 'java'`. Borrar el archivo.
 
-## 2. La app no pide permisos
+## 2. Permisos por distribución (`privada` sin red, `nube` solo lo mínimo)
 
 ```bash
-./gradlew assembleRelease check
-~/Android/Sdk/build-tools/36.0.0/aapt2 dump permissions app/build/outputs/apk/release/app-release-unsigned.apk
+./gradlew :app:assemblePrivadaRelease :app:assembleNubeDebug check
+~/Android/Sdk/build-tools/36.0.0/aapt2 dump permissions app/build/outputs/apk/privada/release/app-privada-release-unsigned.apk
+~/Android/Sdk/build-tools/36.0.0/aapt2 dump permissions app/build/outputs/apk/nube/debug/app-nube-debug.apk
 ```
 
-Esperado, exactamente:
+Esperado en `privadaRelease`, exactamente (paquete `io.github.joako601.finanzas`, sin `INTERNET`):
 
 ```
 package: io.github.joako601.finanzas
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.RECEIVE_BOOT_COMPLETED'
 permission: io.github.joako601.finanzas.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
 uses-permission: name='io.github.joako601.finanzas.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
 ```
 
-Ese permiso lo declara la propia app con nivel `signature` (D-005). Cualquier otra
-línea, en particular `android.permission.INTERNET`, es un fallo. La tarea
-`verificarPermisosRelease` ya hace esta comprobación sobre el manifiesto fusionado y
-deja la lista en `app/build/reportes/permisos/release.txt`.
+Esperado en `nubeDebug`, exactamente (paquete `io.github.joako601.finanzas.nube.debug`, solo
+`INTERNET` y `ACCESS_NETWORK_STATE` adicionales, sin `READ_GSERVICES`):
+
+```
+package: io.github.joako601.finanzas.nube.debug
+uses-permission: name='android.permission.INTERNET'
+uses-permission: name='android.permission.POST_NOTIFICATIONS'
+uses-permission: name='android.permission.RECEIVE_BOOT_COMPLETED'
+uses-permission: name='android.permission.ACCESS_NETWORK_STATE'
+permission: io.github.joako601.finanzas.nube.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+uses-permission: name='io.github.joako601.finanzas.nube.debug.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+```
+
+Las tareas `verificarPermisos<Variante>` comprueban esto automáticamente en `check` y dejan el
+reporte en `app/build/reportes/permisos/<variante>.txt`.
 
 Pendiente para la fase de auditoría: Exodus Privacy y MobSF sobre el APK firmado.
+
+## 2b. Aislamiento de dependencias entre `privada`, `core:*` y `:feature:nube` (D-020)
+
+```bash
+./gradlew verificarDependencias
+```
+
+Contraprueba: agregar `implementation(libs.firebase.auth)` temporalmente a `core/data/build.gradle.kts`
+y correr `./gradlew :core:data:verificarDependencias`. Debe fallar listando los artefactos de
+Firebase y Play Services en `debugRuntimeClasspath` y `releaseRuntimeClasspath`. Revertir el cambio.
 
 ## 3. Room funciona contra el SQLite real del teléfono
 
@@ -61,7 +85,7 @@ Sin teléfono, sirve el emulador. Si el AVD es de tipo Play Store y aparece como
 1. Compilar la versión anterior en un worktree (`git worktree add <dir> <commit>`) e
    instalarla.
 2. Capturar datos en ella (un gasto y una cuenta con saldo).
-3. Instalar la versión nueva encima con `adb install -r app-debug.apk`.
+3. Instalar la versión nueva encima con `adb install -r app-privada-debug.apk`.
 4. Abrir: los movimientos y saldos deben ser los mismos, y la app no debe cerrarse.
 
 ## 4. Las dependencias no cambiaron
@@ -135,6 +159,7 @@ dos semanas. Pendiente: pruebas con `dumpsys deviceidle force-idle` y
 | 2026-11-20 | v10 instalada como actualización (respaldos previos en `evidencia/privado/`). Capturas de ambas tarjetas en oscuro y en claro al 130 % | Samsung Galaxy S24 FE | Base **idéntica** antes y después (dos instalaciones); versionCode 10. El alto no salta al deslizar (el carrusel toma el de la tarjeta más alta). **Hallazgo en la captura:** en claro el círculo no elegido casi no se veía (`outlineVariant` sobre el fondo, ≈1.1:1). Corregido: gris medio (`onSurfaceVariant`, ≈4.8:1 en claro) y la tarjeta elegida se marca además con un círculo alargado, no solo con color. Las capturas también cierran el pendiente de la v9: la tarjeta Nu dice "Saldo a favor $950.00" y el disponible "El domingo 29 nov te faltarían $3,128.50" | Claude |
 | 2026-11-20 | v11: todas las tarjetas del carrusel miden lo mismo aunque su texto no. Antes de dibujar se mide cada parte amarilla y cada parte de abajo al ancho real de una página (`SubcomposeLayout`) y todas toman el alto de la más alta; el disponible queda abajo del amarillo y los botones abajo de la tarjeta. Prueba nueva `las_tarjetas_miden_lo_mismo_aunque_su_texto_no` | Samsung Galaxy S24 FE, paquete de prueba aparte | **Rojo** sin igualar: amarillo de 142 dp contra 124 dp. Verde con el cambio: 7/7 al 0.9 y al 130 %. Las copias usadas para medir aparecen en el árbol de pruebas de Compose pero **no** en el árbol que recibe TalkBack (un solo nodo "Nu"); la comprobación se hace sobre ese árbol y una mutación que dibuja el nombre dos veces la hace fallar. El lector del árbol de accesibilidad quedó compartido en `ArbolAccesibilidad.kt` | Claude |
 | 2026-11-20 | v11 instalada como actualización (respaldo previo en `evidencia/privado/`). Capturas de ambas tarjetas en oscuro y en claro al 130 % | Samsung Galaxy S24 FE | Base **idéntica** antes y después; versionCode 11. En las capturas coinciden el borde del amarillo, los botones y el borde inferior de ambas tarjetas, y ya no queda hueco bajo la más corta | Claude |
+| 2026-11-21 | Hito 1 fase 1 (D-020, D-021): flavors `privada` y `nube`, módulo `:feature:nube` con Firebase Auth (BoM `35.2.0`), hashes SHA-256, `network_security_config`, guardia de dependencias, contrato `RepositorioSesion` + 5 pruebas JVM y placeholders de 4 pantallas. Contraprueba: agregar `firebase-auth` a `:core:data` hizo fallar `:core:data:verificarDependencias` | Computadora de desarrollo (sin dispositivo) | `./gradlew check :app:assemblePrivadaRelease :app:assembleNubeDebug` en verde con caché de configuración. `aapt2 dump permissions`: `privadaRelease` sin `INTERNET` (`io.github.joako601.finanzas`), `nubeDebug` solo con `INTERNET` y `ACCESS_NETWORK_STATE` (`io.github.joako601.finanzas.nube.debug`, `READ_GSERVICES` retirado). Pendiente: probar visualmente en dispositivo al completar las pantallas reales | Agente |
 
 Hallazgos abiertos de la revisión de la v8 en el S24 FE (2026-11-19):
 - ~~El disponible decía −$3,128.50 y el texto "Hoy te faltan $1,128.50"~~: el texto

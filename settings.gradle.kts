@@ -35,6 +35,7 @@ rootProject.name = "Finanzas"
 include(":app")
 include(":core:domain")
 include(":core:data")
+include(":feature:nube")
 
 // Herramienta de la fase 0: nunca se publica (ver su README).
 include(":herramientas:registrador-notificaciones")

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Política de red de la distribución nube en release (D-020): solo HTTPS.
+  En nubeDebug se sobrescribe con app/src/nubeDebug/res/xml/network_security_config.xml
+  para permitir HTTP únicamente hacia el servidor local de desarrollo.
+  Referencia: https://developer.android.com/privacy-and-security/security-config
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

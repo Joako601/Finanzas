@@ -184,6 +184,7 @@
     <!-- Respaldo y exportación (D-018) -->
     <string name="mas_opciones">Más opciones</string>
     <string name="respaldo_y_exportar">Respaldo y exportar</string>
+    <string name="cuenta_y_catalogo">Cuenta y catálogo</string>
     <string name="respaldo_cifrado">Respaldo cifrado</string>
     <string name="ultimo_respaldo">Último respaldo: %1$s</string>
     <string name="sin_respaldo">Todavía no tienes un respaldo. Si pierdes o cambias de teléfono, pierdes tus datos.</string>

@@ -61,3 +61,6 @@ kotlin {
 tasks.named("check") {
     dependsOn("compileCommonMainKotlinMetadata")
 }
+
+// Guardia: el dominio nunca puede depender de librerías de red ni de :feature:nube (D-020).
+apply(from = rootProject.file("gradle/guardia-dependencias.gradle.kts"))

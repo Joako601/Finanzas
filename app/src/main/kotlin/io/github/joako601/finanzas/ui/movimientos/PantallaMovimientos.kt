@@ -109,6 +109,7 @@ fun PantallaMovimientos(
     tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
     lineaDeTiempoViewModel: LineaDeTiempoViewModel = viewModel(factory = LineaDeTiempoViewModel.Fabrica),
+    onAbrirNube: (() -> Unit)? = null,
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
@@ -149,6 +150,7 @@ fun PantallaMovimientos(
             if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
         },
         onRespaldo = { verRespaldo = true },
+        onAbrirNube = onAbrirNube,
     )
 
     if (verRespaldo) {
@@ -324,12 +326,13 @@ fun ContenidoMovimientos(
     accionesRecurrentes: AccionesRecurrentes,
     onTocarMovimiento: (MovimientoResumido) -> Unit,
     onRespaldo: () -> Unit,
+    onAbrirNube: (() -> Unit)? = null,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall) },
-                actions = { MenuPrincipal(onRespaldo) },
+                actions = { MenuPrincipal(onRespaldo = onRespaldo, onAbrirNube = onAbrirNube) },
             )
         },
         floatingActionButton = {
@@ -554,7 +557,10 @@ private fun etiqueta(movimiento: MovimientoResumido): String = when (movimiento.
 
 /** Menú de tres puntos de la barra superior: lo que no es del día a día. */
 @Composable
-private fun MenuPrincipal(onRespaldo: () -> Unit) {
+private fun MenuPrincipal(
+    onRespaldo: () -> Unit,
+    onAbrirNube: (() -> Unit)? = null,
+) {
     var abierto by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { abierto = true }) {
@@ -568,6 +574,15 @@ private fun MenuPrincipal(onRespaldo: () -> Unit) {
                     onRespaldo()
                 },
             )
+            if (onAbrirNube != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.cuenta_y_catalogo)) },
+                    onClick = {
+                        abierto = false
+                        onAbrirNube()
+                    },
+                )
+            }
         }
     }
 }

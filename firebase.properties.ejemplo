@@ -1,0 +1,18 @@
+# Plantilla de credenciales de Firebase para la distribución nube (D-020).
+#
+# Cómo usarla:
+#   1. Copia este archivo como `firebase.properties` en la raíz del proyecto
+#      (ese archivo está en .gitignore y nunca debe subirse a git).
+#   2. En la consola de Firebase -> Configuración del proyecto -> Tus apps -> Android
+#      (paquete `io.github.joako601.finanzas.nube.debug` o `io.github.joako601.finanzas.nube`),
+#      copia los tres valores siguientes (también salen en `google-services.json`):
+#      - apiKey:    `api_key[0].current_key`
+#      - appId:     `client_info.mobilesdk_app_id`
+#      - projectId: `project_info.project_id`
+#
+# Si `firebase.properties` no existe o queda vacío, la distribución nube compila igual
+# y muestra un aviso en la pantalla de Cuenta y catálogo en lugar de cerrarse.
+
+firebase.apiKey=
+firebase.appId=
+firebase.projectId=
