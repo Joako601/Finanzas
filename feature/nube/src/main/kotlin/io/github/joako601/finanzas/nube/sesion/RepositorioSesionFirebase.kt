@@ -50,6 +50,9 @@ internal class RepositorioSesionFirebase(
 
     override suspend fun registrar(correo: String, contrasena: String): ResultadoRegistro = try {
         auth.createUserWithEmailAndPassword(correo.trim(), contrasena).esperar()
+        // Firebase inicia sesión automáticamente al crear la cuenta; cerramos sesión para
+        // que el flujo vuelva al Login sin dejar una sesión abierta de forma silenciosa.
+        auth.signOut()
         ResultadoRegistro.Exito
     } catch (e: CancellationException) {
         throw e

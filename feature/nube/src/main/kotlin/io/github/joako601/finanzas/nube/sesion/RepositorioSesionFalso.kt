@@ -48,7 +48,7 @@ class RepositorioSesionFalso(
         if (contrasena.length < 8) return ResultadoRegistro.ContrasenaDebil
         if (normalizado in cuentas) return ResultadoRegistro.CorreoEnUso
         cuentas[normalizado] = contrasena
-        _estado.value = EstadoSesion.Autenticado(UsuarioSesion(uid = "falso-$normalizado", correo = normalizado))
+        // No inicia sesión automáticamente: el registro avisa y regresa al Login.
         return ResultadoRegistro.Exito
     }
 

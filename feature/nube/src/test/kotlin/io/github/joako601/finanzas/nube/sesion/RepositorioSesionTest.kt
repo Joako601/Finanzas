@@ -1,7 +1,11 @@
 package io.github.joako601.finanzas.nube.sesion
 
+import io.github.joako601.finanzas.nube.navegacion.RutaNube
+import io.github.joako601.finanzas.nube.siguienteRuta
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -80,12 +84,9 @@ class RepositorioSesionTest {
 
         assertEquals(ResultadoRegistro.ContrasenaDebil, repo.registrar("ana@ejemplo.com", "corta"))
         assertEquals(ResultadoRegistro.Exito, repo.registrar("ana@ejemplo.com", "Segura123!"))
-        assertTrue(repo.estado.value is EstadoSesion.Autenticado)
-        assertEquals(ResultadoRegistro.CorreoEnUso, repo.registrar("ana@ejemplo.com", "OtraSegura1!"))
-
-        repo.cerrarSesion()
+        // Registrar no debe iniciar sesión automáticamente: vuelve al Login sin sesión abierta.
         assertEquals(EstadoSesion.SinSesion, repo.estado.value)
-        assertEquals(1, repo.vecesCerrarSesion)
+        assertEquals(ResultadoRegistro.CorreoEnUso, repo.registrar("ana@ejemplo.com", "OtraSegura1!"))
 
         // OWASP: correo inexistente y contraseña incorrecta devuelven el mismo error.
         assertEquals(ResultadoLogin.CredencialesInvalidas, repo.iniciarSesion("nadie@ejemplo.com", "Segura123!"))
@@ -96,8 +97,42 @@ class RepositorioSesionTest {
             repo.estado.value,
         )
 
+        repo.cerrarSesion()
+        assertEquals(EstadoSesion.SinSesion, repo.estado.value)
+        assertEquals(1, repo.vecesCerrarSesion)
+
         // Recuperación siempre responde Enviado incluso para correos desconocidos.
         assertEquals(ResultadoRecuperacion.Enviado, repo.enviarRecuperacion("desconocido@ejemplo.com"))
         assertEquals(listOf("desconocido@ejemplo.com"), repo.correosRecuperacionEnviados)
+    }
+
+    @Test
+    fun navegacion_respeta_animacion_de_login_y_regresa_al_cerrar_sesion() {
+        val autenticado = EstadoSesion.Autenticado(UsuarioSesion(uid = "1", correo = "ana@ejemplo.com"))
+
+        // Al entrar: Cargando espera; con sesión previa va directo a CATALOGO; sin sesión va a LOGIN.
+        assertNull(siguienteRuta(null, EstadoSesion.Cargando))
+        assertEquals(RutaNube.CATALOGO, siguienteRuta(null, autenticado))
+        assertEquals(RutaNube.LOGIN, siguienteRuta(null, EstadoSesion.SinSesion))
+
+        // Estando en LOGIN o REGISTRO, autenticarse NO salta automáticamente a CATALOGO.
+        assertEquals(RutaNube.LOGIN, siguienteRuta(RutaNube.LOGIN, autenticado))
+        assertEquals(RutaNube.REGISTRO, siguienteRuta(RutaNube.REGISTRO, autenticado))
+
+        // Estando en CATALOGO, cerrar sesión regresa automáticamente a LOGIN.
+        assertEquals(RutaNube.LOGIN, siguienteRuta(RutaNube.CATALOGO, EstadoSesion.SinSesion))
+        assertEquals(RutaNube.CATALOGO, siguienteRuta(RutaNube.CATALOGO, autenticado))
+    }
+
+    @Test
+    fun usuario_sesion_toString_redacta_correo() {
+        val correo = "privado@ejemplo.com"
+        val usuario = UsuarioSesion(uid = "uid-123", correo = correo)
+        val texto = usuario.toString()
+
+        assertFalse("toString no debe exponer el correo", texto.contains(correo))
+        assertFalse("toString no debe exponer la parte local del correo", texto.contains("privado"))
+        assertTrue(texto.contains("uid=uid-123"))
+        assertTrue(texto.contains("correoLen=${correo.length}"))
     }
 }

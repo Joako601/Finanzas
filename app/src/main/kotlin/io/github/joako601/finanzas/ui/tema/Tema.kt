@@ -58,6 +58,9 @@ private val EsquemaClaro = lightColorScheme(
     outline = CasiNegro,
     outlineVariant = Color(0xFFE2E2E6),
     error = Color(0xFFD93A3A),
+    onError = Color.White,
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF690005),
 )
 
 private val EsquemaOscuro = darkColorScheme(
@@ -85,6 +88,9 @@ private val EsquemaOscuro = darkColorScheme(
     outline = Color(0xFF8A8A8A),
     outlineVariant = Color(0xFF444444),
     error = Color(0xFFFF6B6B),
+    onError = CasiNegro,
+    errorContainer = Color(0xFF5C1A1A),
+    onErrorContainer = Color(0xFFFFDAD6),
 )
 
 /** Colores que Material no trae: sentido del dinero y fondo de los íconos de categoría. */

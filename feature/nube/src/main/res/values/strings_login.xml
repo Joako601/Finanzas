@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="login_subtitulo">Accede a tu cuenta para consultar el catálogo</string>
+    <string name="login_campo_correo">Correo electrónico</string>
+    <string name="login_campo_contrasena">Contraseña</string>
+    <string name="login_boton_entrar">Iniciar sesión</string>
+    <string name="login_cargando">Iniciando sesión…</string>
+    <string name="login_olvide_contrasena">¿Olvidaste tu contraseña?</string>
+    <string name="login_crear_cuenta">Crear cuenta</string>
+    <string name="login_mostrar_contrasena">Mostrar contraseña</string>
+    <string name="login_ocultar_contrasena">Ocultar contraseña</string>
+    <string name="login_exito_banner">¡Acceso verificado! Abriendo tu cuenta…</string>
+
+    <!-- Avisos globales OWASP (nunca por campo ni revelando existencia de correo) -->
+    <string name="login_error_campos_vacios">Ingresa tu correo y contraseña para continuar.</string>
+    <string name="login_error_credenciales">Credenciales inválidas. Verifica tu correo y contraseña.</string>
+    <string name="login_error_sin_conexion">Sin conexión a internet. Revisa tu red e intenta de nuevo.</string>
+    <string name="login_error_demasiados_intentos">Demasiados intentos fallidos. Espera unos minutos antes de volver a intentar.</string>
+    <string name="login_error_inesperado">No pudimos iniciar sesión en este momento. Intenta de nuevo.</string>
+
+    <!-- Descripciones accesibles (TalkBack) de la mascota -->
+    <string name="login_mascota_reposo">Alcancía guardián de Finanzas en espera</string>
+    <string name="login_mascota_correo">Alcancía guardián atenta mientras escribes tu correo</string>
+    <string name="login_mascota_contrasena">Alcancía guardián cubriéndose los ojos para proteger tu contraseña</string>
+    <string name="login_mascota_cargando">Alcancía guardián verificando tu acceso</string>
+    <string name="login_mascota_exito">Alcancía guardián celebrando inicio de sesión exitoso</string>
+    <string name="login_mascota_error">Alcancía guardián indicando un error al iniciar sesión</string>
+</resources>

@@ -2,26 +2,17 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
     <string name="nube_titulo">Cuenta y catálogo</string>
     <string name="nube_volver">Volver</string>
+    <string name="nube_verificando_sesion">Verificando sesión</string>
 
     <!-- Aviso cuando falta firebase.properties -->
     <string name="nube_sin_configurar_titulo">Firebase no está configurado</string>
     <string name="nube_sin_configurar_texto">Copia firebase.properties.ejemplo como firebase.properties en la raíz del proyecto y completa apiKey, appId y projectId para usar esta sección.</string>
+    <string name="nube_explorar_demo">Explorar en modo demostración</string>
 
-    <!-- Placeholders de las pantallas (cada subagente los reemplaza en su carpeta) -->
+    <!-- Títulos y acciones compartidas entre las pantallas de nube -->
     <string name="nube_login_titulo">Iniciar sesión</string>
-    <string name="nube_login_placeholder">Pantalla de inicio de sesión pendiente.</string>
-    <string name="nube_ir_a_registro">Crear cuenta</string>
-    <string name="nube_olvide_contrasena">Olvidé mi contraseña</string>
-
     <string name="nube_registro_titulo">Crear cuenta</string>
-    <string name="nube_registro_placeholder">Pantalla de registro pendiente.</string>
-    <string name="nube_ir_a_login">Ya tengo cuenta</string>
-
     <string name="nube_recuperar_titulo">Recuperar contraseña</string>
-    <string name="nube_recuperar_placeholder">Diálogo de recuperación pendiente.</string>
-    <string name="nube_cerrar">Cerrar</string>
-
     <string name="nube_catalogo_titulo">Catálogo</string>
-    <string name="nube_catalogo_placeholder">Catálogo de productos pendiente.</string>
     <string name="nube_cerrar_sesion">Cerrar sesión</string>
 </resources>

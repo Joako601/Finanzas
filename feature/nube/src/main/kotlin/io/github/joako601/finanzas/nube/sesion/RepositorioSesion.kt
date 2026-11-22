@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.StateFlow
 data class UsuarioSesion(
     val uid: String,
     val correo: String,
-)
+) {
+    override fun toString(): String = "UsuarioSesion(uid=$uid, correoLen=${correo.length})"
+}
 
 /** Estado observable de la sesión en la sección nube. */
 sealed interface EstadoSesion {
