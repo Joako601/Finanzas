@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -42,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -66,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.nube.R
+import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
 import io.github.joako601.finanzas.nube.componentes.BannerAvisoNube
 import io.github.joako601.finanzas.nube.componentes.ColoresSemanticosNube
 import io.github.joako601.finanzas.nube.componentes.IconoVisibilidad
@@ -181,7 +184,17 @@ fun PantallaLogin(
                     exit = fadeOut(),
                 ) {
                     estado.avisoGlobal?.let { aviso ->
-                        BannerAvisoNube(mensaje = textoDeAviso(aviso))
+                        BannerAvisoNube(
+                            mensaje = textoDeAviso(aviso),
+                            icono = {
+                                key(estado.intentoError) {
+                                    AnimacionLottie(
+                                        resId = R.raw.anim_login_error,
+                                        modifier = Modifier.size(32.dp),
+                                    )
+                                }
+                            },
+                        )
                     }
                 }
 
@@ -387,11 +400,20 @@ private fun BannerExitoGlobal(mensaje: String) {
         color = colorExito.copy(alpha = 0.14f),
         border = BorderStroke(1.dp, colorExito.copy(alpha = 0.5f)),
     ) {
-        Text(
-            text = mensaje,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+        Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-        )
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            AnimacionLottie(
+                resId = R.raw.anim_login_exito,
+                modifier = Modifier.size(36.dp),
+            )
+            Text(
+                text = mensaje,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
     }
 }

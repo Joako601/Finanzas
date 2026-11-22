@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -26,6 +27,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.nube.SeccionNube
+import io.github.joako601.finanzas.ui.componentes.AnimacionLottie
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
@@ -86,6 +88,11 @@ private fun PantallaBienvenidaNube(
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Spacer(Modifier.height(12.dp))
+
+                AnimacionLottie(
+                    resId = R.raw.anim_respaldo_exito,
+                    modifier = Modifier.size(72.dp),
+                )
 
                 Text(
                     text = stringResource(R.string.app_name),

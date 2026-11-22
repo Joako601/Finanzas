@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -25,7 +26,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -54,7 +54,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.airbnb.lottie.compose.LottieConstants
 import io.github.joako601.finanzas.nube.R
+import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
 import io.github.joako601.finanzas.nube.recuperar.DialogoCerrarSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
@@ -222,7 +224,11 @@ private fun EstadoCargandoCatalogo(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            CircularProgressIndicator()
+            AnimacionLottie(
+                resId = R.raw.anim_catalogo_carga,
+                modifier = Modifier.size(88.dp),
+                iteraciones = LottieConstants.IterateForever,
+            )
             Text(
                 text = stringResource(R.string.catalogo_cargando),
                 style = MaterialTheme.typography.bodyMedium,
@@ -257,6 +263,13 @@ private fun EstadoMensajeCatalogo(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                AnimacionLottie(
+                    resId = R.raw.anim_catalogo_vacio,
+                    modifier = Modifier
+                        .size(104.dp)
+                        .align(Alignment.CenterHorizontally),
+                    iteraciones = LottieConstants.IterateForever,
+                )
                 Text(
                     text = titulo,
                     style = MaterialTheme.typography.titleLarge,

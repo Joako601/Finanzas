@@ -1,5 +1,7 @@
 package io.github.joako601.finanzas.nube.componentes
 
+import android.provider.Settings
+import androidx.annotation.RawRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -12,6 +14,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
@@ -21,11 +25,18 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 
 /** Transformación compartida para ocultar contraseñas sin reasignar en cada recomposición. */
 internal val TransformacionContrasena = PasswordVisualTransformation()
@@ -71,6 +82,7 @@ internal object ColoresSemanticosNube {
 internal fun BannerAvisoNube(
     mensaje: String,
     modifier: Modifier = Modifier,
+    icono: (@Composable () -> Unit)? = null,
 ) {
     val colorError = MaterialTheme.colorScheme.error
     Surface(
@@ -86,7 +98,11 @@ internal fun BannerAvisoNube(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            IconoAlerta(tint = colorError)
+            if (icono != null) {
+                icono()
+            } else {
+                IconoAlerta(tint = colorError)
+            }
             Text(
                 text = mensaje,
                 style = MaterialTheme.typography.bodyMedium,
@@ -94,6 +110,51 @@ internal fun BannerAvisoNube(
             )
         }
     }
+}
+
+/**
+ * Animación Lottie 100% local desde `res/raw/`, respetuosa con movimiento reducido.
+ *
+ * Si el usuario tiene desactivadas las animaciones del sistema (`ANIMATOR_DURATION_SCALE == 0f`),
+ * congela la composición en el último frame (`1f`) para mostrar el ícono completo sin movimiento.
+ * Si [descripcionContenido] es `null`, se marca como decorativa para TalkBack.
+ */
+@Composable
+internal fun AnimacionLottie(
+    @RawRes resId: Int,
+    modifier: Modifier = Modifier,
+    iteraciones: Int = 1,
+    descripcionContenido: String? = null,
+) {
+    val context = LocalContext.current
+    val animacionesDesactivadas = remember(context) {
+        try {
+            Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f,
+            ) == 0f
+        } catch (_: Throwable) {
+            false
+        }
+    }
+    val composicion by rememberLottieComposition(LottieCompositionSpec.RawRes(resId))
+    val progreso by animateLottieCompositionAsState(
+        composition = composicion,
+        iterations = iteraciones,
+        isPlaying = !animacionesDesactivadas,
+    )
+    val modificadorSemantica = if (descripcionContenido != null) {
+        modifier.semantics { contentDescription = descripcionContenido }
+    } else {
+        modifier.clearAndSetSemantics {}
+    }
+
+    LottieAnimation(
+        composition = composicion,
+        progress = { if (animacionesDesactivadas) 1f else progreso },
+        modifier = modificadorSemantica,
+    )
 }
 
 /** Ícono de alerta minimalista con `drawWithCache` (sin librerías de íconos ni alocaciones por frame). */

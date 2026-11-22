@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.nube.R
+import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
 import io.github.joako601.finanzas.nube.componentes.BannerAvisoNube
 import io.github.joako601.finanzas.nube.componentes.IconoVisibilidad
 import io.github.joako601.finanzas.nube.componentes.TransformacionContrasena
@@ -503,6 +504,12 @@ private fun DialogoRegistroExitoso(onConfirmar: () -> Unit) {
         onDismissRequest = onConfirmar,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         shape = MaterialTheme.shapes.large,
+        icon = {
+            AnimacionLottie(
+                resId = R.raw.anim_registro_exito,
+                modifier = Modifier.size(88.dp),
+            )
+        },
         title = { Text(stringResource(R.string.registro_exito_titulo)) },
         text = { Text(stringResource(R.string.registro_exito_mensaje)) },
         confirmButton = {

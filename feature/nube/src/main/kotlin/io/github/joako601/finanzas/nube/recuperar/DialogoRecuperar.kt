@@ -35,6 +35,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.nube.R
+import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 
 /**
@@ -70,6 +71,12 @@ fun DialogoRecuperar(
             onDismissRequest = cerrar,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
             shape = MaterialTheme.shapes.large,
+            icon = {
+                AnimacionLottie(
+                    resId = R.raw.anim_correo_enviado,
+                    modifier = Modifier.size(88.dp),
+                )
+            },
             title = {
                 Text(
                     text = stringResource(R.string.nube_recuperar_enviado_titulo),

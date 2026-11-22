@@ -98,6 +98,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.lottie.compose)
 
     // Vista previa de Compose en Android Studio; solo en debug, no llega al APK de release.
     debugImplementation(libs.androidx.compose.ui.tooling)
