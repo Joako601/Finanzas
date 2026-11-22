@@ -15,105 +15,109 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 /*
- * Identidad visual propia (D-014): fondo claro con tarjetas blancas, amarillo como
- * color de acción con texto negro encima, montos en verde y rojo, y un modo oscuro en
- * gris carbón. Inspirada en referencias que el autor eligió, sin logos ni elementos de
- * marca de ningún banco.
- *
- * Regla de contraste: el amarillo NUNCA es color de texto sobre fondo claro (no se lee).
- * En modo claro, `primary` es casi negro (texto de botones y encabezados) y el amarillo
- * vive en `primaryContainer` (botón principal, botón flotante) y `secondaryContainer`
- * (chips seleccionados). En modo oscuro el amarillo sí puede ser texto.
+ * Identidad visual "Tinta & Papel" (D-014): estética monocromática minimalista con
+ * cero color decorativo. El color aparece únicamente en datos semánticos (ingresos,
+ * gastos y avisos), garantizando contraste WCAG AA >= 4.5:1 en modo claro y oscuro.
  */
 
-private val Amarillo = Color(0xFFFDD835)
-private val AmarilloSuave = Color(0xFFFFF1B8)
-private val CasiNegro = Color(0xFF242424)
-private val Morado = Color(0xFF6B3FD4)
+private val Tinta = Color(0xFF111111)
+private val Papel = Color(0xFFF5F5F7)
+private val GrisHumo = Color(0xFFE8E8ED)
+private val GrisGrafito = Color(0xFF6E6E73)
+private val GrisLineaClaro = Color(0xFFE5E5EA)
+
+private val NegroOled = Color(0xFF000000)
+private val CarbonIos = Color(0xFF1C1C1E)
+private val GrisElevadoOscuro = Color(0xFF2C2C2E)
+private val GrisPlata = Color(0xFF8E8E93)
 
 private val EsquemaClaro = lightColorScheme(
-    primary = CasiNegro,
+    primary = Tinta,
     onPrimary = Color.White,
-    primaryContainer = Amarillo,
-    onPrimaryContainer = CasiNegro,
-    secondary = Color(0xFF5C5C5C),
+    primaryContainer = Tinta,
+    onPrimaryContainer = Color.White,
+    secondary = GrisGrafito,
     onSecondary = Color.White,
-    secondaryContainer = AmarilloSuave,
-    onSecondaryContainer = CasiNegro,
-    tertiary = Morado,
+    secondaryContainer = GrisHumo,
+    onSecondaryContainer = Tinta,
+    tertiary = GrisGrafito,
     onTertiary = Color.White,
-    background = Color(0xFFF5F5F7),
-    onBackground = CasiNegro,
-    surface = Color(0xFFF5F5F7),
-    onSurface = CasiNegro,
-    surfaceVariant = Color(0xFFEEEEF0),
-    onSurfaceVariant = Color(0xFF6E6E73),
+    background = Papel,
+    onBackground = Tinta,
+    surface = Papel,
+    onSurface = Tinta,
+    surfaceVariant = GrisHumo,
+    onSurfaceVariant = GrisGrafito,
     surfaceContainerLowest = Color.White,
     surfaceContainerLow = Color.White,
     surfaceContainer = Color.White,
     surfaceContainerHigh = Color.White,
-    surfaceContainerHighest = Color(0xFFEEEEF0),
-    outline = CasiNegro,
-    outlineVariant = Color(0xFFE2E2E6),
-    error = Color(0xFFD93A3A),
+    surfaceContainerHighest = GrisHumo,
+    outline = Tinta,
+    outlineVariant = GrisLineaClaro,
+    error = Color(0xFFD92D20),
     onError = Color.White,
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF690005),
+    errorContainer = Color(0xFFFDECEB),
+    onErrorContainer = Color(0xFF7A140E),
 )
 
 private val EsquemaOscuro = darkColorScheme(
-    primary = Amarillo,
-    onPrimary = CasiNegro,
-    primaryContainer = Amarillo,
-    onPrimaryContainer = CasiNegro,
-    secondary = Color(0xFFBDBDBD),
-    onSecondary = CasiNegro,
-    secondaryContainer = Color(0xFF524814),
-    onSecondaryContainer = Color(0xFFFFF1B8),
-    tertiary = Color(0xFFFF8A4C),
-    onTertiary = CasiNegro,
-    background = Color(0xFF1E1E1E),
-    onBackground = Color(0xFFF2F2F2),
-    surface = Color(0xFF1E1E1E),
-    onSurface = Color(0xFFF2F2F2),
-    surfaceVariant = Color(0xFF3A3A3A),
-    onSurfaceVariant = Color(0xFFB5B5B5),
-    surfaceContainerLowest = Color(0xFF2B2B2B),
-    surfaceContainerLow = Color(0xFF2E2E2E),
-    surfaceContainer = Color(0xFF323232),
-    surfaceContainerHigh = Color(0xFF363636),
-    surfaceContainerHighest = Color(0xFF3D3D3D),
-    outline = Color(0xFF8A8A8A),
-    outlineVariant = Color(0xFF444444),
-    error = Color(0xFFFF6B6B),
-    onError = CasiNegro,
-    errorContainer = Color(0xFF5C1A1A),
-    onErrorContainer = Color(0xFFFFDAD6),
+    primary = Color.White,
+    onPrimary = Color.Black,
+    primaryContainer = Color.White,
+    onPrimaryContainer = Color.Black,
+    secondary = GrisPlata,
+    onSecondary = Color.Black,
+    secondaryContainer = GrisElevadoOscuro,
+    onSecondaryContainer = Papel,
+    tertiary = GrisPlata,
+    onTertiary = Color.Black,
+    background = NegroOled,
+    onBackground = Papel,
+    surface = NegroOled,
+    onSurface = Papel,
+    surfaceVariant = GrisElevadoOscuro,
+    onSurfaceVariant = GrisPlata,
+    surfaceContainerLowest = CarbonIos,
+    surfaceContainerLow = CarbonIos,
+    surfaceContainer = CarbonIos,
+    surfaceContainerHigh = CarbonIos,
+    surfaceContainerHighest = GrisElevadoOscuro,
+    outline = Papel,
+    outlineVariant = GrisElevadoOscuro,
+    error = Color(0xFFFF453A),
+    onError = Color.Black,
+    errorContainer = Color(0xFF4A1614),
+    onErrorContainer = Color(0xFFFFD6D3),
 )
 
-/** Colores que Material no trae: sentido del dinero y fondo de los íconos de categoría. */
+/** Colores semánticos propios que Material no trae: sentido del dinero, avisos y fondo de íconos. */
 @Immutable
 data class ColoresFinanzas(
     val ingreso: Color,
     val gasto: Color,
+    val aviso: Color,
     val fondoIcono: Color,
     val icono: Color,
 )
 
 private val ColoresClaros = ColoresFinanzas(
-    ingreso = Color(0xFF0F9D58),
-    gasto = Color(0xFFD93A3A),
-    fondoIcono = Color(0xFFF0F0F2),
-    icono = CasiNegro,
+    ingreso = Color(0xFF16803C),
+    gasto = Color(0xFFD92D20),
+    aviso = Color(0xFFB54708),
+    fondoIcono = GrisHumo,
+    icono = Tinta,
 )
 
 private val ColoresOscuros = ColoresFinanzas(
-    ingreso = Color(0xFF3DDC97),
-    gasto = Color(0xFFFF7A7A),
-    fondoIcono = Color(0xFF3A3A3A),
-    icono = Color(0xFFFF8A4C),
+    ingreso = Color(0xFF30D158),
+    gasto = Color(0xFFFF453A),
+    aviso = Color(0xFFFF9F0A),
+    fondoIcono = GrisElevadoOscuro,
+    icono = Papel,
 )
 
 private val LocalColoresFinanzas = staticCompositionLocalOf { ColoresClaros }
@@ -127,22 +131,61 @@ object TemaFinanzas {
 
 private val Formas = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
     medium = RoundedCornerShape(16.dp),
     large = RoundedCornerShape(20.dp),
     extraLarge = RoundedCornerShape(28.dp),
 )
 
-/** La tipografía del sistema con más peso en títulos y cifras, como en las referencias. */
+/** Escala tipográfica "Aireada Apple" con números tabulares (`tnum`) en cifras y saldos. */
 private val Tipografia = Typography().run {
+    val estiloDisplay = displayMedium.copy(
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.5).sp,
+        fontFeatureSettings = "tnum",
+    )
+    val estiloCuerpo = bodyLarge.copy(
+        fontSize = 15.sp,
+        lineHeight = 21.sp,
+        fontWeight = FontWeight.Normal,
+        letterSpacing = 0.sp,
+    )
+    val estiloCaption = bodySmall.copy(
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.1.sp,
+    )
     copy(
-        headlineLarge = headlineLarge.copy(fontWeight = FontWeight.Bold),
+        displayLarge = estiloDisplay,
+        displayMedium = estiloDisplay,
+        headlineLarge = estiloDisplay,
         headlineMedium = headlineMedium.copy(fontWeight = FontWeight.Bold),
-        headlineSmall = headlineSmall.copy(fontWeight = FontWeight.Bold),
-        titleLarge = titleLarge.copy(fontWeight = FontWeight.SemiBold),
-        titleMedium = titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        headlineSmall = headlineSmall.copy(
+            fontSize = 22.sp,
+            lineHeight = 28.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.2).sp,
+        ),
+        titleLarge = titleLarge.copy(
+            fontWeight = FontWeight.SemiBold,
+            fontFeatureSettings = "tnum",
+        ),
+        titleMedium = titleMedium.copy(
+            fontSize = 16.sp,
+            lineHeight = 22.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.sp,
+            fontFeatureSettings = "tnum",
+        ),
         titleSmall = titleSmall.copy(fontWeight = FontWeight.SemiBold),
+        bodyLarge = estiloCuerpo,
+        bodyMedium = estiloCuerpo,
+        bodySmall = estiloCaption,
         labelLarge = labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        labelSmall = estiloCaption,
     )
 }
 

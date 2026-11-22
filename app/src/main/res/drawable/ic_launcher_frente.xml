@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cartera simple dentro de la zona segura de 66dp del ícono adaptable (lienzo de 108). -->
+<!--
+  Capa frontal del ícono adaptable: símbolo geométrico "Equilibrio" (tres barras escalonadas
+  y punto de balance que insinúan una F arquitectónica sin parecer un ojo).
+  Coordenadas centradas en el cuadro 30..78 dentro de 108x108 (zona segura 66/108).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Barra superior -->
     <path
-        android:fillColor="#242424"
-        android:pathData="M34,38h40a6,6 0,0 1,6 6v22a6,6 0,0 1,-6 6h-40a6,6 0,0 1,-6 -6v-22a6,6 0,0 1,6 -6z" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M41.5,38H66.5A3.5,3.5 0 0,1 70,41.5A3.5,3.5 0 0,1 66.5,45H41.5A3.5,3.5 0 0,1 38,41.5A3.5,3.5 0 0,1 41.5,38Z" />
+
+    <!-- Barra media (con ligera atenuación para profundidad) -->
     <path
-        android:fillColor="#FDD835"
-        android:pathData="M64,49h16v12h-16a6,6 0,0 1,0 -12z" />
+        android:fillAlpha="0.78"
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M41.5,50.5H58.5A3.5,3.5 0 0,1 62,54A3.5,3.5 0 0,1 58.5,57.5H41.5A3.5,3.5 0 0,1 38,54A3.5,3.5 0 0,1 41.5,50.5Z" />
+
+    <!-- Barra inferior -->
     <path
-        android:fillColor="#242424"
-        android:pathData="M64,55m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M41.5,63H49.5A3.5,3.5 0 0,1 53,66.5A3.5,3.5 0 0,1 49.5,70H41.5A3.5,3.5 0 0,1 38,66.5A3.5,3.5 0 0,1 41.5,63Z" />
+
+    <!-- Punto de balance -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M66.5,63A3.5,3.5 0 1,0 66.5,70A3.5,3.5 0 1,0 66.5,63Z" />
 </vector>

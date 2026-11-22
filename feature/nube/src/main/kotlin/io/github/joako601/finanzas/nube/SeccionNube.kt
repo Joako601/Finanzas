@@ -1,7 +1,15 @@
 package io.github.joako601.finanzas.nube
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -41,6 +50,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.joako601.finanzas.nube.catalogo.PantallaCatalogo
+import io.github.joako601.finanzas.nube.componentes.rememberAnimacionesDesactivadasNube
+import io.github.joako601.finanzas.nube.componentes.toqueTactil
 import io.github.joako601.finanzas.nube.login.PantallaLogin
 import io.github.joako601.finanzas.nube.navegacion.RutaNube
 import io.github.joako601.finanzas.nube.recuperar.DialogoRecuperar
@@ -48,6 +59,14 @@ import io.github.joako601.finanzas.nube.registro.PantallaRegistro
 import io.github.joako601.finanzas.nube.sesion.EstadoSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFalso
+import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
+
+private sealed interface DestinoNube {
+    data object Cargando : DestinoNube
+    data object Login : DestinoNube
+    data object Registro : DestinoNube
+    data class Catalogo(val usuario: UsuarioSesion) : DestinoNube
+}
 
 /**
  * Mantiene vivo el repositorio de demostración en debug al rotar la pantalla para no
@@ -118,46 +137,73 @@ fun SeccionNube(
         }
     }
 
-    when (rutaEfectiva) {
-        null -> PantallaCargaSesion()
-
+    val sinAnimaciones = rememberAnimacionesDesactivadasNube()
+    val desplazamientoPx = with(LocalDensity.current) { 24.dp.roundToPx() }
+    val destinoActual: DestinoNube = when (rutaEfectiva) {
+        null -> DestinoNube.Cargando
+        RutaNube.LOGIN -> DestinoNube.Login
+        RutaNube.REGISTRO -> DestinoNube.Registro
         RutaNube.CATALOGO -> {
             val autenticado = estadoSesion as? EstadoSesion.Autenticado
-            if (autenticado != null) {
-                PantallaCatalogo(
-                    usuario = autenticado.usuario,
-                    repositorioSesion = repositorioSesion,
-                    onSalir = onSalir,
-                )
-            } else {
-                PantallaCargaSesion()
-            }
+            if (autenticado != null) DestinoNube.Catalogo(autenticado.usuario) else DestinoNube.Cargando
         }
+    }
 
-        RutaNube.REGISTRO -> PantallaRegistro(
-            repositorioSesion = repositorioSesion,
-            onIrALogin = { rutaActual = RutaNube.LOGIN },
-        )
+    AnimatedContent(
+        targetState = destinoActual,
+        contentKey = { it::class },
+        transitionSpec = {
+            if (sinAnimaciones) {
+                fadeIn(tween(durationMillis = 120)) togetherWith fadeOut(tween(durationMillis = 120))
+            } else {
+                val esRetroceso = targetState is DestinoNube.Login &&
+                    (initialState is DestinoNube.Registro || initialState is DestinoNube.Catalogo)
+                val direccion = if (esRetroceso) -1 else 1
+                (
+                    slideInHorizontally(tween(durationMillis = 300)) { direccion * desplazamientoPx } +
+                        fadeIn(tween(durationMillis = 300))
+                    ).togetherWith(
+                    slideOutHorizontally(tween(durationMillis = 220)) { -direccion * desplazamientoPx } +
+                        fadeOut(tween(durationMillis = 220)),
+                )
+            }
+        },
+        label = "transicionRutaNube",
+    ) { destino ->
+        when (destino) {
+            DestinoNube.Cargando -> PantallaCargaSesion()
 
-        RutaNube.LOGIN -> {
-            PantallaLogin(
+            is DestinoNube.Catalogo -> PantallaCatalogo(
+                usuario = destino.usuario,
                 repositorioSesion = repositorioSesion,
-                onLoginExitoso = {
-                    mostrarRecuperar = false
-                    rutaActual = RutaNube.CATALOGO
-                },
-                onIrARegistro = { rutaActual = RutaNube.REGISTRO },
-                onAbrirRecuperar = { mostrarRecuperar = true },
                 onSalir = onSalir,
             )
 
-            if (mostrarRecuperar) {
-                DialogoRecuperar(
+            DestinoNube.Registro -> PantallaRegistro(
+                repositorioSesion = repositorioSesion,
+                onIrALogin = { rutaActual = RutaNube.LOGIN },
+            )
+
+            DestinoNube.Login -> {
+                PantallaLogin(
                     repositorioSesion = repositorioSesion,
-                    onCerrar = { mostrarRecuperar = false },
+                    onLoginExitoso = {
+                        mostrarRecuperar = false
+                        rutaActual = RutaNube.CATALOGO
+                    },
+                    onIrARegistro = { rutaActual = RutaNube.REGISTRO },
+                    onAbrirRecuperar = { mostrarRecuperar = true },
+                    onSalir = onSalir,
                 )
             }
         }
+    }
+
+    if (rutaEfectiva == RutaNube.LOGIN && mostrarRecuperar) {
+        DialogoRecuperar(
+            repositorioSesion = repositorioSesion,
+            onCerrar = { mostrarRecuperar = false },
+        )
     }
 }
 
@@ -254,11 +300,14 @@ private fun PantallaSinConfigurar(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (onExplorarDemo != null) {
+                    val interaccionDemo = remember { MutableInteractionSource() }
                     Button(
                         onClick = onExplorarDemo,
+                        interactionSource = interaccionDemo,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 52.dp),
+                            .heightIn(min = 52.dp)
+                            .toqueTactil(interaccionDemo),
                         shape = MaterialTheme.shapes.small,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -271,11 +320,14 @@ private fun PantallaSinConfigurar(
                         )
                     }
                 }
+                val interaccionVolver = remember { MutableInteractionSource() }
                 OutlinedButton(
                     onClick = onSalir,
+                    interactionSource = interaccionVolver,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 52.dp),
+                        .heightIn(min = 52.dp)
+                        .toqueTactil(interaccionVolver),
                     shape = MaterialTheme.shapes.small,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
                     colors = ButtonDefaults.outlinedButtonColors(

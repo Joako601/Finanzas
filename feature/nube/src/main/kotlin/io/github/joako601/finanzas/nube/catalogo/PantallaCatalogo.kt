@@ -1,5 +1,7 @@
 package io.github.joako601.finanzas.nube.catalogo
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,6 +60,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airbnb.lottie.compose.LottieConstants
 import io.github.joako601.finanzas.nube.R
 import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
+import io.github.joako601.finanzas.nube.componentes.toqueTactil
 import io.github.joako601.finanzas.nube.recuperar.DialogoCerrarSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
@@ -248,7 +252,7 @@ private fun EstadoMensajeCatalogo(
     Box(
         modifier = modifier
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(20.dp),
         contentAlignment = Alignment.Center,
     ) {
         Card(
@@ -257,7 +261,8 @@ private fun EstadoMensajeCatalogo(
                 .fillMaxWidth(),
             shape = MaterialTheme.shapes.large,
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         ) {
             Column(
                 modifier = Modifier.padding(20.dp),
@@ -281,11 +286,14 @@ private fun EstadoMensajeCatalogo(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                val interaccionReintentar = remember { MutableInteractionSource() }
                 Button(
                     onClick = onReintentar,
+                    interactionSource = interaccionReintentar,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 52.dp),
+                        .heightIn(min = 52.dp)
+                        .toqueTactil(interaccionReintentar),
                     shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -314,9 +322,9 @@ private fun ListaProductosCatalogo(
         columns = GridCells.Adaptive(minSize = 320.dp),
         modifier = modifier,
         contentPadding = PaddingValues(
-            start = margenes.calculateStartPadding(layoutDirection) + 16.dp,
+            start = margenes.calculateStartPadding(layoutDirection) + 20.dp,
             top = margenes.calculateTopPadding() + 12.dp,
-            end = margenes.calculateEndPadding(layoutDirection) + 16.dp,
+            end = margenes.calculateEndPadding(layoutDirection) + 20.dp,
             bottom = margenes.calculateBottomPadding() + 12.dp,
         ),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -352,7 +360,8 @@ private fun EncabezadoCatalogo(
             .fillMaxWidth()
             .semantics(mergeDescendants = true) {},
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -390,10 +399,11 @@ private fun TarjetaProductoFinanciero(producto: ProductoFinanciero) {
             .semantics(mergeDescendants = true) {},
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             FlowRow(
@@ -402,7 +412,7 @@ private fun TarjetaProductoFinanciero(producto: ProductoFinanciero) {
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 Surface(
-                    shape = MaterialTheme.shapes.extraSmall,
+                    shape = CircleShape,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {

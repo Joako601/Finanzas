@@ -70,7 +70,7 @@ class CarruselTarjetasTest {
 
     /**
      * Una con texto largo (saldo a favor y aviso de captura) y otra con texto corto: el
-     * amarillo y la tarjeta entera deben medir lo mismo para que no cambie al deslizar.
+     * plástico y la tarjeta entera deben medir lo mismo para que no cambie al deslizar.
      */
     @Test
     fun las_tarjetas_miden_lo_mismo_aunque_su_texto_no() {
@@ -84,7 +84,7 @@ class CarruselTarjetasTest {
 
         fun alto(etiqueta: String) = regla.onNodeWithTag(etiqueta, useUnmergedTree = true).getBoundsInRoot().let { it.bottom - it.top }
 
-        assertEquals("Parte amarilla", alto(etiquetaPlastico(larga)), alto(etiquetaPlastico(corta)))
+        assertEquals("Plástico de tarjeta", alto(etiquetaPlastico(larga)), alto(etiquetaPlastico(corta)))
         assertEquals("Tarjeta completa", alto(etiquetaTarjeta(larga)), alto(etiquetaTarjeta(corta)))
         // Medir las tarjetas usa copias que no se dibujan; TalkBack no debe leerlas.
         val conNu = todosLosNodos(raizDeAccesibilidad(regla)).filter { it.text?.toString() == "Nu" }

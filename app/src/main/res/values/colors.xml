@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_fondo">#FDD835</color>
+    <color name="ic_launcher_fondo">#111111</color>
     <!-- Fondo de la ventana antes de que Compose dibuje; igual al fondo del tema (Tema.kt). -->
     <color name="fondo_ventana">#F5F5F7</color>
 </resources>

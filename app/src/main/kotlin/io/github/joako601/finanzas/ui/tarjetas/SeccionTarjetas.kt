@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -50,9 +52,10 @@ import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 /** Días para la fecha límite a partir de los cuales el aviso se pinta de color de error. */
 private const val DIAS_URGENTE = 3
 
-/** Degradado del "plástico" de la tarjeta: amarillo a amarillo anaranjado, sin marcas. */
-private val DegradadoTarjeta = Brush.linearGradient(listOf(Color(0xFFFDD835), Color(0xFFFFB300)))
-private val TextoSobreTarjeta = Color(0xFF242424)
+/** Degradado monocromático del "plástico" de la tarjeta ("Tinta & Papel" / Apple Card oscura). */
+private val DegradadoTarjeta = Brush.linearGradient(listOf(Color(0xFF18181B), Color(0xFF2C2C2E)))
+private val BordePlasticoTarjeta = Color(0xFF3A3A3C)
+private val TextoSobreTarjeta = Color.White
 
 /** Encabezado y lista de tarjetas en la pantalla principal. */
 @Composable
@@ -101,7 +104,7 @@ fun SeccionTarjetas(
 /** Etiqueta para encontrar el carrusel en las pruebas. */
 const val ETIQUETA_CARRUSEL = "carrusel_tarjetas"
 
-/** Etiquetas de una tarjeta y de su parte amarilla, para medirlas en las pruebas. */
+/** Etiquetas de una tarjeta y de su plástico superior, para medirlas en las pruebas. */
 fun etiquetaTarjeta(resumen: ResumenTarjeta) = "tarjeta_${resumen.tarjeta.id.valor}"
 fun etiquetaPlastico(resumen: ResumenTarjeta) = "plastico_${resumen.tarjeta.id.valor}"
 
@@ -114,8 +117,8 @@ private val MargenFinCarrusel = 40.dp
  * asoma por la derecha para que se note que hay más, y los círculos de abajo dicen cuál
  * se ve y cuántas hay.
  *
- * Todas miden lo mismo aunque su texto no: antes de dibujar se mide la parte amarilla y
- * la de abajo de cada una, al ancho real de una página, y a todas se les da el alto de la
+ * Todas miden lo mismo aunque su texto no: antes de dibujar se mide el plástico superior y
+ * el cuerpo de abajo de cada una, al ancho real de una página, y a todas se les da el alto de la
  * más alta. Así no cambia el tamaño al deslizar, con cualquier texto o tamaño de letra.
  */
 @Composable
@@ -200,7 +203,7 @@ private fun Indicador(actual: Int, total: Int) {
 }
 
 /**
- * Una tarjeta: el "plástico" amarillo arriba y el saldo, la situación y los botones abajo.
+ * Una tarjeta: el "plástico" oscuro arriba y el saldo, la situación y los botones abajo.
  * Con [altoPlastico] y [altoCuerpo] (en el carrusel) cada parte toma ese alto: lo que
  * sobra queda entre el nombre y el disponible, y entre la situación y los botones.
  */
@@ -222,11 +225,13 @@ private fun TarjetaCredito(
 /** "Plástico": nombre e ícono arriba; el crédito disponible, abajo. */
 @Composable
 private fun PlasticoTarjeta(resumen: ResumenTarjeta, alto: Dp?, modifier: Modifier = Modifier) {
+    val formaPlastico = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     Column(
         modifier
             .fillMaxWidth()
             .then(if (alto != null) Modifier.height(alto) else Modifier)
-            .background(DegradadoTarjeta)
+            .background(DegradadoTarjeta, formaPlastico)
+            .border(1.dp, BordePlasticoTarjeta, formaPlastico)
             .padding(20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {

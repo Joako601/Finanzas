@@ -217,4 +217,6 @@
     <string name="error_restaurar_contrasena">La contraseña no es correcta o el archivo está dañado. Tus datos no cambiaron.</string>
     <string name="error_restaurar_version">Este respaldo es de una versión más nueva de Finanzas. Actualiza la app y vuelve a intentarlo.</string>
     <string name="error_restaurar_base">El respaldo está incompleto o dañado. Tus datos no cambiaron.</string>
+    <string name="ingreso_registrado">Ingreso registrado</string>
+    <string name="gasto_registrado">Gasto registrado</string>
 </resources>

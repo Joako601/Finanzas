@@ -51,6 +51,9 @@ data class EstadoMovimientos(
 
 data class SaldoCuenta(val cuenta: Cuenta, val saldo: Dinero)
 
+/** Aviso efímero para celebrar un ingreso o gasto recién registrado. */
+data class AvisoMovimientoGuardado(val id: Long, val clase: ClaseRegistro)
+
 data class DiaDeMovimientos(val fecha: LocalDate, val movimientos: List<MovimientoResumido>)
 
 /** Formulario de captura abierto. `null` en el ViewModel significa hoja cerrada. */
@@ -143,6 +146,14 @@ class MovimientosViewModel(
 
     private val _nuevaCuenta = MutableStateFlow<NuevaCuenta?>(null)
     val nuevaCuenta: StateFlow<NuevaCuenta?> = _nuevaCuenta.asStateFlow()
+
+    private val _avisoGuardado = MutableStateFlow<AvisoMovimientoGuardado?>(null)
+    val avisoGuardado: StateFlow<AvisoMovimientoGuardado?> = _avisoGuardado.asStateFlow()
+    private var secuenciaAviso: Long = 0L
+
+    fun consumirAvisoGuardado() {
+        _avisoGuardado.value = null
+    }
 
     /** Última cuenta usada, para preseleccionarla y ahorrar un toque. Solo en memoria por ahora. */
     private var ultimaCuenta: CuentaId? = null
@@ -244,6 +255,10 @@ class MovimientosViewModel(
                         guardarOActualizar(resultado.movimiento, actual.editando)
                         ultimaCuenta = actual.cuentaId
                         _captura.value = null
+                        if (actual.editando == null) {
+                            secuenciaAviso += 1L
+                            _avisoGuardado.value = AvisoMovimientoGuardado(secuenciaAviso, actual.clase)
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

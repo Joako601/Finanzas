@@ -316,6 +316,22 @@ un banco colombiano (su logo, su amarillo y sus cintas de colores son marca regi
 **Cómo se verifica:** capturas en `docs/evidencia/2026-11-19-*.png` (claro, oscuro y
 hoja de captura con teclado).
 
+**Actualización 2026-11-22 (Tinta & Papel · Flujo · Aireada Apple · Seda iOS):**
+se reemplaza el acento amarillo/naranja por una identidad monocromática propia sin color
+decorativo:
+- **Paleta "Tinta & Papel":** fondo `#F5F5F7` / `#000000` (OLED), tarjetas `#FFFFFF` /
+  `#1C1C1E`, acento primario `#111111` / `#FFFFFF`, bordes `#E5E5EA` / `#2C2C2E`. El color
+  aparece únicamente en datos semánticos: ingreso/éxito `#16803C` / `#30D158`, gasto/error
+  `#D92D20` / `#FF453A` y aviso `#B54708` / `#FF9F0A`.
+- **Logotipo "Flujo":** ícono adaptable en `#111111` con dos arcos convergentes y punto
+  central en `#FFFFFF` (zona segura `66/108` + capa `monochrome`).
+- **Layout "Aireada Apple":** tarjetas planas (`0 dp` de elevación + borde `1 dp`), radios
+  `20 dp` (tarjetas) y `14 dp` (botones/campos), escala tipográfica con `tnum` en cifras.
+- **Motion "Seda iOS":** toque táctil `scale(0.97)` con resorte `(0.90, 500)` y háptica,
+  transiciones horizontales `300 ms / 220 ms` en `:feature:nube`, saldo rodante de `360 ms`
+  y los 8 Lottie JSON + `MascotaLogin` re-paleteados a monocromático, respetando
+  `ANIMATOR_DURATION_SCALE == 0f`.
+
 ---
 
 ## D-015 Recordatorios con AlarmManager inexacto y plan recalculado

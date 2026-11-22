@@ -1,6 +1,9 @@
 package io.github.joako601.finanzas.nube.registro
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,6 +68,7 @@ import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
 import io.github.joako601.finanzas.nube.componentes.BannerAvisoNube
 import io.github.joako601.finanzas.nube.componentes.IconoVisibilidad
 import io.github.joako601.finanzas.nube.componentes.TransformacionContrasena
+import io.github.joako601.finanzas.nube.componentes.toqueTactil
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFalso
 
@@ -160,7 +164,7 @@ private fun ContenidoRegistro(
                     .fillMaxWidth()
                     .widthIn(max = 480.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
@@ -184,15 +188,18 @@ private fun ContenidoRegistro(
                     onEnviar = onEnviar,
                 )
 
+                val interaccionCrear = remember { MutableInteractionSource() }
                 Button(
                     onClick = {
                         focusManager.clearFocus()
                         onEnviar()
                     },
                     enabled = !estado.cargando,
+                    interactionSource = interaccionCrear,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 52.dp),
+                        .heightIn(min = 52.dp)
+                        .toqueTactil(interaccionCrear),
                     shape = MaterialTheme.shapes.small,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -259,12 +266,13 @@ private fun TarjetaFormularioRegistro(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             OutlinedTextField(
@@ -416,7 +424,8 @@ private fun ListaRequisitosContrasena(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {

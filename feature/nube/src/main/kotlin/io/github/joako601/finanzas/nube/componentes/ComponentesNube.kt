@@ -2,7 +2,11 @@ package io.github.joako601.finanzas.nube.componentes
 
 import android.provider.Settings
 import androidx.annotation.RawRes
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -24,8 +29,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -37,22 +45,24 @@ import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.animateLottieCompositionAsState
 import com.airbnb.lottie.compose.rememberLottieComposition
+import kotlinx.coroutines.launch
 
 /** Transformación compartida para ocultar contraseñas sin reasignar en cada recomposición. */
 internal val TransformacionContrasena = PasswordVisualTransformation()
 
 /**
- * Colores semánticos compartidos por las pantallas de `feature:nube`.
+ * Colores semánticos compartidos por las pantallas de `feature:nube` (paleta "Tinta & Papel").
  *
- * Centraliza el verde de éxito claro/oscuro, el color de contraste sobre verde y el tono
- * claro del hocico en modo oscuro para evitar hex duplicados entre Login y MascotaLogin.
+ * Centraliza el verde de éxito claro/oscuro, el color de contraste sobre verde y los tonos
+ * monocromáticos de la mascota para evitar hex duplicados entre Login y MascotaLogin.
  */
 internal object ColoresSemanticosNube {
-    private val ExitoClaro = Color(0xFF0F9D58)
-    private val ExitoOscuro = Color(0xFF3DDC97)
+    private val ExitoClaro = Color(0xFF16803C)
+    private val ExitoOscuro = Color(0xFF30D158)
     private val SobreExitoClaro = Color.White
-    private val SobreExitoOscuro = Color(0xFF1E1E1E)
-    private val HocicoOscuro = Color(0xFFFFF1B8)
+    private val SobreExitoOscuro = Color.Black
+    private val HocicoClaro = Color(0xFFE8E8ED)
+    private val HocicoOscuro = Color(0xFF2C2C2E)
 
     @Composable
     @ReadOnlyComposable
@@ -68,8 +78,7 @@ internal object ColoresSemanticosNube {
 
     @Composable
     @ReadOnlyComposable
-    fun hocicoMascota(): Color =
-        if (esTemaOscuro()) HocicoOscuro else MaterialTheme.colorScheme.secondaryContainer
+    fun hocicoMascota(): Color = if (esTemaOscuro()) HocicoOscuro else HocicoClaro
 }
 
 /**
@@ -112,6 +121,66 @@ internal fun BannerAvisoNube(
     }
 }
 
+/** Indica si el usuario desactivó las animaciones del sistema (`ANIMATOR_DURATION_SCALE == 0f`). */
+@Composable
+internal fun rememberAnimacionesDesactivadasNube(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        try {
+            Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f,
+            ) == 0f
+        } catch (_: Throwable) {
+            false
+        }
+    }
+}
+
+/**
+ * Retroalimentación táctil "Seda iOS" (`scale 0.97` con resorte amortiguado + háptica sutil).
+ * Respeta la preferencia del sistema de reducir/quitar animaciones.
+ */
+@Composable
+internal fun Modifier.toqueTactil(interactionSource: MutableInteractionSource): Modifier {
+    val sinAnimaciones = rememberAnimacionesDesactivadasNube()
+    val escala = remember { Animatable(1f) }
+    val haptica = LocalHapticFeedback.current
+    LaunchedEffect(interactionSource, sinAnimaciones) {
+        if (sinAnimaciones) escala.snapTo(1f)
+        interactionSource.interactions.collect { interaccion ->
+            when (interaccion) {
+                is PressInteraction.Press -> {
+                    haptica.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    if (!sinAnimaciones) {
+                        launch {
+                            escala.animateTo(
+                                targetValue = 0.97f,
+                                animationSpec = spring(dampingRatio = 0.90f, stiffness = 500f),
+                            )
+                        }
+                    }
+                }
+                is PressInteraction.Release, is PressInteraction.Cancel -> {
+                    if (!sinAnimaciones) {
+                        launch {
+                            escala.animateTo(
+                                targetValue = 1f,
+                                animationSpec = spring(dampingRatio = 0.90f, stiffness = 500f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return graphicsLayer {
+        scaleX = escala.value
+        scaleY = escala.value
+    }
+}
+
 /**
  * Animación Lottie 100% local desde `res/raw/`, respetuosa con movimiento reducido.
  *
@@ -126,18 +195,7 @@ internal fun AnimacionLottie(
     iteraciones: Int = 1,
     descripcionContenido: String? = null,
 ) {
-    val context = LocalContext.current
-    val animacionesDesactivadas = remember(context) {
-        try {
-            Settings.Global.getFloat(
-                context.contentResolver,
-                Settings.Global.ANIMATOR_DURATION_SCALE,
-                1f,
-            ) == 0f
-        } catch (_: Throwable) {
-            false
-        }
-    }
+    val animacionesDesactivadas = rememberAnimacionesDesactivadasNube()
     val composicion by rememberLottieComposition(LottieCompositionSpec.RawRes(resId))
     val progreso by animateLottieCompositionAsState(
         composition = composicion,

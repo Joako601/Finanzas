@@ -192,8 +192,8 @@ internal fun MascotaLogin(
     )
 
     val colorPrimario = colorScheme.primary
-    val colorCuerpo = colorScheme.primaryContainer
-    val colorTrazo = colorScheme.onPrimaryContainer
+    val colorCuerpo = colorScheme.surfaceContainerLowest
+    val colorTrazo = colorScheme.onSurface
     val colorHocico = ColoresSemanticosNube.hocicoMascota()
     val colorBordeHalo = when (estado) {
         EstadoMascotaLogin.Error -> colorScheme.error
@@ -359,8 +359,8 @@ internal fun MascotaLogin(
                         drawPath(pathOjoFelizDer, color = colorTrazo, style = trazoRedondeado)
                     } else {
                         val desplazamientoPupilaY = miradaAbajo * (radioOjo * 0.55f)
-                        dibujarOjo(ojoIzq, radioOjo, desplazamientoPupilaY, colorTrazo)
-                        dibujarOjo(ojoDer, radioOjo, desplazamientoPupilaY, colorTrazo)
+                        dibujarOjo(ojoIzq, radioOjo, desplazamientoPupilaY, colorTrazo, colorCuerpo)
+                        dibujarOjo(ojoDer, radioOjo, desplazamientoPupilaY, colorTrazo, colorCuerpo)
 
                         // Cejas de alerta cuando hay error
                         if (estado == EstadoMascotaLogin.Error) {
@@ -480,15 +480,16 @@ private fun DrawScope.dibujarOjo(
     radio: Float,
     desplazamientoPupilaY: Float,
     colorTrazo: Color,
+    colorBrillo: Color,
 ) {
     drawCircle(
         color = colorTrazo,
         radius = radio,
         center = Offset(centro.x, centro.y + desplazamientoPupilaY),
     )
-    // Brillo sutil del ojo
+    // Brillo sutil del ojo con contraste en modo claro y oscuro
     drawCircle(
-        color = Color.White,
+        color = colorBrillo,
         radius = radio * 0.34f,
         center = Offset(centro.x - radio * 0.28f, centro.y + desplazamientoPupilaY - radio * 0.28f),
     )

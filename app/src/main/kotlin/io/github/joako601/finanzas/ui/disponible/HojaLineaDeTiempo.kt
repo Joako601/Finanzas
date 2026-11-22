@@ -34,6 +34,7 @@ import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
+import io.github.joako601.finanzas.ui.componentes.TextoMontoAnimado
 import io.github.joako601.finanzas.ui.componentes.iconoDeCategoria
 import io.github.joako601.finanzas.ui.formatoDiaCorto
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
@@ -55,8 +56,8 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            linea.disponible.formatear(),
+        TextoMontoAnimado(
+            monto = linea.disponible,
             style = MaterialTheme.typography.headlineLarge,
             color = if (linea.disponible.esNegativo) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
