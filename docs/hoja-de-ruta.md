@@ -19,6 +19,7 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Saldo a favor en la tarjeta y faltante que cuadra con el disponible | versionCode 9 | 5 pruebas de dominio, una con el caso real; instalada en el S24 FE |
 | Tarjetas en carrusel de lado con círculos de posición; todas del mismo tamaño | versionCode 10 y 11 | `CarruselTarjetasTest` (3 casos) en el S24 FE al 0.9 y al 130 %; capturas en claro, oscuro y al 130 % |
 | Pagos y cobros fijos: periodicidades, registro de un toque, aviso un día antes, categoría de impuestos (D-016) | versionCode 5 | 14 pruebas de dominio, 4 del ViewModel, 24 de Room en el S24 FE; instalada en el S24 FE con migración 3→4 verificada sobre datos reales |
+| Base de distribución nube opcional y aislada (`privada` / `nube`, `:feature:nube`, Firebase Auth manual, guardias de permisos y dependencias, contrato `RepositorioSesion` y placeholders; D-020, D-021) | — | `./gradlew check`, `aapt2 dump permissions` en `privadaRelease` y `nubeDebug`, contraprueba de guardia de dependencias, 5 pruebas JVM de sesión |
 
 ## Siguiente, en orden
 

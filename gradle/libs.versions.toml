@@ -17,10 +17,14 @@ activityCompose = "1.13.0"
 composeBom = "2026.09.00"
 lifecycle = "2.11.0"
 room = "2.8.5"
+lottieCompose = "6.7.1"
 
 # Kotlin
 kotlinxCoroutines = "1.11.0"
 kotlinxDatetime = "0.8.0"
+
+# Nube (solo en :feature:nube y flavor nube; consultado el 2026-11-21 en dl.google.com/android/maven2)
+firebaseBom = "35.2.0"
 
 # Pruebas
 kotest = "6.2.7"
@@ -51,6 +55,11 @@ androidx-compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4
 androidx-compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 androidx-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
+lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottieCompose" }
+
+# Nube (solo :feature:nube; sin Analytics, Crashlytics ni Messaging)
+firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
 
 # Pruebas
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }

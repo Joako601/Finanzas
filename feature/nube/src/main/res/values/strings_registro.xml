@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="registro_subtitulo">Usa tu correo institucional (@tecdesoftware.edu.mx) para crear tu cuenta.</string>
+
+    <string name="registro_correo_etiqueta">Correo institucional</string>
+    <string name="registro_correo_placeholder">nombre@tecdesoftware.edu.mx</string>
+    <string name="registro_correo_ayuda">Debe terminar en @tecdesoftware.edu.mx</string>
+
+    <string name="registro_contrasena_etiqueta">Contraseña</string>
+    <string name="registro_confirmar_etiqueta">Confirmar contraseña</string>
+
+    <string name="registro_mostrar_contrasena_desc">Mostrar contraseña</string>
+    <string name="registro_ocultar_contrasena_desc">Ocultar contraseña</string>
+    <string name="registro_mostrar_confirmar_desc">Mostrar confirmación de contraseña</string>
+    <string name="registro_ocultar_confirmar_desc">Ocultar confirmación de contraseña</string>
+
+    <string name="registro_requisitos_titulo">Requisitos de la contraseña</string>
+    <string name="registro_requisito_longitud">Mínimo 8 caracteres</string>
+    <string name="registro_requisito_mayuscula">Al menos una letra mayúscula (A-Z)</string>
+    <string name="registro_requisito_minuscula">Al menos una letra minúscula (a-z)</string>
+    <string name="registro_requisito_numero">Al menos un número (0-9)</string>
+    <string name="registro_requisito_simbolo">Al menos un símbolo (sin espacios)</string>
+    <string name="registro_requisito_cumplido_desc">Cumplido: %1$s</string>
+    <string name="registro_requisito_pendiente_desc">Pendiente: %1$s</string>
+
+    <string name="registro_error_correo_vacio">Ingresa tu correo institucional.</string>
+    <string name="registro_error_correo_formato">Ingresa un correo electrónico válido.</string>
+    <string name="registro_error_correo_dominio">El correo debe terminar en @tecdesoftware.edu.mx.</string>
+    <string name="registro_error_correo_en_uso">Este correo ya está registrado.</string>
+
+    <string name="registro_error_contrasena_vacia">Crea una contraseña.</string>
+    <string name="registro_error_contrasena_requisitos">Cumple todos los requisitos de la contraseña.</string>
+    <string name="registro_error_contrasena_debil">La contraseña es muy débil. Cumple todos los requisitos.</string>
+
+    <string name="registro_error_confirmacion_vacia">Confirma tu contraseña.</string>
+    <string name="registro_error_confirmacion_no_coincide">Las contraseñas no coinciden.</string>
+
+    <string name="registro_error_sin_conexion">Sin conexión a internet. Revisa tu red e inténtalo de nuevo.</string>
+    <string name="registro_error_inesperado">No se pudo crear la cuenta. Inténtalo de nuevo.</string>
+
+    <string name="registro_boton_crear">Crear cuenta</string>
+    <string name="registro_boton_creando">Creando cuenta…</string>
+    <string name="registro_ir_a_login">¿Ya tienes cuenta? Inicia sesión</string>
+
+    <string name="registro_exito_titulo">Cuenta creada</string>
+    <string name="registro_exito_mensaje">Cuenta creada. Ya puedes iniciar sesión.</string>
+    <string name="registro_exito_confirmar">Iniciar sesión</string>
+</resources>

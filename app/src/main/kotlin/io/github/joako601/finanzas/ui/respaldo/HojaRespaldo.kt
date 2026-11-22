@@ -4,8 +4,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -19,7 +21,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -31,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.data.respaldo.ErrorRespaldo
+import io.github.joako601.finanzas.ui.componentes.AnimacionLottie
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.Campo
@@ -184,21 +189,41 @@ private fun Progreso(estado: EstadoRespaldo) {
             }
             aviso != null -> {
                 val esError = aviso in setOf(Aviso.NO_SE_PUDO_ESCRIBIR, Aviso.NO_SE_PUDO_LEER, Aviso.NO_ES_RESPALDO, Aviso.RESPALDO_INTERRUMPIDO)
-                Text(
-                    stringResource(
-                        when (aviso) {
-                            Aviso.RESPALDO_GUARDADO -> R.string.aviso_respaldo_guardado
-                            Aviso.DATOS_RESTAURADOS -> R.string.aviso_datos_restaurados
-                            Aviso.CSV_GUARDADO -> R.string.aviso_csv_guardado
-                            Aviso.NO_SE_PUDO_ESCRIBIR -> R.string.aviso_no_se_pudo_escribir
-                            Aviso.NO_SE_PUDO_LEER -> R.string.aviso_no_se_pudo_leer
-                            Aviso.NO_ES_RESPALDO -> R.string.aviso_no_es_respaldo
-                            Aviso.RESPALDO_INTERRUMPIDO -> R.string.aviso_respaldo_interrumpido
-                        },
-                    ),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (esError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                val textoAviso = stringResource(
+                    when (aviso) {
+                        Aviso.RESPALDO_GUARDADO -> R.string.aviso_respaldo_guardado
+                        Aviso.DATOS_RESTAURADOS -> R.string.aviso_datos_restaurados
+                        Aviso.CSV_GUARDADO -> R.string.aviso_csv_guardado
+                        Aviso.NO_SE_PUDO_ESCRIBIR -> R.string.aviso_no_se_pudo_escribir
+                        Aviso.NO_SE_PUDO_LEER -> R.string.aviso_no_se_pudo_leer
+                        Aviso.NO_ES_RESPALDO -> R.string.aviso_no_es_respaldo
+                        Aviso.RESPALDO_INTERRUMPIDO -> R.string.aviso_respaldo_interrumpido
+                    },
                 )
+                if (esError) {
+                    Text(
+                        textoAviso,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        key(aviso) {
+                            AnimacionLottie(
+                                resId = R.raw.anim_respaldo_exito,
+                                modifier = Modifier.size(36.dp),
+                            )
+                        }
+                        Text(
+                            textoAviso,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
             }
         }
     }

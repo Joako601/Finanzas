@@ -191,7 +191,7 @@ de hoy, no que las de hoy fueran legítimas. Las firmas PGP no se verifican porq
 mayoría de los artefactos de Google Maven no están firmados.
 
 **Al agregar o actualizar una dependencia:**
-`./gradlew --write-verification-metadata sha256 assembleDebug assembleRelease check :core:data:assembleDebugAndroidTest`
+`./gradlew --write-verification-metadata sha256 :app:assemblePrivadaDebug :app:assemblePrivadaRelease :app:assembleNubeDebug :app:assembleNubeRelease check :core:data:assembleDebugAndroidTest`
 y se revisa la diferencia del XML en el commit. Al regenerar, Gradle borra los
 comentarios del archivo: hay que restaurar el que explica `trusted-artifacts`.
 
@@ -607,6 +607,83 @@ accessibility-engineering. No encontró nada grave. Lo que se corrigió:
 
 ---
 
+## D-020 Distribución nube opcional y aislada de la app privada
+
+**Fecha:** 2026-11-21
+
+**Contexto:** el proyecto escolar (Hito 1) pide autenticación con Firebase Auth (correo y
+contraseña siguiendo OWASP) y un catálogo conectado a un backend Spring Boot, mientras que
+la app personal del autor es offline por diseño (D-005) y ya tiene datos reales en su S24 FE.
+
+**Decisión:**
+- Dos `productFlavors` en `:app` bajo la dimensión `distribucion`:
+  - `privada` (por omisión): conserva exactamente los paquetes anteriores
+    (`io.github.joako601.finanzas`, `.debug` y `.pruebas`) para actualizar sobre la app del
+    autor sin perder datos. Sin permiso `INTERNET`, sin código ni dependencias de Firebase, y
+    visualmente idéntica a antes.
+  - `nube`: usa `applicationIdSuffix = ".nube"` (`….nube`, `….nube.debug`), así convive en el
+    mismo teléfono sin tocar la base de la privada. Agrega el acceso "Cuenta y catálogo" en el
+    menú superior mediante `ContenidoApp.kt` por flavor, sin acoplar `app/src/main` a Firebase.
+- Nuevo módulo `:feature:nube`, consumido únicamente con `nubeImplementation(project(":feature:nube"))`.
+  Tiene prohibido depender de `:core:data`, así no puede abrir la base Room del usuario.
+- Guardia de dependencias (`gradle/guardia-dependencias.gradle.kts`, enganchada a `check`):
+  falla si el classpath de ejecución de `:core:domain`, `:core:data` o cualquier variante
+  `privada*` de `:app` incluye librerías de red/nube (`com.google.firebase`,
+  `com.google.android.gms`, `okhttp`, `retrofit`, `ktor`, etc.) o `:feature:nube`, y falla si
+  `:feature:nube` depende de `:core:data`. Compatible con la caché de configuración.
+- Guardia de permisos por flavor: `privada` mantiene exactamente la lista de D-005/D-015.
+  `nube` suma solo `android.permission.INTERNET` (declarado únicamente en
+  `app/src/nube/AndroidManifest.xml`) y `android.permission.ACCESS_NETWORK_STATE` (que agrega
+  `firebase-auth`). `com.google.android.recaptcha` (transitiva de `firebase-auth`) inyectaba
+  `com.google.android.providers.gsf.permission.READ_GSERVICES`; se retiró con
+  `tools:node="remove"` en `app/src/nube/AndroidManifest.xml` porque no hace falta para
+  correo/contraseña y amplía superficie de privacidad.
+- Firebase mínimo: solo `firebase-auth` vía `firebase-bom` `35.2.0` (sin Analytics,
+  Crashlytics ni Messaging). Se desactiva `FirebaseInitProvider` con `tools:node="remove"` y se
+  inicializa a mano con `FirebaseOptions` leídas de `firebase.properties` (en `.gitignore`;
+  plantilla en `firebase.properties.ejemplo`). Si falta el archivo, `nube` compila igual y
+  muestra un aviso en lugar de cerrarse.
+- Política de red (`network_security_config`) solo en `nube`: release exige HTTPS
+  (`cleartextTrafficPermitted="false"`); `nubeDebug` permite HTTP únicamente hacia `10.0.2.2`
+  y `localhost` para pruebas con el backend local.
+- Autenticación siguiendo OWASP: en login, cualquier error de correo/contraseña converge en
+  `ResultadoLogin.CredencialesInvalidas` (sin revelar si el correo existe); en recuperación,
+  `ERROR_USER_NOT_FOUND` responde `ResultadoRecuperacion.Enviado` por la misma razón.
+
+**Límite honesto:** en Android el permiso `INTERNET` se concede a todo el proceso de la app,
+no por módulo. En la distribución `nube`, si alguien agregara un `URL.openConnection()` en
+`:core:data`, el sistema operativo no lo bloquearía. La separación evita acoplamiento y
+garantiza que la distribución `privada` siga físicamente sin permiso ni librerías de red.
+
+**Cómo se verifica:** `./gradlew check :app:assemblePrivadaRelease :app:assembleNubeDebug`,
+`aapt2 dump permissions` sobre ambos APK y la contraprueba en `docs/verificacion.md` §2b.
+
+---
+
+## D-021 Navegación interna de `:feature:nube` con estado propio en lugar de Navigation Compose
+
+**Fecha:** 2026-11-21
+
+**Decisión:** la navegación dentro de `SeccionNube` usa un `enum class RutaNube` (`LOGIN`,
+`REGISTRO`, `CATALOGO`) con `when`, `rememberSaveable` y `BackHandler`, en lugar de
+Navigation Compose. La recuperación de contraseña es un diálogo (`DialogoRecuperar`) desde
+Login, y el cambio entre sin sesión y catálogo reacciona directamente a `EstadoSesion`.
+
+**Por qué:**
+- Solo hay tres destinos y un diálogo: un `when` sobre el estado de sesión se lee entero en un
+  archivo (`SeccionNube.kt`), evita inconsistencias entre el back stack y el estado de Firebase
+  (al cerrar sesión vuelves a Login automáticamente) y es trivial de probar.
+- No agrega Navigation Compose ni decenas de artefactos nuevos en `verification-metadata.xml`
+  (coherente con D-008).
+
+**Descartado:** Navigation Compose y Navigation 3; se reconsideran cuando la sección tenga
+flujos profundos con argumentos o enlaces profundos.
+
+**Cómo se verifica:** pruebas en la JVM de `RepositorioSesionTest` y compilación de las
+cuatro carpetas independientes (`login/`, `registro/`, `recuperar/`, `catalogo/`).
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |
@@ -625,4 +702,6 @@ accessibility-engineering. No encontró nada grave. Lo que se corrigió:
 | room-testing (solo pruebas) | `MigrationTestHelper`: crea la base en una versión anterior desde su esquema exportado, migra y valida contra el esquema nuevo (D-012) | Probar la migración con SQL suelto: no compara contra el esquema que Room espera |
 | espresso-core 3.7.0 (solo pruebas) | Lo usan por dentro las pruebas de Compose. La versión que traen (3.5.0) llama por reflexión a `InputManager.getInstance`, que ya no existe en Android 17: fallaba antes de probar nada en el S24 FE. Se fija la estable más nueva | Bajar el `targetSdk` o probar en otro teléfono: no arregla nada |
 | compose ui-test-junit4 y ui-test-manifest (solo pruebas) | Prueba de accesibilidad de la pantalla principal en el teléfono: revisa el árbol de semántica que lee TalkBack (nombre y 48 dp de todo lo tocable). Arrastra Espresso y Hamcrest, también solo de pruebas. Corre con el tipo de compilación `pruebas` (paquete `.pruebas`) porque las pruebas instrumentadas desinstalan la app al terminar | Robolectric: corre en la JVM pero descarga Android completo por su cuenta, fuera de la verificación de dependencias; Accessibility Scanner: manual |
+| firebase-bom 35.2.0 y firebase-auth (solo `:feature:nube` / flavor `nube`) | Autenticación por correo y contraseña en la distribución nube opcional (D-020), sin Analytics, Crashlytics ni Messaging. Fijado con BoM y hashes SHA-256 en `verification-metadata.xml` | Google Services plugin + `google-services.json`: obliga a meter credenciales en la configuración global y complica aislar la distribución privada |
+| lottie-compose 6.7.1 (`:app` y `:feature:nube`) | Animaciones vectoriales geométricas 100% locales desde `res/raw/` (éxito, error, carga y estados vacíos) respetando movimiento reducido, sin pedir permiso `INTERNET` ni arrastrar librerías de red (verificado en `privadaRelease`) | Animaciones dibujadas a mano en `Canvas` para cada estado: más código de mantenimiento para secuencias con Trim Paths y curvas cubic-bezier |
 | material-icons | **No se usa**: el único ícono se copió como vector XML | — |

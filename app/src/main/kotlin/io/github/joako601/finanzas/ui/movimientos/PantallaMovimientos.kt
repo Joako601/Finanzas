@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
@@ -48,12 +49,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.airbnb.lottie.compose.LottieConstants
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.ui.componentes.AnimacionLottie
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.iconoDe
@@ -109,6 +112,7 @@ fun PantallaMovimientos(
     tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
     lineaDeTiempoViewModel: LineaDeTiempoViewModel = viewModel(factory = LineaDeTiempoViewModel.Fabrica),
+    onAbrirNube: (() -> Unit)? = null,
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
@@ -149,6 +153,7 @@ fun PantallaMovimientos(
             if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
         },
         onRespaldo = { verRespaldo = true },
+        onAbrirNube = onAbrirNube,
     )
 
     if (verRespaldo) {
@@ -324,12 +329,13 @@ fun ContenidoMovimientos(
     accionesRecurrentes: AccionesRecurrentes,
     onTocarMovimiento: (MovimientoResumido) -> Unit,
     onRespaldo: () -> Unit,
+    onAbrirNube: (() -> Unit)? = null,
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall) },
-                actions = { MenuPrincipal(onRespaldo) },
+                actions = { MenuPrincipal(onRespaldo = onRespaldo, onAbrirNube = onAbrirNube) },
             )
         },
         floatingActionButton = {
@@ -397,13 +403,23 @@ fun ContenidoMovimientos(
 
             if (estado.dias.isEmpty()) {
                 item(key = "vacio") {
-                    Text(
-                        text = stringResource(R.string.sin_movimientos),
+                    Column(
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        AnimacionLottie(
+                            resId = R.raw.anim_finanzas_vacio,
+                            modifier = Modifier.size(112.dp),
+                            iteraciones = LottieConstants.IterateForever,
+                        )
+                        Text(
+                            text = stringResource(R.string.sin_movimientos),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
@@ -554,7 +570,10 @@ private fun etiqueta(movimiento: MovimientoResumido): String = when (movimiento.
 
 /** Menú de tres puntos de la barra superior: lo que no es del día a día. */
 @Composable
-private fun MenuPrincipal(onRespaldo: () -> Unit) {
+private fun MenuPrincipal(
+    onRespaldo: () -> Unit,
+    onAbrirNube: (() -> Unit)? = null,
+) {
     var abierto by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { abierto = true }) {
@@ -568,6 +587,15 @@ private fun MenuPrincipal(onRespaldo: () -> Unit) {
                     onRespaldo()
                 },
             )
+            if (onAbrirNube != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.cuenta_y_catalogo)) },
+                    onClick = {
+                        abierto = false
+                        onAbrirNube()
+                    },
+                )
+            }
         }
     }
 }

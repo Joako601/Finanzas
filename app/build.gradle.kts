@@ -46,6 +46,29 @@ android {
         }
     }
 
+    // Dos distribuciones de la misma app (D-020):
+    // - privada: la de siempre, sin red. Conserva EXACTAMENTE los paquetes de antes
+    //   (io.github.joako601.finanzas, .debug y .pruebas) para que Android la trate como la
+    //   misma app y el autor no pierda los datos de la que ya tiene instalada.
+    // - nube: agrega la sección opcional de cuenta y catálogo. Es otro paquete
+    //   (….nube, ….nube.debug), así que se instala junto a la privada sin tocar su base.
+    // La dimensión se aplica solo a :app; core:data y core:domain no tienen flavors y
+    // Gradle los consume igual desde las dos variantes (no hace falta missingDimensionStrategy,
+    // que es para el caso contrario: una librería con una dimensión que la app no tiene).
+    flavorDimensions += "distribucion"
+    productFlavors {
+        create("privada") {
+            dimension = "distribucion"
+            // Variante por omisión en Android Studio y en `lint`: la que usa el autor.
+            isDefault = true
+        }
+        create("nube") {
+            dimension = "distribucion"
+            applicationIdSuffix = ".nube"
+            versionNameSuffix = "-nube"
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -65,6 +88,8 @@ kotlin {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:data"))
+    // La sección nube solo entra en el flavor "nube"; nunca en "privada" (D-020).
+    "nubeImplementation"(project(":feature:nube"))
 
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -73,6 +98,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.lottie.compose)
 
     // Vista previa de Compose en Android Studio; solo en debug, no llega al APK de release.
     debugImplementation(libs.androidx.compose.ui.tooling)
@@ -147,13 +173,21 @@ androidComponents {
             // acceso a nada del sistema.
             // Los otros dos son los de los recordatorios (D-015): mostrar avisos y
             // reprogramarlos al reiniciar el teléfono. Ninguno da acceso a red.
+            // Solo la distribución nube (D-020) suma red: INTERNET para hablar con Firebase
+            // y el backend, y ACCESS_NETWORK_STATE, que firebase-auth declara para saber si
+            // hay conexión antes de intentar. La privada sigue sin ninguno de los dos.
+            val esNube = variant.flavorName == "nube"
             permitidos.set(
                 variant.applicationId.map {
                     listOf(
                         "$it.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
                         "android.permission.POST_NOTIFICATIONS",
                         "android.permission.RECEIVE_BOOT_COMPLETED",
-                    )
+                    ) + if (esNube) {
+                        listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE")
+                    } else {
+                        emptyList()
+                    }
                 },
             )
             reporte.set(layout.buildDirectory.file("reportes/permisos/${variant.name}.txt"))
@@ -161,3 +195,6 @@ androidComponents {
         tasks.named("check") { dependsOn(tarea) }
     }
 }
+
+// Guardia: las variantes privada* no pueden arrastrar librerías de red ni :feature:nube (D-020).
+apply(from = rootProject.file("gradle/guardia-dependencias.gradle.kts"))

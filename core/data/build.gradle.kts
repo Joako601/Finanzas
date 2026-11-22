@@ -52,3 +52,6 @@ dependencies {
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(kotlin("test"))
 }
+
+// Guardia: la capa de datos nunca puede depender de librerías de red ni de :feature:nube (D-020).
+apply(from = rootProject.file("gradle/guardia-dependencias.gradle.kts"))

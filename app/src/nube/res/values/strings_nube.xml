@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="bienvenida_nube_titulo">¿Cómo quieres usar Finanzas?</string>
+    <string name="bienvenida_nube_subtitulo">Puedes conectarte para usar funciones extra o entrar en modo privado solo en este teléfono.</string>
+
+    <string name="bienvenida_opcion_nube_titulo">Conectar a la nube</string>
+    <string name="bienvenida_opcion_nube_desc">Inicia sesión o crea tu cuenta para acceder al catálogo financiero y funciones extra. Tus movimientos siguen guardados localmente.</string>
+    <string name="bienvenida_opcion_nube_boton">Conectarme a la nube</string>
+
+    <string name="bienvenida_opcion_privado_titulo">Modo privado</string>
+    <string name="bienvenida_opcion_privado_desc">Usa tus finanzas solo en este teléfono, sin cuenta ni funciones de la nube.</string>
+    <string name="bienvenida_opcion_privado_boton">Entrar en modo privado</string>
+</resources>

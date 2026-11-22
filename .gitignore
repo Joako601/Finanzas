@@ -19,3 +19,8 @@ keystore.properties
 
 # Evidencia con datos personales: nunca al repositorio sin anonimizar
 evidencia/privado/
+
+# Credenciales de Firebase de la versión nube (D-020). La plantilla sin valores es
+# firebase.properties.ejemplo; el archivo real lo crea cada quien en su computadora.
+firebase.properties
+google-services.json

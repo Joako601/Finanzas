@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <!-- Diálogo de recuperación de contraseña -->
+    <string name="nube_recuperar_descripcion">Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</string>
+    <string name="nube_recuperar_correo_etiqueta">Correo electrónico</string>
+    <string name="nube_recuperar_correo_placeholder">nombre@correo.com</string>
+    <string name="nube_recuperar_enviar">Enviar enlace</string>
+    <string name="nube_recuperar_enviando">Enviando enlace de recuperación</string>
+    <string name="nube_recuperar_cancelar">Cancelar</string>
+    <string name="nube_recuperar_enviado_titulo">Revisa tu correo</string>
+    <string name="nube_recuperar_enviado_mensaje">Si existe una cuenta con ese correo, te enviamos un enlace para restablecer tu contraseña. Revisa tu bandeja de entrada y spam.</string>
+    <string name="nube_recuperar_entendido">Entendido</string>
+    <string name="nube_recuperar_error_correo_invalido">Escribe un correo electrónico válido.</string>
+    <string name="nube_recuperar_error_demasiados_intentos">Hiciste varios intentos seguidos. Espera unos minutos antes de volver a intentarlo.</string>
+    <string name="nube_recuperar_error_sin_conexion">Sin conexión a internet. Revisa tu red e inténtalo de nuevo.</string>
+    <string name="nube_recuperar_error_inesperado">No pudimos enviar el enlace en este momento. Inténtalo de nuevo más tarde.</string>
+
+    <!-- Diálogo de confirmación de cierre de sesión -->
+    <string name="nube_cerrar_sesion_confirmar_titulo">¿Cerrar sesión?</string>
+    <string name="nube_cerrar_sesion_confirmar_mensaje">Tendrás que iniciar sesión de nuevo para acceder a tu cuenta y al catálogo.</string>
+    <string name="nube_cerrar_sesion_cancelar">Cancelar</string>
+    <string name="nube_cerrar_sesion_confirmar">Cerrar sesión</string>
+    <string name="nube_cerrar_sesion_en_curso">Cerrando sesión</string>
+</resources>
