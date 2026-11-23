@@ -5,6 +5,8 @@ import io.github.joako601.finanzas.core.data.Datos
 import io.github.joako601.finanzas.core.data.respaldo.Respaldo
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
+import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
+import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
@@ -42,6 +44,9 @@ class Contenedor(context: Context) {
 
     val repositorioRecurrentes: RepositorioRecurrentes = datos.repositorioRecurrentes
     val servicioRecurrentes: ServicioRecurrentes = ServicioRecurrentes(repositorioLibro, repositorioRecurrentes)
+
+    val repositorioMetas: RepositorioMetas = datos.repositorioMetas
+    val servicioMetas: ServicioMetas = ServicioMetas(repositorioMetas)
 
     val respaldo: Respaldo = datos.respaldo
 

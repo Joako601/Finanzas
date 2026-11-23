@@ -1,0 +1,545 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "4f8fb5a871b4a897f09b2e3fb231d05d",
+    "entities": [
+      {
+        "tableName": "cuenta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `tipo` TEXT NOT NULL, `archivada` INTEGER NOT NULL, `orden` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivada",
+            "columnName": "archivada",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orden",
+            "columnName": "orden",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "movimiento",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `fecha` INTEGER NOT NULL, `descripcion` TEXT NOT NULL, `creado_en` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaDiaEpoca",
+            "columnName": "fecha",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "descripcion",
+            "columnName": "descripcion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "creadoEnMillis",
+            "columnName": "creado_en",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_movimiento_fecha",
+            "unique": false,
+            "columnNames": [
+              "fecha"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_movimiento_fecha` ON `${TABLE_NAME}` (`fecha`)"
+          }
+        ]
+      },
+      {
+        "tableName": "asiento",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `movimiento_id` INTEGER NOT NULL, `cuenta_id` INTEGER NOT NULL, `centavos` INTEGER NOT NULL, FOREIGN KEY(`movimiento_id`) REFERENCES `movimiento`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`cuenta_id`) REFERENCES `cuenta`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "movimientoId",
+            "columnName": "movimiento_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cuentaId",
+            "columnName": "cuenta_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "centavos",
+            "columnName": "centavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_asiento_movimiento_id",
+            "unique": false,
+            "columnNames": [
+              "movimiento_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_asiento_movimiento_id` ON `${TABLE_NAME}` (`movimiento_id`)"
+          },
+          {
+            "name": "index_asiento_cuenta_id",
+            "unique": false,
+            "columnNames": [
+              "cuenta_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_asiento_cuenta_id` ON `${TABLE_NAME}` (`cuenta_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "movimiento",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "movimiento_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "cuenta",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cuenta_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tarjeta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`cuenta_id` INTEGER NOT NULL, `linea_centavos` INTEGER NOT NULL, `dia_corte` INTEGER NOT NULL, `dia_limite` INTEGER NOT NULL, PRIMARY KEY(`cuenta_id`), FOREIGN KEY(`cuenta_id`) REFERENCES `cuenta`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "cuentaId",
+            "columnName": "cuenta_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lineaCentavos",
+            "columnName": "linea_centavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "diaCorte",
+            "columnName": "dia_corte",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "diaLimite",
+            "columnName": "dia_limite",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "cuenta_id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "cuenta",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "cuenta_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "estado_de_cuenta",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tarjeta_id` INTEGER NOT NULL, `fecha_corte` INTEGER NOT NULL, `fecha_limite` INTEGER NOT NULL, `pago_sin_intereses` INTEGER NOT NULL, `pago_minimo` INTEGER NOT NULL, `corte_predicho` INTEGER, `limite_predicho` INTEGER, `capturado_en` INTEGER NOT NULL, FOREIGN KEY(`tarjeta_id`) REFERENCES `tarjeta`(`cuenta_id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tarjetaId",
+            "columnName": "tarjeta_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaCorte",
+            "columnName": "fecha_corte",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaLimite",
+            "columnName": "fecha_limite",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pagoSinIntereses",
+            "columnName": "pago_sin_intereses",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pagoMinimo",
+            "columnName": "pago_minimo",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cortePredicho",
+            "columnName": "corte_predicho",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "limitePredicho",
+            "columnName": "limite_predicho",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "capturadoEnMillis",
+            "columnName": "capturado_en",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_estado_de_cuenta_tarjeta_id_fecha_corte",
+            "unique": true,
+            "columnNames": [
+              "tarjeta_id",
+              "fecha_corte"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_estado_de_cuenta_tarjeta_id_fecha_corte` ON `${TABLE_NAME}` (`tarjeta_id`, `fecha_corte`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tarjeta",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tarjeta_id"
+            ],
+            "referencedColumns": [
+              "cuenta_id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "recordatorio_entregado",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`clave` TEXT NOT NULL, `tipo` TEXT NOT NULL, `programado_en` INTEGER NOT NULL, `entregado_en` INTEGER NOT NULL, PRIMARY KEY(`clave`))",
+        "fields": [
+          {
+            "fieldPath": "clave",
+            "columnName": "clave",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tipo",
+            "columnName": "tipo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "programadoMillis",
+            "columnName": "programado_en",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entregadoMillis",
+            "columnName": "entregado_en",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "clave"
+          ]
+        }
+      },
+      {
+        "tableName": "recurrente",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `clase` TEXT NOT NULL, `monto_centavos` INTEGER NOT NULL, `categoria_id` INTEGER NOT NULL, `periodo` TEXT NOT NULL, `cada` INTEGER, `primer_dia` INTEGER, `segundo_dia` INTEGER, `inicio` INTEGER NOT NULL, `proxima` INTEGER NOT NULL, FOREIGN KEY(`categoria_id`) REFERENCES `cuenta`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "clase",
+            "columnName": "clase",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "montoCentavos",
+            "columnName": "monto_centavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "categoriaId",
+            "columnName": "categoria_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "periodo",
+            "columnName": "periodo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "cada",
+            "columnName": "cada",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "primerDia",
+            "columnName": "primer_dia",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "segundoDia",
+            "columnName": "segundo_dia",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "inicio",
+            "columnName": "inicio",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proxima",
+            "columnName": "proxima",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_recurrente_categoria_id",
+            "unique": false,
+            "columnNames": [
+              "categoria_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_recurrente_categoria_id` ON `${TABLE_NAME}` (`categoria_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "cuenta",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoria_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "tope_categoria",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`categoria_id` INTEGER NOT NULL, `limite_centavos` INTEGER NOT NULL, PRIMARY KEY(`categoria_id`), FOREIGN KEY(`categoria_id`) REFERENCES `cuenta`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+        "fields": [
+          {
+            "fieldPath": "categoriaId",
+            "columnName": "categoria_id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "limiteCentavos",
+            "columnName": "limite_centavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "categoria_id"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "cuenta",
+            "onDelete": "RESTRICT",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "categoria_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "meta_ahorro",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombre` TEXT NOT NULL, `objetivo_centavos` INTEGER NOT NULL, `apartado_centavos` INTEGER NOT NULL, `fecha_limite` INTEGER, `reservar_de_disponible` INTEGER NOT NULL, `archivada` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombre",
+            "columnName": "nombre",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "objetivoCentavos",
+            "columnName": "objetivo_centavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "apartadoCentavos",
+            "columnName": "apartado_centavos",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaLimite",
+            "columnName": "fecha_limite",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "reservarDeDisponible",
+            "columnName": "reservar_de_disponible",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "archivada",
+            "columnName": "archivada",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '4f8fb5a871b4a897f09b2e3fb231d05d')"
+    ]
+  }
+}

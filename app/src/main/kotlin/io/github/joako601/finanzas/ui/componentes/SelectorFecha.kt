@@ -26,11 +26,17 @@ private const val MILIS_POR_DIA = 86_400_000L
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SelectorFecha(fecha: LocalDate, onCambiar: (LocalDate) -> Unit, etiqueta: String? = null) {
+fun SelectorFecha(
+    fecha: LocalDate,
+    onCambiar: (LocalDate) -> Unit,
+    etiqueta: String? = null,
+    habilitado: Boolean = true,
+) {
     var mostrarCalendario by rememberSaveable { mutableStateOf(false) }
 
     AssistChip(
         onClick = { mostrarCalendario = true },
+        enabled = habilitado,
         label = {
             Text(
                 text = listOfNotNull(etiqueta, fecha.formatoCorto()).joinToString(": "),

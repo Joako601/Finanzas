@@ -9,6 +9,8 @@ import io.github.joako601.finanzas.FinanzasApp
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.metas.AnalizadorMetas
+import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
@@ -41,6 +43,7 @@ class AnalisisViewModel(
     libro: RepositorioLibro,
     tarjetas: RepositorioTarjetas,
     recurrentes: RepositorioRecurrentes,
+    metas: RepositorioMetas,
     fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
@@ -54,8 +57,8 @@ class AnalisisViewModel(
     val estado: StateFlow<EstadoAnalisis> = combine(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
         combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
-        dias,
-    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), hoy ->
+        combine(metas.observarMetas(), dias, ::Pair),
+    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (listaMetas, hoy) ->
         val porId = cuentas.associateBy { it.id }
         val tieneCuentas = cuentas.any { !it.archivada && it.tipo == TipoCuenta.ACTIVO }
         val linea = LineaDeTiempo.calcular(
@@ -78,7 +81,11 @@ class AnalisisViewModel(
         EstadoAnalisis(
             cargando = false,
             tieneCuentasDeDinero = tieneCuentas,
-            estadoLinea = EstadoLineaDeTiempo(linea = linea, categorias = porId),
+            estadoLinea = EstadoLineaDeTiempo(
+                linea = linea,
+                categorias = porId,
+                desgloseMetas = AnalizadorMetas.calcularDesgloseDisponible(linea.disponible, listaMetas),
+            ),
             cortes = cortes,
         )
     }
@@ -93,6 +100,7 @@ class AnalisisViewModel(
                     libro = contenedor.repositorioLibro,
                     tarjetas = contenedor.repositorioTarjetas,
                     recurrentes = contenedor.repositorioRecurrentes,
+                    metas = contenedor.repositorioMetas,
                     fechaDeHoy = ::hoy,
                 )
             }

@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.joako601.finanzas.core.data.CATEGORIA_PREDIAL
 import io.github.joako601.finanzas.core.data.FinanzasDatabase
 import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
+import io.github.joako601.finanzas.core.data.metas.RepositorioMetasRoom
 import io.github.joako601.finanzas.core.data.recurrentes.RepositorioRecurrentesRoom
 import io.github.joako601.finanzas.core.data.tarjetas.RepositorioTarjetasRoom
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
@@ -15,6 +16,7 @@ import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
 import io.github.joako601.finanzas.core.domain.recurrentes.Periodicidad
 import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.ServicioTarjetas
@@ -74,6 +76,9 @@ class RespaldoTest {
         ServicioRecurrentes(libro, RepositorioRecurrentesRoom(base.recurrentesDao())).crear(
             "Quincena", ClaseRegistro.INGRESO, Dinero.pesos(9_000), cuenta("Sueldo"), Periodicidad.QUINCENAL, hoy, hoy,
         )
+        val metas = ServicioMetas(RepositorioMetasRoom(base.metasDao()))
+        metas.guardarTope(cuenta("Súper y despensa"), Dinero.pesos(4_000))
+        metas.crearMeta("Fondo de emergencia", Dinero.pesos(20_000), Dinero.pesos(3_500), LocalDate(2027, 6, 30))
     }
 
     /** Todas las filas de todas las tablas de datos, como texto, para comparar dos bases. */

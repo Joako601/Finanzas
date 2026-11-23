@@ -75,6 +75,7 @@ import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.metas.DesgloseDisponibleMetas
 import io.github.joako601.finanzas.ui.componentes.AnimacionLottie
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
@@ -177,6 +178,7 @@ fun PantallaMovimientos(
             onEditarCuenta = viewModel::abrirEditarCuenta,
             onTransferir = viewModel::abrirTransferencia,
             lineaDeTiempo = estadoLinea.linea,
+            desgloseMetas = estadoLinea.desgloseMetas,
             onVerLineaDeTiempo = { verLineaDeTiempo = true },
             accionesTarjetas = AccionesTarjetas(
                 agregar = tarjetasViewModel::abrirNuevaTarjeta,
@@ -461,6 +463,7 @@ fun ContenidoMovimientos(
     onAbrirNube: (() -> Unit)? = null,
     margenInferiorExtra: Dp = 0.dp,
     onEditarCuenta: (SaldoCuenta) -> Unit = {},
+    desgloseMetas: DesgloseDisponibleMetas? = null,
 ) {
     Scaffold(
         topBar = {
@@ -513,6 +516,7 @@ fun ContenidoMovimientos(
                 TarjetaSaldos(
                     estado = estado,
                     linea = lineaDeTiempo,
+                    desgloseMetas = desgloseMetas,
                     onAgregarCuenta = onAgregarCuenta,
                     onEditarCuenta = onEditarCuenta,
                     onTransferir = onTransferir,
@@ -601,6 +605,7 @@ fun ContenidoMovimientos(
 private fun TarjetaSaldos(
     estado: EstadoMovimientos,
     linea: LineaDeTiempo?,
+    desgloseMetas: DesgloseDisponibleMetas?,
     onAgregarCuenta: () -> Unit,
     onEditarCuenta: (SaldoCuenta) -> Unit,
     onTransferir: () -> Unit,
@@ -620,7 +625,7 @@ private fun TarjetaSaldos(
                 // No se muestra otra cifra mientras tanto, para que la principal no cambie de significado.
                 CircularProgressIndicator(Modifier.padding(vertical = 8.dp))
             } else {
-                ResumenDisponible(linea)
+                ResumenDisponible(linea, desgloseMetas)
             }
             TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp), enabled = linea != null) {
                 Text(stringResource(R.string.ver_proximos_30_dias))

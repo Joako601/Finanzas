@@ -17,9 +17,18 @@ private val formatoDiaConAnio: DateTimeFormatter = DateTimeFormatter.ofPattern("
 private val formatoCorto: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy", localeMexico)
 private val patronDiaCorto: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMM", localeMexico)
 private val patronDiaCortoOtroAnio: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE d MMM yyyy", localeMexico)
+private val formatoMes: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM", localeMexico)
 
 /** La fecha de hoy según la zona horaria del teléfono. */
 fun hoy(): LocalDate = java.time.LocalDate.now().toKotlinLocalDate()
+
+/** "Noviembre": nombre del mes con inicial mayúscula en español de México. */
+fun LocalDate.formatoMes(): String =
+    toJavaLocalDate().format(formatoMes).replaceFirstChar { it.titlecase(localeMexico) }
+
+/** "noviembre": nombre del mes en minúscula para usar en medio de una frase. */
+fun LocalDate.formatoMesEnFrase(): String =
+    toJavaLocalDate().format(formatoMes).lowercase(localeMexico)
 
 /** "lunes 16 de noviembre"; agrega el año si no es el actual. */
 fun LocalDate.formatoEncabezado(hoy: LocalDate): String {

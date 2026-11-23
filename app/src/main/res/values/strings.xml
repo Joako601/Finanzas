@@ -331,4 +331,123 @@
     <!-- Hoja de captura rápida -->
     <string name="ver_todas_categorias">Ver todas (%1$d)</string>
     <string name="ver_menos_categorias">Ver menos</string>
+
+    <!-- Metas y Topes mensuales (pestaña 3) -->
+    <string name="metas_tab_topes">Topes</string>
+    <string name="metas_tab_ahorro">Ahorro</string>
+    <string name="metas_topes_mes_dia">%1$s · Día %2$d de %3$d</string>
+    <string name="metas_topes_gastado_titulo">Gastado en tus topes</string>
+    <string name="metas_topes_de_limite">de %1$s</string>
+    <plurals name="metas_topes_restante_dias">
+        <item quantity="one">Te quedan %1$s para %2$d día</item>
+        <item quantity="other">Te quedan %1$s para %2$d días</item>
+    </plurals>
+    <string name="metas_topes_restante_ultimo_dia">Te quedan %1$s · Último día del mes</string>
+    <string name="metas_topes_sin_margen">Sin margen restante este mes</string>
+    <string name="metas_topes_restante_por_dia">Te quedan %1$s (%2$s/día)</string>
+    <string name="metas_topes_excedido_por">Excedido por %1$s</string>
+    <string name="metas_ritmo_en_ritmo">En ritmo</string>
+    <string name="metas_ritmo_alto">Ritmo alto</string>
+    <string name="metas_ritmo_excedido">Excedido</string>
+    <string name="metas_agregar_tope">Agregar tope mensual</string>
+    <string name="metas_nuevo_tope">Nuevo tope mensual</string>
+    <string name="metas_editar_tope">Editar tope</string>
+    <string name="metas_eliminar_tope">Eliminar tope</string>
+    <string name="metas_eliminar_tope_pregunta">¿Eliminar este tope mensual?</string>
+    <string name="metas_eliminar_tope_texto">Tus movimientos y categorías no se borran; solo dejarás de seguir un límite mensual en %1$s.</string>
+    <string name="metas_limite_mensual">Límite mensual</string>
+    <string name="metas_sugerencia_promedio">Promedio reciente: %1$s/mes</string>
+    <string name="metas_sugerencia_mes_pasado">Mes pasado: %1$s</string>
+    <string name="metas_sugerencia_mes_actual">Gasto este mes: %1$s</string>
+    <string name="metas_usar_sugerencia">Usar %1$s</string>
+    <string name="metas_error_sin_categoria">Elige una categoría</string>
+    <string name="metas_error_monto_tope">Escribe un límite mayor a $0</string>
+    <string name="metas_topes_vacio_titulo">Límites tranquilos por categoría</string>
+    <string name="metas_topes_vacio_texto">No necesitas presupuestar cada peso. Pon un tope solo en las categorías que quieres cuidar y te mostraremos si vas a buen ritmo para el día del mes.</string>
+    <string name="metas_topes_sugeridas_label">Empieza en un toque:</string>
+    <string name="metas_topes_ver_detalle">Ver detalle del tope</string>
+    <plurals name="metas_topes_resumen_conteos_excedidos">
+        <item quantity="one">%1$d excedido</item>
+        <item quantity="other">%1$d excedidos</item>
+    </plurals>
+    <string name="metas_topes_resumen_conteos_alto">%1$d con ritmo alto</string>
+    <string name="metas_topes_resumen_conteos_bien">%1$d en ritmo</string>
+    <string name="metas_detalle_mes_pasado">Mes pasado: %1$s</string>
+    <string name="metas_detalle_sin_mes_pasado">Sin gastos el mes pasado</string>
+    <string name="metas_detalle_movimientos_titulo">Gastos de %1$s</string>
+    <string name="metas_detalle_sin_movimientos">Todavía no hay gastos en esta categoría este mes.</string>
+    <string name="metas_barra_cd">Progreso del tope: %1$d por ciento gastado. Día %2$d de %3$d del mes.</string>
+
+    <!-- Apartados / Metas de ahorro (Tanda 2) -->
+    <string name="metas_ahorro_vacio_titulo">Apartados de ahorro sin mover cuentas</string>
+    <string name="metas_ahorro_vacio_texto">Separa dinero para un fondo de emergencia, gastos anuales o un viaje sin alterar el saldo real de tus cuentas de efectivo o débito.</string>
+    <string name="metas_ahorro_plantillas_label">Empieza con una plantilla:</string>
+    <string name="metas_plantilla_emergencia">Fondo de emergencia</string>
+    <string name="metas_plantilla_anuales">Gastos anuales</string>
+    <string name="metas_plantilla_viaje">Viaje o compra</string>
+    <string name="metas_ahorro_nueva">Nueva meta de ahorro</string>
+    <string name="metas_ahorro_editar">Editar meta</string>
+    <string name="metas_ahorro_eliminar">Eliminar meta</string>
+    <string name="metas_ahorro_eliminar_pregunta">¿Eliminar esta meta de ahorro?</string>
+    <string name="metas_ahorro_eliminar_texto">Se borrará la meta %1$s. Tus cuentas y movimientos reales no cambian.</string>
+    <string name="metas_ahorro_total_apartado">Total apartado</string>
+    <string name="metas_ahorro_reservado_disponible">Con reserva activa: %1$s</string>
+    <string name="metas_ahorro_sobre_reserva">Tus apartados reservados superan tu saldo actual en cuentas por %1$s.</string>
+    <string name="metas_ahorro_sin_activas">No tienes metas activas por ahora. Crea una nueva o reactiva alguna archivada.</string>
+    <plurals name="metas_ahorro_en_curso">
+        <item quantity="one">%1$d en curso</item>
+        <item quantity="other">%1$d en curso</item>
+    </plurals>
+    <plurals name="metas_ahorro_completadas">
+        <item quantity="one">%1$d completada</item>
+        <item quantity="other">%1$d completadas</item>
+    </plurals>
+    <string name="metas_ahorro_estado_completada">Completada</string>
+    <string name="metas_ahorro_estado_fecha">Fecha alcanzada</string>
+    <string name="metas_ahorro_estado_en_curso">En curso</string>
+    <string name="metas_ahorro_estado_archivada">Archivada</string>
+    <string name="metas_ahorro_de_objetivo_pct">de %1$s · %2$d%%</string>
+    <string name="metas_ahorro_meta_alcanzada">Meta alcanzada</string>
+    <string name="metas_ahorro_meta_alcanzada_extra">Meta alcanzada (+%1$s)</string>
+    <string name="metas_ahorro_fecha_alcanzada_falta">Fecha alcanzada · Te faltan %1$s</string>
+    <string name="metas_ahorro_falta_y_quincena">Te faltan %1$s · Sugerido: %2$s/quincena</string>
+    <string name="metas_ahorro_falta_y_mes">Sugerido: %1$s/mes</string>
+    <plurals name="metas_ahorro_falta_dias">
+        <item quantity="one">Te faltan %1$s · Falta %2$d día</item>
+        <item quantity="other">Te faltan %1$s · Faltan %2$d días</item>
+    </plurals>
+    <string name="metas_ahorro_solo_falta">Te faltan %1$s</string>
+    <string name="metas_ahorro_aportar">Aportar</string>
+    <string name="metas_ahorro_retirar_usar">Retirar / Usar</string>
+    <string name="metas_ahorro_aportar_titulo">Aportar a %1$s</string>
+    <string name="metas_ahorro_retirar_titulo">Retirar de %1$s</string>
+    <string name="metas_ahorro_completar_chip">Completar (%1$s)</string>
+    <string name="metas_ahorro_todo_chip">Todo (%1$s)</string>
+    <string name="metas_ahorro_archivar_al_vaciar">Archivar meta al usar todo</string>
+    <string name="metas_ahorro_archivar">Archivar meta</string>
+    <string name="metas_ahorro_reactivar">Reactivar meta</string>
+    <string name="metas_ahorro_archivadas_mostrar">Ver archivadas (%1$d)</string>
+    <string name="metas_ahorro_archivadas_ocultar">Ocultar archivadas</string>
+    <string name="metas_ahorro_nombre_label">Nombre de la meta</string>
+    <string name="metas_ahorro_objetivo_label">Objetivo</string>
+    <string name="metas_ahorro_apartado_inicial_label">Ya tengo apartado (opcional)</string>
+    <string name="metas_ahorro_tiene_fecha">Definir fecha límite</string>
+    <string name="metas_ahorro_fecha_limite">Fecha límite</string>
+    <string name="metas_ahorro_reservar_toggle">Reservar de mi disponible</string>
+    <string name="metas_ahorro_reservar_ayuda">Te recuerda que este dinero ya tiene destino sin mover tus cuentas reales.</string>
+    <string name="metas_ahorro_reserva_activa">Reserva activa</string>
+    <string name="metas_ahorro_reserva_inactiva">Solo seguimiento</string>
+    <string name="metas_ahorro_error_objetivo">Escribe un objetivo mayor a $0</string>
+    <string name="metas_ahorro_error_apartado">Escribe una cantidad válida</string>
+    <string name="metas_ahorro_error_supera_apartado">No puede superar lo apartado (%1$s)</string>
+    <string name="metas_ahorro_ver_detalle">Ver detalle de la meta</string>
+    <string name="metas_ahorro_barra_cd">Progreso de ahorro: %1$d por ciento reunido.</string>
+
+    <!-- Conexión con Disponible Real (Tanda 3) -->
+    <string name="disponible_apartado_en_metas">Apartado en metas</string>
+    <string name="disponible_libre_para_gastar">Libre para gastar</string>
+    <string name="disponible_apartados_exceden">Tus apartados exceden tu disponible por %1$s.</string>
+    <string name="disponible_apartados_sin_respaldo">Sin respaldo libre mientras tengas pagos por cubrir.</string>
+    <string name="disponible_apartados_sin_saldo">Sin saldo disponible para respaldar tus apartados.</string>
+    <string name="disponible_seccion_apartados">Apartados reservados</string>
 </resources>

@@ -2,11 +2,13 @@ package io.github.joako601.finanzas.core.data
 
 import android.content.Context
 import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
+import io.github.joako601.finanzas.core.data.metas.RepositorioMetasRoom
 import io.github.joako601.finanzas.core.data.recordatorios.RepositorioRecordatoriosRoom
 import io.github.joako601.finanzas.core.data.recurrentes.RepositorioRecurrentesRoom
 import io.github.joako601.finanzas.core.data.respaldo.Respaldo
 import io.github.joako601.finanzas.core.data.tarjetas.RepositorioTarjetasRoom
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
+import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
@@ -27,6 +29,8 @@ public class Datos private constructor(context: Context, baseDeDatos: FinanzasDa
         RepositorioRecordatoriosRoom(baseDeDatos.recordatoriosDao())
 
     public val repositorioRecurrentes: RepositorioRecurrentes = RepositorioRecurrentesRoom(baseDeDatos.recurrentesDao())
+
+    public val repositorioMetas: RepositorioMetas = RepositorioMetasRoom(baseDeDatos.metasDao())
 
     /** Respaldo cifrado de toda la base y su restauración (D-018). */
     public val respaldo: Respaldo = Respaldo(context, baseDeDatos)
