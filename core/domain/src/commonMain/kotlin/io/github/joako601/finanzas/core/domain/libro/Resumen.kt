@@ -116,10 +116,10 @@ public fun saldosPorCuenta(movimientos: Iterable<Movimiento>): Map<CuentaId, Din
 }
 
 /**
- * Suma de los saldos de las cuentas de activo (efectivo y débito).
+ * Suma de los saldos de las cuentas de activo vigentes (efectivo y débito no archivadas).
  *
  * Deliberadamente NO se llama "disponible real": esa cifra resta lo comprometido
  * (tarjetas, MSI, pagos recurrentes) y llega en una fase posterior.
  */
 public fun totalEnCuentas(cuentas: Iterable<Cuenta>, saldos: Map<CuentaId, Dinero>): Dinero =
-    cuentas.filter { it.tipo == TipoCuenta.ACTIVO }.map { saldos[it.id] ?: Dinero.CERO }.sumar()
+    cuentas.filter { it.tipo == TipoCuenta.ACTIVO && !it.archivada }.map { saldos[it.id] ?: Dinero.CERO }.sumar()

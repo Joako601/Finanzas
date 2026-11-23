@@ -112,7 +112,7 @@ object CalculadorAnalisis {
 
         // 1. Curva de liquidez unificada: [-nDias .. hoy .. +30 días]
         val cuentasActivo = cuentasPorId.values
-            .filter { it.tipo == TipoCuenta.ACTIVO }
+            .filter { it.tipo == TipoCuenta.ACTIVO && !it.archivada }
             .map { it.id }
             .toSet()
 
@@ -168,7 +168,7 @@ object CalculadorAnalisis {
             puntos.add(
                 PuntoLiquidez(
                     fecha = fecha,
-                    saldo = if (esHoy) linea.enCuentas else saldosHistoricos[i],
+                    saldo = saldosHistoricos[i],
                     fase = if (esHoy) FasePuntoLiquidez.HOY else FasePuntoLiquidez.HISTORICO,
                     deltaDia = delta,
                     tieneActividad = conteo > 0 || eventosEnHoy.any { it.tipo != TipoEvento.CORTE },

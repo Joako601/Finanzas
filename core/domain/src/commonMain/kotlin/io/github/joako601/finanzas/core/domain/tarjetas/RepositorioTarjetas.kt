@@ -2,7 +2,9 @@ package io.github.joako601.finanzas.core.domain.tarjetas
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
+import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import kotlinx.coroutines.flow.Flow
+import kotlinx.datetime.LocalDate
 
 /**
  * Puerto de persistencia de las tarjetas y sus estados de cuenta. La cuenta de pasivo de
@@ -27,4 +29,7 @@ public interface RepositorioTarjetas {
      * corte, lo reemplaza (el usuario corrigió una captura).
      */
     public suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta)
+
+    /** Elimina un estado de cuenta específico por tarjeta y fecha de corte (al corregir la fecha de corte). */
+    public suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate)
 }

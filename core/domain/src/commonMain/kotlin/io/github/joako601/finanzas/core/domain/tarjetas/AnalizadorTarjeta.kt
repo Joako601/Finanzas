@@ -74,6 +74,8 @@ public enum class CategoriaSimulacionPago {
     LIQUIDACION_TOTAL,
     /** El monto supera la deuda total actual y deja saldo a favor en la tarjeta. */
     SALDO_A_FAVOR,
+    /** No hay estado de cuenta capturado con corte exigible; un pago parcial podría generar intereses. */
+    SIN_ESTADO_CAPTURADO,
     /** Cubre el pago mínimo (evita mora), pero deja saldo financiado que generará intereses + IVA. */
     GENERA_INTERESES_ORDINARIOS,
     /** No alcanza siquiera el pago mínimo pendiente: riesgo de comisión por falta de pago y mora. */
@@ -288,6 +290,8 @@ public object AnalizadorTarjeta {
                 CategoriaSimulacionPago.SALDO_A_FAVOR
             deudaTotal.esPositivo && monto == deudaTotal ->
                 CategoriaSimulacionPago.LIQUIDACION_TOTAL
+            progreso == null && deudaTotal.esPositivo && monto < deudaTotal ->
+                CategoriaSimulacionPago.SIN_ESTADO_CAPTURADO
             else ->
                 CategoriaSimulacionPago.SIN_INTERESES
         }

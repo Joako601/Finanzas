@@ -100,7 +100,12 @@ internal object CifradoRespaldo {
         val especificacion = PBEKeySpec(contrasena, sal, iteraciones, 256)
         try {
             val bytes = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(especificacion).encoded
-            return SecretKeySpec(bytes, "AES")
+            return try {
+                // SecretKeySpec clona el arreglo internamente; limpiamos la copia cruda de inmediato.
+                SecretKeySpec(bytes, "AES")
+            } finally {
+                bytes.fill(0)
+            }
         } finally {
             especificacion.clearPassword()
         }

@@ -11,12 +11,15 @@ import io.github.joako601.finanzas.core.data.respaldo.Respaldo
 import io.github.joako601.finanzas.core.domain.exportacion.ExportacionCsv
 import io.github.joako601.finanzas.ui.hoy
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.LocalDate
 
 /** Leer y escribir el archivo que el usuario eligió con el selector de Android (URI de contenido). */
@@ -42,7 +45,7 @@ class OperacionesRespaldo(
     val csv: suspend () -> String,
 )
 
-enum class Tarea { CREANDO, EXPORTANDO }
+enum class Tarea { CREANDO, EXPORTANDO, LEYENDO, RESTAURANDO }
 
 /** Resultado de la última acción, que la hoja muestra hasta la siguiente. */
 enum class Aviso {
@@ -90,6 +93,7 @@ class RespaldoViewModel(
     private val operaciones: OperacionesRespaldo,
     private val archivos: Archivos,
     private val ultimoRespaldo: UltimoRespaldo,
+    private val despachadorCalculo: CoroutineDispatcher = Dispatchers.Default,
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
@@ -118,7 +122,7 @@ class RespaldoViewModel(
     fun validarNuevo(): Boolean {
         val actual = _nuevo.value ?: return false
         val error = when {
-            actual.contrasena.length < MINIMO_CONTRASENA -> ErrorContrasena.CORTA
+            actual.contrasena.trim().length < MINIMO_CONTRASENA -> ErrorContrasena.CORTA
             actual.contrasena != actual.confirmacion -> ErrorContrasena.NO_COINCIDE
             else -> null
         }
@@ -145,7 +149,12 @@ class RespaldoViewModel(
         }
         _nuevo.value = null
         trabajar(Tarea.CREANDO, archivo = uri) {
-            val sobre = operaciones.crear(actual.contrasena.toCharArray())
+            val clave = actual.contrasena.toCharArray()
+            val sobre = try {
+                operaciones.crear(clave)
+            } finally {
+                clave.fill('\u0000')
+            }
             archivos.escribir(uri, sobre)
             val hoy = fechaDeHoy()
             ultimoRespaldo.guardar(hoy)
@@ -156,7 +165,10 @@ class RespaldoViewModel(
     fun exportarCsv(uri: String?) {
         if (uri == null) return
         trabajar(Tarea.EXPORTANDO, archivo = uri) {
-            archivos.escribir(uri, operaciones.csv().encodeToByteArray())
+            val bytes = withContext(despachadorCalculo) {
+                operaciones.csv().encodeToByteArray()
+            }
+            archivos.escribir(uri, bytes)
             avisar(Aviso.CSV_GUARDADO)
         }
     }
@@ -169,20 +181,26 @@ class RespaldoViewModel(
     /** Lee el archivo elegido y, si parece un respaldo, pide la contraseña. */
     fun elegirParaRestaurar(uri: String?) {
         if (uri == null) return
+        if (_estado.value.tarea != null) return
+        _estado.update { it.copy(tarea = Tarea.LEYENDO, aviso = null) }
         viewModelScope.launch {
-            val sobre = try {
-                archivos.leer(uri)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                avisar(Aviso.NO_SE_PUDO_LEER)
-                return@launch
-            }
-            if (operaciones.pareceRespaldo(sobre)) {
-                avisar(null)
-                _porRestaurar.value = PorRestaurar(sobre)
-            } else {
-                avisar(Aviso.NO_ES_RESPALDO)
+            try {
+                val sobre = try {
+                    archivos.leer(uri)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    avisar(Aviso.NO_SE_PUDO_LEER)
+                    return@launch
+                }
+                if (operaciones.pareceRespaldo(sobre)) {
+                    avisar(null)
+                    _porRestaurar.value = PorRestaurar(sobre)
+                } else {
+                    avisar(Aviso.NO_ES_RESPALDO)
+                }
+            } finally {
+                _estado.update { it.copy(tarea = null) }
             }
         }
     }
@@ -197,11 +215,13 @@ class RespaldoViewModel(
 
     fun confirmarRestaurar() {
         val actual = _porRestaurar.value ?: return
-        if (actual.trabajando) return
+        if (actual.trabajando || _estado.value.tarea != null) return
         _porRestaurar.value = actual.copy(trabajando = true)
+        _estado.update { it.copy(tarea = Tarea.RESTAURANDO, aviso = null) }
         viewModelScope.launch {
+            val clave = actual.contrasena.toCharArray()
             try {
-                operaciones.restaurar(actual.sobre, actual.contrasena.toCharArray())
+                operaciones.restaurar(actual.sobre, clave)
                 _porRestaurar.value = null
                 avisar(Aviso.DATOS_RESTAURADOS)
             } catch (e: ErrorRespaldo) {
@@ -211,6 +231,9 @@ class RespaldoViewModel(
             } catch (e: Exception) {
                 // Un error inesperado de la base: la transacción se deshizo y no cambió nada.
                 _porRestaurar.value = actual.copy(error = ErrorRespaldo.Motivo.BASE_INVALIDA, trabajando = false)
+            } finally {
+                clave.fill('\u0000')
+                _estado.update { it.copy(tarea = null) }
             }
         }
     }
@@ -258,11 +281,14 @@ class RespaldoViewModel(
                         restaurar = contenedor.respaldo::restaurar,
                         pareceRespaldo = Respaldo::pareceRespaldo,
                         csv = {
-                            val libro = contenedor.repositorioLibro
-                            ExportacionCsv.generar(
-                                libro.observarMovimientos().first(),
-                                libro.observarCuentas().first().associateBy { it.id },
-                            )
+                            withContext(Dispatchers.Default) {
+                                val libro = contenedor.repositorioLibro
+                                libro.enTransaccion {
+                                    val movimientos = libro.observarMovimientos().first()
+                                    val cuentas = libro.observarCuentas().first().associateBy { it.id }
+                                    ExportacionCsv.generar(movimientos, cuentas)
+                                }
+                            }
                         },
                     ),
                     archivos = ArchivosDelSistema(app.contentResolver),

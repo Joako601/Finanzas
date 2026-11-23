@@ -7,6 +7,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.joako601.finanzas.FinanzasApp
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
@@ -25,6 +26,9 @@ import io.github.joako601.finanzas.core.domain.metas.ResumenMetasAhorro
 import io.github.joako601.finanzas.core.domain.metas.ResumenTopesMes
 import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
 import io.github.joako601.finanzas.core.domain.metas.SugerenciaTope
+import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
+import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
+import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 import io.github.joako601.finanzas.ui.hoy
 import io.github.joako601.finanzas.ui.movimientos.textoEditable
@@ -132,6 +136,8 @@ data class AccionDetalleMeta(
  */
 class MetasViewModel(
     libro: RepositorioLibro,
+    tarjetas: RepositorioTarjetas,
+    recurrentes: RepositorioRecurrentes,
     repositorioMetas: RepositorioMetas,
     private val servicio: ServicioMetas,
     private val fechaDeHoy: () -> LocalDate,
@@ -146,8 +152,19 @@ class MetasViewModel(
 
     val estado: StateFlow<EstadoMetas> = combine(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
+        combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
         combine(repositorioMetas.observarTopes(), repositorioMetas.observarMetas(), dias, ::Triple),
-    ) { (cuentas, saldos, movimientos), (topes, metas, hoy) ->
+    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (topes, metas, hoy) ->
+        val porId = cuentas.associateBy { it.id }
+        val linea = LineaDeTiempo.calcular(
+            cuentas = cuentas,
+            saldos = saldos,
+            tarjetas = listaTarjetas,
+            estados = estados,
+            pagos = pagosATarjetas(movimientos, porId),
+            recurrentes = listaRecurrentes,
+            hoy = hoy,
+        )
         val resumenTopes = AnalizadorTopes.analizar(
             topes = topes,
             cuentas = cuentas,
@@ -159,6 +176,7 @@ class MetasViewModel(
             cuentas = cuentas,
             saldos = saldos,
             hoy = hoy,
+            disponibleReal = linea.disponible,
         )
         val sugerencias = AnalizadorTopes.sugerenciasPorCategoria(
             cuentas = cuentas,
@@ -639,6 +657,8 @@ class MetasViewModel(
                 val contenedor = (this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY] as FinanzasApp).contenedor
                 MetasViewModel(
                     libro = contenedor.repositorioLibro,
+                    tarjetas = contenedor.repositorioTarjetas,
+                    recurrentes = contenedor.repositorioRecurrentes,
                     repositorioMetas = contenedor.repositorioMetas,
                     servicio = contenedor.servicioMetas,
                     fechaDeHoy = ::hoy,

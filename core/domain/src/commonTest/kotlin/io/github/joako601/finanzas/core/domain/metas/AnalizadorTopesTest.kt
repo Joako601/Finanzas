@@ -158,4 +158,21 @@ class AnalizadorTopesTest {
         )
         assertEquals(EstadoRitmoTope.EN_RITMO, resumen.topes.single().ritmo)
     }
+
+    @Test
+    fun sugerencia_distingue_mes_pasado_de_un_mes_mas_antiguo() {
+        val hoy = LocalDate(2026, 11, 15)
+        val transporte = Cuenta(CuentaId(9), "Transporte", TipoCuenta.GASTO)
+        val cuentasExt = cuentas + transporte
+        val movimientos = listOf(
+            // Comida: gasto solo en octubre (el mes pasado) -> esDelMesAnterior = true
+            Registro.gasto(LocalDate(2026, 10, 10), Dinero.pesos(1_200), efectivo, comida),
+            // Transporte: gasto solo en septiembre (hace 2 meses) -> esDelMesAnterior = false
+            Registro.gasto(LocalDate(2026, 9, 10), Dinero.pesos(800), efectivo, transporte),
+        )
+        val sugerencias = AnalizadorTopes.sugerenciasPorCategoria(cuentasExt, movimientos, hoy)
+        assertEquals(true, sugerencias[comida.id]?.esDelMesAnterior)
+        assertEquals(false, sugerencias[transporte.id]?.esDelMesAnterior)
+        assertEquals(1, sugerencias[transporte.id]?.mesesConDatos)
+    }
 }

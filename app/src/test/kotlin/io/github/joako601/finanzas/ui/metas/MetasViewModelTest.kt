@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.ui.metas
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.Movimiento
@@ -16,6 +17,13 @@ import io.github.joako601.finanzas.core.domain.metas.MetaAhorroId
 import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
 import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
 import io.github.joako601.finanzas.core.domain.metas.TopeCategoria
+import io.github.joako601.finanzas.core.domain.recurrentes.Periodicidad
+import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
+import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
+import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
+import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
+import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
+import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +58,8 @@ class MetasViewModelTest {
             Registro.gasto(LocalDate(2026, 10, 10), Dinero.pesos(1_850), efectivo, comida),
         ),
     )
+    private val tarjetas = TarjetasFalsoMetas()
+    private val recurrentes = RecurrentesFalsoMetas()
     private val metas = MetasFalso()
 
     @Before
@@ -59,7 +69,7 @@ class MetasViewModelTest {
     fun despues() = Dispatchers.resetMain()
 
     private suspend fun kotlinx.coroutines.test.TestScope.viewModel(): MetasViewModel {
-        val vm = MetasViewModel(libro, metas, ServicioMetas(metas)) { hoy }
+        val vm = MetasViewModel(libro, tarjetas, recurrentes, metas, ServicioMetas(metas)) { hoy }
         backgroundScope.launch { vm.estado.collect {} }
         vm.estado.first { !it.cargando }
         return vm
@@ -191,6 +201,63 @@ class MetasViewModelTest {
         vm.sumarMontoMovimientoMeta(Dinero.pesos(100))
         assertEquals("600", vm.movimientoMeta.value?.montoTexto)
     }
+
+    @Test
+    fun sobre_reserva_en_metas_coincide_con_disponible_real_descontando_pagos_proximos() = runTest {
+        val capital = Cuenta(CuentaId(99), "Saldos iniciales", TipoCuenta.CAPITAL)
+        val libroConSaldo = LibroFalsoMetas(
+            cuentas = listOf(efectivo, comida, super_, capital),
+            movimientosIniciales = listOf(
+                Registro.saldoInicial(hoy, efectivo, Dinero.pesos(5_000), capital),
+            ),
+        )
+        // Pago fijo próximo de $3,000 -> disponible real = $2,000 (aunque en cuentas haya $5,000).
+        recurrentes.lista.value = listOf(
+            Recurrente(
+                id = RecurrenteId(1),
+                nombre = "Renta",
+                clase = ClaseRegistro.GASTO,
+                montoEstimado = Dinero.pesos(3_000),
+                categoria = comida.id,
+                periodicidad = Periodicidad.MENSUAL,
+                inicio = LocalDate(2026, 11, 25),
+                proxima = LocalDate(2026, 11, 25),
+            ),
+        )
+        val vm = MetasViewModel(libroConSaldo, tarjetas, recurrentes, metas, ServicioMetas(metas)) { hoy }
+        backgroundScope.launch { vm.estado.collect {} }
+        vm.estado.first { !it.cargando }
+
+        vm.abrirNuevaMeta(nombreInicial = "Fondo", objetivoInicial = Dinero.pesos(10_000))
+        vm.editarMeta { copy(apartadoInicialTexto = "3500", reservarDeDisponible = true) }
+        vm.guardarMeta()
+        advanceUntilIdle()
+
+        val resumen = vm.estado.first { it.resumenAhorro?.metasActivas?.size == 1 }.resumenAhorro!!
+        // $3,500 apartados - $2,000 disponible real = $1,500 de sobre-reserva (igual que en Inicio).
+        assertEquals(Dinero.pesos(1_500), resumen.sobreReserva)
+    }
+}
+
+private class TarjetasFalsoMetas : RepositorioTarjetas {
+    val tarjetas = MutableStateFlow<List<Tarjeta>>(emptyList())
+    val estados = MutableStateFlow<List<EstadoDeCuenta>>(emptyList())
+    override fun observarTarjetas(): Flow<List<Tarjeta>> = tarjetas
+    override fun observarEstadosDeCuenta(): Flow<List<EstadoDeCuenta>> = estados
+    override suspend fun guardarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta =
+        error("no se usa")
+    override suspend fun actualizarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta =
+        error("no se usa")
+    override suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta) = error("no se usa")
+    override suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate) = error("no se usa")
+}
+
+private class RecurrentesFalsoMetas : RepositorioRecurrentes {
+    val lista = MutableStateFlow<List<Recurrente>>(emptyList())
+    override fun observarRecurrentes(): Flow<List<Recurrente>> = lista
+    override suspend fun guardar(recurrente: Recurrente): RecurrenteId = error("no se usa")
+    override suspend fun cambiarProxima(id: RecurrenteId, proxima: LocalDate) = error("no se usa")
+    override suspend fun eliminar(id: RecurrenteId) = error("no se usa")
 }
 
 private class LibroFalsoMetas(

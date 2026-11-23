@@ -95,6 +95,11 @@ data class NuevoRecurrente(
     val frecuencia: Frecuencia = Frecuencia.MENSUAL,
     val inicio: LocalDate,
     val editando: RecurrenteId? = null,
+    val inicioOriginal: LocalDate? = null,
+    val proximaOriginal: LocalDate? = null,
+    val periodicidadOriginal: Periodicidad? = null,
+    val periodicidadPersonalizada: Periodicidad? = null,
+    val fechaModificada: Boolean = false,
     val errores: Set<ErrorRecurrente> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
@@ -174,7 +179,16 @@ class RecurrentesViewModel(
         actual?.cambio()?.let { nuevo ->
             // Las categorías de pago e ingreso son distintas: al cambiar de clase se borra la elegida.
             val categoria = if (nuevo.clase != actual.clase) null else nuevo.categoriaId
-            nuevo.copy(monto = limpiarMonto(nuevo.monto), categoriaId = categoria, errores = emptySet(), errorAlGuardar = false)
+            val fechaModificada = actual.fechaModificada || nuevo.inicio != actual.inicio
+            val personalizada = if (nuevo.frecuencia != actual.frecuencia) null else nuevo.periodicidadPersonalizada
+            nuevo.copy(
+                monto = limpiarMonto(nuevo.monto),
+                categoriaId = categoria,
+                fechaModificada = fechaModificada,
+                periodicidadPersonalizada = personalizada,
+                errores = emptySet(),
+                errorAlGuardar = false,
+            )
         }
     }
 
@@ -191,28 +205,38 @@ class RecurrentesViewModel(
         viewModelScope.launch {
             try {
                 val idEditando = actual.editando
+                val periodicidadFinal = actual.periodicidadPersonalizada ?: actual.frecuencia.periodicidad
                 if (idEditando == null) {
                     servicio.crear(
                         nombre = actual.nombre,
                         clase = actual.clase,
                         montoEstimado = Dinero.parsear(actual.monto)!!,
                         categoria = categoria!!,
-                        periodicidad = actual.frecuencia.periodicidad,
+                        periodicidad = periodicidadFinal,
                         inicio = actual.inicio,
                         hoy = fechaDeHoy(),
                     )
                 } else {
-                    val anterior = estado.value.recurrentes.firstOrNull { it.recurrente.id == idEditando }?.recurrente?.proxima
+                    val existente = estado.value.recurrentes.firstOrNull { it.recurrente.id == idEditando }?.recurrente
+                    val proximaAnterior = actual.proximaOriginal ?: existente?.proxima
+                    val periodicidadOriginal = actual.periodicidadOriginal ?: existente?.periodicidad
+                    val conservarAnclaYProxima = !actual.fechaModificada && periodicidadFinal == periodicidadOriginal
+                    val inicioFinal = if (conservarAnclaYProxima) {
+                        actual.inicioOriginal ?: existente?.inicio ?: actual.inicio
+                    } else {
+                        actual.inicio
+                    }
                     servicio.actualizar(
                         id = idEditando,
                         nombre = actual.nombre,
                         clase = actual.clase,
                         montoEstimado = Dinero.parsear(actual.monto)!!,
                         categoria = categoria!!,
-                        periodicidad = actual.frecuencia.periodicidad,
-                        inicio = actual.inicio,
+                        periodicidad = periodicidadFinal,
+                        inicio = inicioFinal,
                         hoy = fechaDeHoy(),
-                        proximaAnterior = anterior,
+                        proximaAnterior = proximaAnterior,
+                        conservarProxima = conservarAnclaYProxima,
                     )
                 }
                 _nuevo.value = null
@@ -230,7 +254,7 @@ class RecurrentesViewModel(
         val cuentasDisponibles = estado.value.cuentasPara(resumen.recurrente.clase)
         _registro.value = RegistroRecurrente(
             resumen = resumen,
-            monto = resumen.recurrente.montoEstimado.formatear().removePrefix("$"),
+            monto = resumen.recurrente.montoEstimado.formatear().removePrefix("$").replace(",", ""),
             cuentaId = estado.value.cuentasDeDinero.firstOrNull()?.id ?: cuentasDisponibles.firstOrNull()?.id,
             fecha = fechaDeHoy(),
         )
@@ -239,15 +263,20 @@ class RecurrentesViewModel(
     fun abrirEdicionDesdeRegistro() {
         val actual = _registro.value ?: return
         val r = actual.resumen.recurrente
+        val frecuenciaConocida = Frecuencia.de(r.periodicidad)
         _registro.value = null
         _nuevo.value = NuevoRecurrente(
             clase = r.clase,
             nombre = r.nombre,
             monto = r.montoEstimado.textoEditable(),
             categoriaId = r.categoria,
-            frecuencia = Frecuencia.de(r.periodicidad) ?: Frecuencia.MENSUAL,
+            frecuencia = frecuenciaConocida ?: Frecuencia.MENSUAL,
             inicio = r.proxima,
             editando = r.id,
+            inicioOriginal = r.inicio,
+            proximaOriginal = r.proxima,
+            periodicidadOriginal = r.periodicidad,
+            periodicidadPersonalizada = if (frecuenciaConocida == null) r.periodicidad else null,
         )
     }
 

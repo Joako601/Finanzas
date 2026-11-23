@@ -30,7 +30,7 @@ public data class AnalisisMetaAhorro(
     val diasRestantes: Int?,
     /** Cuota sugerida por quincena (solo si está en curso y faltan al menos 15 días). */
     val cuotaQuincenal: Dinero?,
-    /** Cuota sugerida por mes (solo si está en curso y faltan al menos 30 días). */
+    /** Cuota sugerida por mes (solo si está en curso y faltan al menos 60 días / 2 meses). */
     val cuotaMensual: Dinero?,
 )
 
@@ -87,6 +87,7 @@ public object AnalizadorMetas {
         cuentas: List<Cuenta>,
         saldos: Map<CuentaId, Dinero>,
         hoy: LocalDate,
+        disponibleReal: Dinero? = null,
     ): ResumenMetasAhorro {
         val (archivadas, activas) = metas.partition { it.archivada }
         val analisisActivas = activas
@@ -108,7 +109,8 @@ public object AnalizadorMetas {
             .sumarSaturado()
         val totalObjetivo = activas.map { it.objetivo }.sumarSaturado()
         val saldoEnCuentas = totalEnCuentas(cuentas, saldos)
-        val liquidezPositiva = if (saldoEnCuentas.esPositivo) saldoEnCuentas else Dinero.CERO
+        val referenciaLiquidez = disponibleReal ?: saldoEnCuentas
+        val liquidezPositiva = if (referenciaLiquidez.esPositivo) referenciaLiquidez else Dinero.CERO
         val sobreReserva = if (totalReservado > liquidezPositiva) {
             totalReservado - liquidezPositiva
         } else {
@@ -154,7 +156,7 @@ public object AnalizadorMetas {
         } else {
             null
         }
-        val cuotaMensual = if (estado == EstadoMetaAhorro.EN_CURSO && diasRestantes != null && diasRestantes >= 30) {
+        val cuotaMensual = if (estado == EstadoMetaAhorro.EN_CURSO && diasRestantes != null && diasRestantes >= 60) {
             dividirHaciaArriba(faltante, diasRestantes / 30)
         } else {
             null

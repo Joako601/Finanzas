@@ -70,4 +70,8 @@ internal class RepositorioTarjetasRoom(
             ),
         )
     }
+
+    override suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate) {
+        dao.eliminarEstadoDeCuenta(tarjetaId.valor, fechaCorte.toEpochDays())
+    }
 }

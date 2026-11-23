@@ -321,7 +321,9 @@ fun PantallaMovimientos(
             // Un gasto se puede pagar con tarjeta; un ingreso solo llega a efectivo o débito.
             cuentas = estado.cuentasDeDinero.map { it.cuenta } +
                 (if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList()) +
-                actual.archivadas.filter { it.tipo.esDeDinero },
+                actual.archivadas.filter {
+                    if (actual.clase == ClaseRegistro.GASTO) it.tipo.esDeDinero else it.tipo == TipoCuenta.ACTIVO
+                },
             acciones = AccionesCaptura(
                 cambiarClase = viewModel::cambiarClase,
                 cambiarMonto = viewModel::cambiarMonto,
@@ -524,7 +526,9 @@ fun ContenidoMovimientos(
                 )
             }
 
-            if (estadoTarjetas.tarjetas.isNotEmpty()) {
+            val tieneRecordatoriosProgramables = estadoTarjetas.tarjetas.isNotEmpty() ||
+                estadoRecurrentes.recurrentes.any { it.recurrente.clase == ClaseRegistro.GASTO }
+            if (tieneRecordatoriosProgramables) {
                 item(key = "avisos", contentType = "avisos") {
                     TarjetaActivarAvisos(Modifier.padding(bottom = 16.dp))
                 }

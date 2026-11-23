@@ -409,7 +409,7 @@ private fun SubtituloReposoDisponible(
             val textoFaltante = when {
                 faltante.fecha != linea.hoy ->
                     stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
-                linea.enCuentas.esNegativo ->
+                linea.enCuentas.esNegativo && -linea.enCuentas == faltante.falta ->
                     stringResource(R.string.faltante_hoy, faltante.falta.formatear())
                 else ->
                     stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
@@ -419,6 +419,17 @@ private fun SubtituloReposoDisponible(
                 style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                 color = MaterialTheme.colorScheme.error,
             )
+            linea.faltanteMayor?.let { mayor ->
+                Text(
+                    text = stringResource(
+                        R.string.faltante_mayor,
+                        mayor.fecha.formatoDiaCorto(linea.hoy),
+                        mayor.falta.formatear(),
+                    ),
+                    style = estilo,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
         }
         bajo != null -> {
             Text(

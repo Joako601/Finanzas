@@ -11,6 +11,7 @@ import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.recordatorios.Recordatorio
 import io.github.joako601.finanzas.core.domain.recordatorios.TipoRecordatorio
 import io.github.joako601.finanzas.ui.formatoCorto
+import io.github.joako601.finanzas.ui.hoy
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.daysUntil
 import kotlinx.datetime.plus
@@ -38,35 +39,50 @@ class Avisos(private val context: Context) {
         )
     }
 
-    fun puedeMostrar(): Boolean = notificaciones.areNotificationsEnabled()
+    fun puedeMostrar(): Boolean = notificacionesActivas(context)
 
     fun mostrar(recordatorio: Recordatorio) {
         crearCanal()
         val nombre = recordatorio.nombre
         val referencia = recordatorio.fechaReferencia
+        // Se calcula contra la fecha real de entrega (no la programada) para no decir "Mañana" si llegó al día siguiente.
+        val diasHastaReferencia = hoy().daysUntil(referencia)
         val (titulo, texto) = when (recordatorio.tipo) {
             TipoRecordatorio.ANTES_DEL_CORTE -> Pair(
-                context.getString(R.string.aviso_corte_titulo, nombre),
+                if (diasHastaReferencia <= 0) {
+                    context.getString(R.string.aviso_corte_titulo_hoy, nombre)
+                } else {
+                    context.getString(R.string.aviso_corte_titulo, nombre)
+                },
                 context.getString(R.string.aviso_corte_texto, referencia.plus(1, DateTimeUnit.DAY).formatoCorto()),
             )
             TipoRecordatorio.CAPTURAR_ESTADO -> Pair(
                 context.getString(R.string.aviso_capturar_titulo, nombre),
                 context.getString(R.string.aviso_capturar_texto, referencia.formatoCorto()),
             )
-            TipoRecordatorio.PAGO_PROXIMO -> {
-                val dias = recordatorio.momento.date.daysUntil(referencia)
-                Pair(
-                    context.getString(
-                        R.string.aviso_pago_titulo,
-                        recordatorio.monto?.formatear().orEmpty(),
-                        nombre,
-                        referencia.formatoCorto(),
-                    ),
-                    context.resources.getQuantityString(R.plurals.aviso_pago_texto, dias, dias),
-                )
-            }
+            TipoRecordatorio.PAGO_PROXIMO -> Pair(
+                context.getString(
+                    R.string.aviso_pago_titulo,
+                    recordatorio.monto?.formatear().orEmpty(),
+                    nombre,
+                    referencia.formatoCorto(),
+                ),
+                if (diasHastaReferencia <= 0) {
+                    context.getString(R.string.aviso_pago_texto_hoy)
+                } else {
+                    context.resources.getQuantityString(
+                        R.plurals.aviso_pago_texto,
+                        diasHastaReferencia,
+                        diasHastaReferencia,
+                    )
+                },
+            )
             TipoRecordatorio.PAGO_RECURRENTE -> Pair(
-                context.getString(R.string.aviso_recurrente_titulo, nombre),
+                if (diasHastaReferencia <= 0) {
+                    context.getString(R.string.aviso_recurrente_titulo_hoy, nombre)
+                } else {
+                    context.getString(R.string.aviso_recurrente_titulo, nombre)
+                },
                 context.getString(R.string.aviso_recurrente_texto, recordatorio.monto?.formatear().orEmpty()),
             )
         }

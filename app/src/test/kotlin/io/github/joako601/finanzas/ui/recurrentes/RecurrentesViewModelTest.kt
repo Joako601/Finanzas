@@ -114,6 +114,38 @@ class RecurrentesViewModelTest {
 
         assertNull(vm.nuevo.value?.categoriaId)
     }
+
+    @Test
+    fun abrir_registro_con_monto_de_miles_no_incluye_coma_y_permite_editar_sin_perder_ancla() = runTest {
+        recurrentes.lista.value = listOf(
+            Recurrente(
+                id = RecurrenteId(2),
+                nombre = "Renta",
+                clase = ClaseRegistro.GASTO,
+                montoEstimado = Dinero.pesos(8_500),
+                categoria = luz.id,
+                periodicidad = Periodicidad.MENSUAL,
+                inicio = LocalDate(2026, 1, 31),
+                proxima = LocalDate(2026, 2, 28),
+            ),
+        )
+        val vm = viewModel()
+        val resumen = cargar(vm)
+        vm.abrirRegistro(resumen)
+        assertEquals("8500.00", vm.registro.value?.monto)
+
+        // Editar solo el nombre no debe destruir el ancla del día 31 ni cambiar la próxima fecha.
+        vm.abrirEdicionDesdeRegistro()
+        vm.editarNuevo { copy(nombre = "Renta departamento") }
+        vm.guardarNuevo()
+        advanceUntilIdle()
+
+        val actualizado = recurrentes.lista.value.single()
+        assertEquals("Renta departamento", actualizado.nombre)
+        assertEquals(LocalDate(2026, 1, 31), actualizado.inicio)
+        assertEquals(LocalDate(2026, 2, 28), actualizado.proxima)
+        assertEquals(LocalDate(2026, 3, 31), actualizado.despuesDeProxima())
+    }
 }
 
 private class LibroFalso(cuentas: List<Cuenta>) : RepositorioLibro {
@@ -140,6 +172,10 @@ private class RecurrentesFalso(inicial: List<Recurrente>) : RepositorioRecurrent
 
     override fun observarRecurrentes(): Flow<List<Recurrente>> = lista
     override suspend fun guardar(recurrente: Recurrente): RecurrenteId = error("no se usa")
+    override suspend fun actualizar(recurrente: Recurrente) {
+        if (fallar) throw IllegalStateException("base no disponible")
+        lista.value = lista.value.map { if (it.id == recurrente.id) recurrente else it }
+    }
     override suspend fun cambiarProxima(id: RecurrenteId, proxima: LocalDate) {
         if (fallar) throw IllegalStateException("base no disponible")
         lista.value = lista.value.map { if (it.id == id) it.copy(proxima = proxima) else it }

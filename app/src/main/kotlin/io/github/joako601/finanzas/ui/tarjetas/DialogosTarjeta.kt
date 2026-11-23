@@ -387,6 +387,11 @@ private fun BloqueSimulacionIntereses(
             stringResource(R.string.pago_sim_saldo_a_favor, simulacion.excedenteSaldoAFavor.formatear()),
             null,
         )
+        CategoriaSimulacionPago.SIN_ESTADO_CAPTURADO -> Triple(
+            TemaFinanzas.colores.aviso,
+            stringResource(R.string.pago_sim_sin_estado_titulo),
+            stringResource(R.string.pago_sim_sin_estado_detalle, simulacion.deudaRestanteTrasPago.formatear()),
+        )
         CategoriaSimulacionPago.GENERA_INTERESES_ORDINARIOS -> Triple(
             TemaFinanzas.colores.aviso,
             stringResource(R.string.pago_sim_intereses_titulo, simulacion.saldoFinanciado.formatear()),

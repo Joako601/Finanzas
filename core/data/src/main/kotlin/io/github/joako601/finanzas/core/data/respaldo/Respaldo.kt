@@ -8,7 +8,12 @@ import android.database.sqlite.SQLiteException
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.joako601.finanzas.core.data.FinanzasDatabase
+import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
+import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.recordatorios.TipoRecordatorio
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -32,53 +37,123 @@ public class Respaldo internal constructor(
     private val context: Context,
     private val base: FinanzasDatabase,
 ) {
-    init {
-        // Si el proceso murió a mitad de un respaldo, aquí quedó una copia sin cifrar.
-        SQLiteDatabase.deleteDatabase(context.getDatabasePath(SALIDA))
-        SQLiteDatabase.deleteDatabase(context.getDatabasePath(ENTRADA))
+    /** Serializa respaldos, restauraciones y limpieza para nunca competir por los archivos temporales. */
+    private val candado = Mutex()
+
+    /**
+     * Borra temporales huérfanos sin cifrar que hayan quedado si el proceso murió a mitad
+     * de un respaldo o restauración. Corre en [Dispatchers.IO] para nunca bloquear el arranque.
+     */
+    public suspend fun limpiarTemporales(): Unit = withContext(Dispatchers.IO) {
+        candado.withLock {
+            SQLiteDatabase.deleteDatabase(context.getDatabasePath(SALIDA))
+            SQLiteDatabase.deleteDatabase(context.getDatabasePath(ENTRADA))
+        }
     }
 
     /** El archivo cifrado con todos los datos, listo para guardarse donde el usuario elija. */
     public suspend fun crear(contrasena: CharArray): ByteArray = withContext(Dispatchers.IO) {
-        conTemporal(SALIDA) { archivo ->
-            val copia = abrirConRoom(archivo)
-            try {
-                // Lectura consistente de la principal y una sola escritura a disco en la copia.
-                base.runInTransaction {
-                    copia.runInTransaction {
-                        copiarTodo(origen = base.openHelper.writableDatabase, destino = copia.openHelper.writableDatabase)
+        candado.withLock {
+            conTemporal(SALIDA) { archivo ->
+                val copia = abrirConRoom(archivo)
+                try {
+                    // Lectura consistente de la principal y una sola escritura a disco en la copia.
+                    base.runInTransaction {
+                        copia.runInTransaction {
+                            copiarTodo(origen = base.openHelper.writableDatabase, destino = copia.openHelper.writableDatabase)
+                        }
                     }
+                } finally {
+                    copia.close()
                 }
-            } finally {
-                copia.close()
+                CifradoRespaldo.cifrar(archivo.readBytes(), contrasena)
             }
-            CifradoRespaldo.cifrar(archivo.readBytes(), contrasena)
         }
     }
 
     /**
      * Reemplaza TODOS los datos por los del respaldo. Lanza [ErrorRespaldo] sin tocar nada
-     * si la contraseña no es, el archivo está dañado o es de una versión más nueva.
+     * si la contraseña no es, el archivo está dañado, viola invariantes contables o es de
+     * una versión más nueva.
      */
     public suspend fun restaurar(sobre: ByteArray, contrasena: CharArray): Unit = withContext(Dispatchers.IO) {
-        val datos = CifradoRespaldo.descifrar(sobre, contrasena)
-        conTemporal(ENTRADA) { archivo ->
-            archivo.writeBytes(datos)
-            revisar(archivo)
-            val copia = abrirConRoom(archivo)
-            try {
-                // Abrirla corre las migraciones si el respaldo es de una versión anterior.
-                val origen = copia.openHelper.writableDatabase
-                base.runInTransaction { copiarTodo(origen = origen, destino = base.openHelper.writableDatabase) }
-            } catch (e: IllegalStateException) {
-                // Room no reconoce el esquema (identity hash) o falta una migración.
-                throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
-            } catch (e: SQLiteException) {
-                throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
-            } finally {
-                copia.close()
+        candado.withLock {
+            val datos = CifradoRespaldo.descifrar(sobre, contrasena)
+            conTemporal(ENTRADA) { archivo ->
+                archivo.writeBytes(datos)
+                revisar(archivo)
+                val copia = abrirConRoom(archivo)
+                try {
+                    // Abrirla corre las migraciones si el respaldo es de una versión anterior.
+                    val origen = copia.openHelper.writableDatabase
+                    validarIntegridadDominio(origen)
+                    base.runInTransaction { copiarTodo(origen = origen, destino = base.openHelper.writableDatabase) }
+                } catch (e: ErrorRespaldo) {
+                    throw e
+                } catch (e: IllegalStateException) {
+                    // Room no reconoce el esquema (identity hash) o falta una migración.
+                    throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
+                } catch (e: SQLiteException) {
+                    throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
+                } finally {
+                    copia.close()
+                }
             }
         }
+    }
+
+    /**
+     * Verifica invariantes de dominio y partida doble sobre la base ya migrada ANTES de tocar
+     * la base real del usuario. Si cualquier fila está corrupta, lanza [ErrorRespaldo.Motivo.BASE_INVALIDA].
+     */
+    private fun validarIntegridadDominio(db: SupportSQLiteDatabase) {
+        if (db.query("PRAGMA foreign_key_check").use { it.moveToFirst() }) {
+            throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
+        }
+        val hayDescuadre = db.query(
+            """
+            SELECT m.id
+            FROM movimiento m
+            LEFT JOIN asiento a ON a.movimiento_id = m.id
+            GROUP BY m.id
+            HAVING COUNT(a.id) < 2 OR COALESCE(SUM(a.centavos), 0) != 0
+            LIMIT 1
+            """.trimIndent(),
+        ).use { it.moveToFirst() }
+        if (hayDescuadre) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
+
+        val tiposCuenta = TipoCuenta.entries.mapTo(HashSet()) { it.name }
+        db.query("SELECT DISTINCT tipo FROM cuenta").use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(0) !in tiposCuenta) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
+            }
+        }
+
+        val clasesRecurrente = ClaseRegistro.entries.mapTo(HashSet()) { it.name }
+        val periodosValidos = setOf("DIAS", "MESES", "DOS_VECES_AL_MES")
+        db.query("SELECT DISTINCT clase, periodo FROM recurrente").use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(0) !in clasesRecurrente || cursor.getString(1) !in periodosValidos) {
+                    throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
+                }
+            }
+        }
+
+        val tiposRecordatorio = TipoRecordatorio.entries.mapTo(HashSet()) { it.name }
+        db.query("SELECT DISTINCT tipo FROM recordatorio_entregado").use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(0) !in tiposRecordatorio) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
+            }
+        }
+
+        val hayTopeInvalido = db.query("SELECT 1 FROM tope_categoria WHERE limite_centavos <= 0 LIMIT 1")
+            .use { it.moveToFirst() }
+        if (hayTopeInvalido) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
+
+        val hayMetaInvalida = db.query(
+            "SELECT 1 FROM meta_ahorro WHERE objetivo_centavos <= 0 OR apartado_centavos < 0 LIMIT 1",
+        ).use { it.moveToFirst() }
+        if (hayMetaInvalida) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
     }
 
     /** Integridad y versión, con SQLite directo y antes de que Room la abra (Room no sabe bajar de versión). */

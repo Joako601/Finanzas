@@ -67,6 +67,8 @@ public data class SugerenciaTope(
     val mesesConDatos: Int,
     /** `true` solo cuando no hay historial previo y la referencia viene del gasto del mes actual. */
     val basadaEnMesActual: Boolean = false,
+    /** `true` solo cuando el único mes con gasto en el historial corresponde exactamente al mes anterior. */
+    val esDelMesAnterior: Boolean = false,
 )
 
 /**
@@ -218,6 +220,8 @@ public object AnalizadorTopes {
     ): Map<CuentaId, SugerenciaTope> {
         val inicioMes = LocalDate(hoy.year, hoy.month, 1)
         val inicioMesSiguiente = inicioMes.plus(1, DateTimeUnit.MONTH)
+        val inicioMesAnterior = inicioMes.minus(1, DateTimeUnit.MONTH)
+        val claveMesAnterior = inicioMesAnterior.year * 12 + inicioMesAnterior.month.ordinal
         val inicioVentana = inicioMes.minus(3, DateTimeUnit.MONTH)
         val porId = cuentas.associateBy { it.id }
 
@@ -243,15 +247,16 @@ public object AnalizadorTopes {
         val categoriasCandidatas = porCategoriaMesPrevio.keys + mesActualPorCategoria.keys
         return buildMap {
             for (catId in categoriasCandidatas) {
-                val mesesPrevios = porCategoriaMesPrevio[catId]?.values?.filter { it.esPositivo }.orEmpty()
-                val sugerencia = if (mesesPrevios.isNotEmpty()) {
-                    val suma = mesesPrevios.sumar()
-                    val promedio = Dinero(suma.centavos / mesesPrevios.size.toLong())
+                val mapaPrevios = porCategoriaMesPrevio[catId]?.filterValues { it.esPositivo }.orEmpty()
+                val sugerencia = if (mapaPrevios.isNotEmpty()) {
+                    val suma = mapaPrevios.values.sumar()
+                    val promedio = Dinero(suma.centavos / mapaPrevios.size.toLong())
                     SugerenciaTope(
                         promedioMensual = promedio,
                         montoSugeridoRedondeado = redondearSugerencia(promedio),
-                        mesesConDatos = mesesPrevios.size,
+                        mesesConDatos = mapaPrevios.size,
                         basadaEnMesActual = false,
+                        esDelMesAnterior = mapaPrevios.size == 1 && claveMesAnterior in mapaPrevios,
                     )
                 } else {
                     val actual = mesActualPorCategoria[catId]
@@ -261,6 +266,7 @@ public object AnalizadorTopes {
                             montoSugeridoRedondeado = redondearSugerencia(actual),
                             mesesConDatos = 1,
                             basadaEnMesActual = true,
+                            esDelMesAnterior = false,
                         )
                     } else {
                         continue

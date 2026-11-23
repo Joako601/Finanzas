@@ -136,6 +136,8 @@
     <string name="pago_sim_sin_intereses">Cubres el corte actual: $0.00 de intereses. Quedan %1$s para el próximo ciclo.</string>
     <string name="pago_sim_liquidacion_total">Liquidas el 100%% de tu deuda actual: $0.00 de intereses.</string>
     <string name="pago_sim_saldo_a_favor">Supera tu deuda actual: quedarás con %1$s de saldo a favor.</string>
+    <string name="pago_sim_sin_estado_titulo">Captura tu estado de cuenta para confirmar si evitas intereses</string>
+    <string name="pago_sim_sin_estado_detalle">Sin el monto del corte capturado no sabemos el pago mínimo ni el exigible exacto. Quedarían %1$s de deuda total.</string>
     <string name="pago_sim_intereses_titulo">Cubres el mínimo, pero los %1$s restantes generarán intereses</string>
     <string name="pago_sim_intereses_detalle">Con tasa de %1$d%% anual (incluye IVA): ~%2$s sobre lo que falta, o hasta ~%3$s sobre el total del corte.</string>
     <string name="pago_sim_bajo_minimo_titulo">Faltan %1$s para cubrir el pago mínimo (%2$s)</string>
@@ -215,19 +217,22 @@
     <string name="canal_recordatorios_descripcion">Avisos antes del corte, antes de la fecha límite, para capturar tu estado de cuenta y antes de tus pagos fijos.</string>
     <string name="aviso_publico">Tienes un recordatorio de pago</string>
     <string name="aviso_corte_titulo">Mañana es el corte de %1$s</string>
+    <string name="aviso_corte_titulo_hoy">Hoy es el corte de %1$s</string>
     <string name="aviso_corte_texto">Lo que compres a partir del %1$s entra en el siguiente estado de cuenta.</string>
     <string name="aviso_capturar_titulo">Captura tu estado de cuenta de %1$s</string>
     <string name="aviso_capturar_texto">Tu corte fue el %1$s. Anota la fecha límite y el pago para no generar intereses.</string>
     <string name="aviso_recurrente_titulo">Mañana pagas %1$s</string>
+    <string name="aviso_recurrente_titulo_hoy">Hoy pagas %1$s</string>
     <string name="aviso_recurrente_texto">Monto estimado: %1$s. Regístralo en Finanzas cuando lo pagues.</string>
     <string name="aviso_pago_titulo">Paga %1$s de %2$s antes del %3$s</string>
+    <string name="aviso_pago_texto_hoy">Hoy es la fecha límite. Así no generas intereses.</string>
     <plurals name="aviso_pago_texto">
         <item quantity="one">Falta %d día para la fecha límite. Así no generas intereses.</item>
         <item quantity="many">Faltan %d días para la fecha límite. Así no generas intereses.</item>
         <item quantity="other">Faltan %d días para la fecha límite. Así no generas intereses.</item>
     </plurals>
     <string name="activar_avisos_titulo">Activa los avisos</string>
-    <string name="activar_avisos_texto">Te avisamos antes de tu fecha límite con el monto exacto para no pagar intereses.</string>
+    <string name="activar_avisos_texto">Te avisamos antes de tus fechas límite de tarjeta y de tus pagos fijos para que no se te pase ninguno.</string>
     <string name="activar_avisos_boton">Activar avisos</string>
 
     <!-- Respaldo y exportación (D-018) -->
@@ -245,6 +250,7 @@
     <string name="exportar_movimientos">Exportar movimientos</string>
     <string name="creando_respaldo">Creando respaldo…</string>
     <string name="exportando_movimientos">Exportando movimientos…</string>
+    <string name="leyendo_respaldo">Leyendo respaldo…</string>
     <string name="aviso_respaldo_guardado">Respaldo guardado.</string>
     <string name="aviso_datos_restaurados">Listo, tus datos se restauraron.</string>
     <string name="aviso_csv_guardado">Movimientos exportados.</string>
@@ -321,8 +327,8 @@
     <string name="boveda_avisos_titulo">Recordatorios y avisos</string>
     <string name="boveda_avisos_activos">Activos</string>
     <string name="boveda_avisos_inactivos">Desactivados</string>
-    <string name="boveda_avisos_texto_activos">Te avisaremos antes del corte y de la fecha límite de tus tarjetas.</string>
-    <string name="boveda_avisos_texto_inactivos">Activa las notificaciones para recibir avisos antes de la fecha límite de tus tarjetas.</string>
+    <string name="boveda_avisos_texto_activos">Te avisaremos antes del corte, de la fecha límite de tus tarjetas y de tus pagos fijos.</string>
+    <string name="boveda_avisos_texto_inactivos">Activa las notificaciones para recibir avisos antes de la fecha límite de tus tarjetas y tus pagos fijos.</string>
     <string name="boveda_ajustes_avisos">Ajustes de notificaciones</string>
     <string name="boveda_nube_titulo">Cuenta y catálogo</string>
     <string name="boveda_nube_texto">Inicia sesión para consultar el catálogo de artículos en la nube. Tus finanzas personales siguen guardadas únicamente en este teléfono.</string>
@@ -358,6 +364,7 @@
     <string name="metas_limite_mensual">Límite mensual</string>
     <string name="metas_sugerencia_promedio">Promedio reciente: %1$s/mes</string>
     <string name="metas_sugerencia_mes_pasado">Mes pasado: %1$s</string>
+    <string name="metas_sugerencia_mes_reciente">En un mes reciente gastaste %1$s</string>
     <string name="metas_sugerencia_mes_actual">Gasto este mes: %1$s</string>
     <string name="metas_usar_sugerencia">Usar %1$s</string>
     <string name="metas_error_sin_categoria">Elige una categoría</string>
@@ -392,7 +399,7 @@
     <string name="metas_ahorro_eliminar_texto">Se borrará la meta %1$s. Tus cuentas y movimientos reales no cambian.</string>
     <string name="metas_ahorro_total_apartado">Total apartado</string>
     <string name="metas_ahorro_reservado_disponible">Con reserva activa: %1$s</string>
-    <string name="metas_ahorro_sobre_reserva">Tus apartados reservados superan tu saldo actual en cuentas por %1$s.</string>
+    <string name="metas_ahorro_sobre_reserva">Tus apartados reservados superan tu disponible real por %1$s.</string>
     <string name="metas_ahorro_sin_activas">No tienes metas activas por ahora. Crea una nueva o reactiva alguna archivada.</string>
     <plurals name="metas_ahorro_en_curso">
         <item quantity="one">%1$d en curso</item>

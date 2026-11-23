@@ -138,7 +138,7 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
                     )
                     BotonSecundario(
                         stringResource(R.string.exportar_movimientos),
-                        { destinoCsv.launch("finanzas-movimientos-$fechaDeHoy.csv") },
+                        { destinoCsv.launch("finanzas-movimientos-${hoy()}.csv") },
                         habilitado = libre,
                     )
                 }
@@ -150,7 +150,7 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
         DialogoNuevoRespaldo(
             nuevo = actual,
             onEditar = viewModel::editarNuevo,
-            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-$fechaDeHoy.respaldo") },
+            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-${hoy()}.respaldo") },
             onCerrar = viewModel::cerrarNuevo,
         )
     }
@@ -181,6 +181,8 @@ internal fun Progreso(estado: EstadoRespaldo) {
                         when (tarea) {
                             Tarea.CREANDO -> R.string.creando_respaldo
                             Tarea.EXPORTANDO -> R.string.exportando_movimientos
+                            Tarea.LEYENDO -> R.string.leyendo_respaldo
+                            Tarea.RESTAURANDO -> R.string.restaurando
                         },
                     ),
                     style = MaterialTheme.typography.bodyMedium,

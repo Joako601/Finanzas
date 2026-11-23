@@ -223,7 +223,8 @@ class MovimientosViewModel(
         if (it.clase == clase) {
             it
         } else {
-            val esTarjeta = estado.value.tarjetas.any { t -> t.id == it.cuentaId }
+            val esTarjeta = estado.value.tarjetas.any { t -> t.id == it.cuentaId } ||
+                it.archivadas.any { a -> a.id == it.cuentaId && a.tipo == TipoCuenta.PASIVO }
             val cuenta = if (clase == ClaseRegistro.INGRESO && esTarjeta) {
                 estado.value.cuentasDeDinero.firstOrNull()?.cuenta?.id
             } else {
@@ -296,7 +297,9 @@ class MovimientosViewModel(
             if (captura.clase == ClaseRegistro.GASTO) estado.value.tarjetas.forEach { put(it.id, it) }
             estado.value.categoriasDeGasto.forEach { put(it.id, it) }
             estado.value.categoriasDeIngreso.forEach { put(it.id, it) }
-            captura.archivadas.forEach { put(it.id, it) }
+            captura.archivadas
+                .filter { captura.clase == ClaseRegistro.GASTO || it.tipo != TipoCuenta.PASIVO }
+                .forEach { put(it.id, it) }
         }
         return Registro.desdeCaptura(
             clase = captura.clase,

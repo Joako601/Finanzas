@@ -1,10 +1,6 @@
 package io.github.joako601.finanzas.ui.boveda
 
 import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -43,9 +39,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.joako601.finanzas.FinanzasApp
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.recordatorios.abrirAjustesDeAvisos
+import io.github.joako601.finanzas.recordatorios.dispararProgramadorAvisos
+import io.github.joako601.finanzas.recordatorios.marcarPermisoAvisosPedido
 import io.github.joako601.finanzas.recordatorios.notificacionesActivas
+import io.github.joako601.finanzas.recordatorios.puedePedirDialogoPermisoAvisos
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
@@ -56,10 +55,6 @@ import io.github.joako601.finanzas.ui.respaldo.DialogoRestaurar
 import io.github.joako601.finanzas.ui.respaldo.Progreso
 import io.github.joako601.finanzas.ui.respaldo.RespaldoViewModel
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
-import kotlinx.coroutines.launch
-
-private const val PREFS_AVISOS = "finanzas_avisos"
-private const val CLAVE_PERMISO_AVISOS_PEDIDO = "permiso_notificaciones_pedido"
 
 /**
  * Pestaña 4 ("Bóveda"): casa permanente de privacidad, respaldo cifrado local,
@@ -74,22 +69,22 @@ fun PantallaBoveda(
     margenInferiorExtra: Dp = 0.dp,
 ) {
     val context = LocalContext.current
-    val prefsAvisos = remember(context) {
-        context.getSharedPreferences(PREFS_AVISOS, Context.MODE_PRIVATE)
-    }
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val nuevo by viewModel.nuevo.collectAsStateWithLifecycle()
     val porRestaurar by viewModel.porRestaurar.collectAsStateWithLifecycle()
-    val fechaDeHoy = remember { hoy() }
+    var fechaDeHoy by remember { mutableStateOf(hoy()) }
     val libre = estado.tarea == null
 
     var avisosActivos by remember { mutableStateOf(notificacionesActivas(context)) }
-    var yaSePidioPermiso by remember {
-        mutableStateOf(prefsAvisos.getBoolean(CLAVE_PERMISO_AVISOS_PEDIDO, false))
-    }
 
     LifecycleResumeEffect(Unit) {
-        avisosActivos = notificacionesActivas(context)
+        fechaDeHoy = hoy()
+        val antes = avisosActivos
+        val ahora = notificacionesActivas(context)
+        avisosActivos = ahora
+        if (!antes && ahora) {
+            dispararProgramadorAvisos(context)
+        }
         onPauseOrDispose { }
     }
 
@@ -102,21 +97,13 @@ fun PantallaBoveda(
     val origenRespaldo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
         viewModel.elegirParaRestaurar(it?.toString())
     }
-    val pedirPermisoAvisos = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { concedido ->
-        yaSePidioPermiso = true
-        prefsAvisos.edit().putBoolean(CLAVE_PERMISO_AVISOS_PEDIDO, true).apply()
-        avisosActivos = concedido || notificacionesActivas(context)
-        if (avisosActivos) {
-            val contenedor = (context.applicationContext as FinanzasApp).contenedor
-            contenedor.alcance.launch { contenedor.programador.ejecutar() }
+    val pedirPermisoAvisos = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+        marcarPermisoAvisosPedido(context)
+        val ahora = notificacionesActivas(context)
+        avisosActivos = ahora
+        if (ahora) {
+            dispararProgramadorAvisos(context)
         }
-    }
-
-    fun abrirAjustesNotificaciones() {
-        context.startActivity(
-            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
-        )
     }
 
     Scaffold(
@@ -219,7 +206,7 @@ fun PantallaBoveda(
                         )
                         BotonSecundario(
                             texto = stringResource(R.string.exportar_movimientos),
-                            onClick = { destinoCsv.launch("finanzas-movimientos-$fechaDeHoy.csv") },
+                            onClick = { destinoCsv.launch("finanzas-movimientos-${hoy()}.csv") },
                             habilitado = libre,
                         )
                     }
@@ -245,16 +232,16 @@ fun PantallaBoveda(
                         if (avisosActivos) {
                             BotonSecundario(
                                 texto = stringResource(R.string.boveda_ajustes_avisos),
-                                onClick = ::abrirAjustesNotificaciones,
+                                onClick = { abrirAjustesDeAvisos(context) },
                             )
                         } else {
                             BotonPrincipal(
                                 texto = stringResource(R.string.activar_avisos_boton),
                                 onClick = {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !yaSePidioPermiso) {
+                                    if (puedePedirDialogoPermisoAvisos(context)) {
                                         pedirPermisoAvisos.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     } else {
-                                        abrirAjustesNotificaciones()
+                                        abrirAjustesDeAvisos(context)
                                     }
                                 },
                             )
@@ -291,7 +278,7 @@ fun PantallaBoveda(
         DialogoNuevoRespaldo(
             nuevo = actual,
             onEditar = viewModel::editarNuevo,
-            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-$fechaDeHoy.respaldo") },
+            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-${hoy()}.respaldo") },
             onCerrar = viewModel::cerrarNuevo,
         )
     }

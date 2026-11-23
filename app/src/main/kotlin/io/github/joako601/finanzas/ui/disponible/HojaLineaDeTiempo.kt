@@ -19,6 +19,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,7 +78,8 @@ fun ResumenDisponible(
                     when {
                         faltante.fecha != linea.hoy ->
                             stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
-                        linea.enCuentas.esNegativo -> stringResource(R.string.faltante_hoy, faltante.falta.formatear())
+                        linea.enCuentas.esNegativo && -linea.enCuentas == faltante.falta ->
+                            stringResource(R.string.faltante_hoy, faltante.falta.formatear())
                         else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
                     },
                     style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
@@ -315,6 +317,7 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
+                val pendientes = remember(estado.proximasRecurrentes, linea) { estado.pendientes(linea) }
                 val bajo = linea.puntoMasBajo
                 // Hasta el saldo más bajo, inclusive: esos movimientos fijan el disponible.
                 val corte = bajo?.let { linea.eventos.indexOf(it) + 1 } ?: 0
@@ -324,6 +327,7 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                         eventos = linea.eventos.subList(0, corte),
                         linea = linea,
                         estado = estado,
+                        pendientes = pendientes,
                         acciones = conAnimacion,
                     )
                 }
@@ -333,6 +337,7 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                     eventos = linea.eventos.subList(corte, linea.eventos.size),
                     linea = linea,
                     estado = estado,
+                    pendientes = pendientes,
                     acciones = conAnimacion,
                 )
             }
@@ -347,6 +352,7 @@ private fun Grupo(
     eventos: List<EventoFuturo>,
     linea: LineaDeTiempo,
     estado: EstadoLineaDeTiempo,
+    pendientes: Set<EventoFuturo>,
     acciones: AccionesLineaDeTiempo,
 ) {
     if (eventos.isEmpty()) return
@@ -360,14 +366,20 @@ private fun Grupo(
         TarjetaFinanzas(Modifier.fillMaxWidth()) {
             eventos.forEachIndexed { indice, evento ->
                 if (indice > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                FilaEvento(evento, linea, estado, acciones)
+                FilaEvento(evento, linea, estado, pendientes, acciones)
             }
         }
     }
 }
 
 @Composable
-private fun FilaEvento(evento: EventoFuturo, linea: LineaDeTiempo, estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiempo) {
+private fun FilaEvento(
+    evento: EventoFuturo,
+    linea: LineaDeTiempo,
+    estado: EstadoLineaDeTiempo,
+    pendientes: Set<EventoFuturo>,
+    acciones: AccionesLineaDeTiempo,
+) {
     val titulo = when (evento.tipo) {
         TipoEvento.PAGO_TARJETA -> stringResource(R.string.evento_pago_tarjeta, evento.nombre)
         TipoEvento.CORTE -> stringResource(R.string.evento_corte, evento.nombre)
@@ -391,8 +403,8 @@ private fun FilaEvento(evento: EventoFuturo, linea: LineaDeTiempo, estado: Estad
     }
 
     // Tocar un pago fijo o un ingreso abre su registro; tocar un pago de tarjeta abre el pago.
-    // Solo la fecha pendiente de cada pago fijo abre el registro: es la que se registra.
-    val recurrente = evento.recurrente?.takeIf { evento in estado.pendientes(linea) }
+    // Solo la fecha pendiente real de cada pago fijo abre el registro: es la que se registra.
+    val recurrente = evento.recurrente?.takeIf { evento in pendientes }
     val tarjeta = evento.tarjeta
     val etiquetaAccion = stringResource(if (recurrente != null) R.string.accion_registrar else R.string.accion_pagar)
     val alTocar: (() -> Unit)? = when {
@@ -437,6 +449,9 @@ private fun icono(evento: EventoFuturo, estado: EstadoLineaDeTiempo): Int = when
     TipoEvento.PAGO_FIJO, TipoEvento.INGRESO_ESPERADO -> iconoDeCategoria(evento.categoria?.let { estado.categorias[it]?.nombre })
 }
 
-/** La primera fecha de cada pago o cobro fijo: la pendiente, la única que se registra. */
+/** Solo los eventos que coinciden con la fecha pendiente real ([Recurrente.proxima]) abren el registro. */
 private fun EstadoLineaDeTiempo.pendientes(linea: LineaDeTiempo): Set<EventoFuturo> =
-    linea.eventos.filter { it.recurrente != null }.distinctBy { it.recurrente }.toSet()
+    linea.eventos.filterTo(mutableSetOf()) { evento ->
+        val id = evento.recurrente ?: return@filterTo false
+        proximasRecurrentes[id] == evento.fecha
+    }

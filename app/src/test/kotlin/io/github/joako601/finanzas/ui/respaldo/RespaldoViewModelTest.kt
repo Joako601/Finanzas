@@ -70,13 +70,15 @@ class RespaldoViewModelTest {
         csv = { "\uFEFFFecha,Tipo\r\n" },
     )
 
+    private val despachador = UnconfinedTestDispatcher()
+
     @Before
-    fun antes() = Dispatchers.setMain(UnconfinedTestDispatcher())
+    fun antes() = Dispatchers.setMain(despachador)
 
     @After
     fun despues() = Dispatchers.resetMain()
 
-    private fun viewModel() = RespaldoViewModel(operaciones, archivos, ultimo) { hoy }
+    private fun viewModel() = RespaldoViewModel(operaciones, archivos, ultimo, despachador) { hoy }
 
     @Test
     fun la_contrasena_debe_tener_8_caracteres_y_coincidir() {
@@ -84,6 +86,10 @@ class RespaldoViewModelTest {
         vm.abrirNuevoRespaldo()
 
         vm.editarNuevo { copy(contrasena = "corta", confirmacion = "corta") }
+        assertFalse(vm.validarNuevo())
+        assertEquals(ErrorContrasena.CORTA, vm.nuevo.value?.error)
+
+        vm.editarNuevo { copy(contrasena = "        ", confirmacion = "        ") }
         assertFalse(vm.validarNuevo())
         assertEquals(ErrorContrasena.CORTA, vm.nuevo.value?.error)
 

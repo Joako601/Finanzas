@@ -135,8 +135,12 @@ fun DialogoTope(
                                     R.string.metas_sugerencia_mes_actual,
                                     sugerencia.promedioMensual.formatear(),
                                 )
-                                sugerencia.mesesConDatos == 1 -> stringResource(
+                                sugerencia.esDelMesAnterior -> stringResource(
                                     R.string.metas_sugerencia_mes_pasado,
+                                    sugerencia.promedioMensual.formatear(),
+                                )
+                                sugerencia.mesesConDatos == 1 -> stringResource(
+                                    R.string.metas_sugerencia_mes_reciente,
                                     sugerencia.promedioMensual.formatear(),
                                 )
                                 else -> stringResource(

@@ -13,6 +13,7 @@ import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.metas.AnalizadorMetas
 import io.github.joako601.finanzas.core.domain.metas.DesgloseDisponibleMetas
 import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
+import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
@@ -33,6 +34,7 @@ data class EstadoLineaDeTiempo(
     val linea: LineaDeTiempo? = null,
     val categorias: Map<CuentaId, Cuenta> = emptyMap(),
     val desgloseMetas: DesgloseDisponibleMetas? = null,
+    val proximasRecurrentes: Map<RecurrenteId, LocalDate> = emptyMap(),
 )
 
 /**
@@ -74,6 +76,7 @@ class LineaDeTiempoViewModel(
             linea = linea,
             categorias = porId,
             desgloseMetas = AnalizadorMetas.calcularDesgloseDisponible(linea.disponible, listaMetas),
+            proximasRecurrentes = listaRecurrentes.mapNotNull { r -> r.id?.let { it to r.proxima } }.toMap(),
         )
     }
         .flowOn(Dispatchers.Default)

@@ -14,6 +14,8 @@ import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.ServicioTarjetas
 import io.github.joako601.finanzas.recordatorios.Avisos
 import io.github.joako601.finanzas.recordatorios.Programador
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -33,8 +35,10 @@ import kotlinx.coroutines.launch
 class Contenedor(context: Context) {
     private val datos: Datos = Datos.crear(context)
 
+    private val manejadorErrores = CoroutineExceptionHandler { _, _ -> }
+
     /** Corrutinas que viven lo que vive el proceso (no una pantalla). */
-    val alcance: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    val alcance: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + manejadorErrores)
 
     val repositorioLibro: RepositorioLibro = datos.repositorioLibro
     val servicioLibro: ServicioLibro = ServicioLibro(repositorioLibro)
@@ -63,6 +67,16 @@ class Contenedor(context: Context) {
 
     init {
         avisos.crearCanal()
+        // Limpieza en frío de temporales huérfanos de respaldo fuera del hilo principal.
+        alcance.launch(Dispatchers.IO) {
+            try {
+                respaldo.limpiarTemporales()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // La limpieza se reintentará al crear o restaurar un respaldo.
+            }
+        }
         // Cada vez que cambian tarjetas, estados de cuenta, movimientos o pagos fijos, se reprograma.
         // collectLatest + espera de 1 s: una ráfaga de cambios produce una sola ejecución.
         alcance.launch {
@@ -73,7 +87,13 @@ class Contenedor(context: Context) {
                 repositorioRecurrentes.observarRecurrentes(),
             ) { _, _, _, _ -> }.collectLatest {
                 delay(1_000)
-                programador.ejecutar()
+                try {
+                    programador.ejecutar()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Un fallo transitorio no debe matar el observador de recordatorios.
+                }
             }
         }
     }

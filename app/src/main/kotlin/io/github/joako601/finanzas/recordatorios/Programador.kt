@@ -100,6 +100,21 @@ class Programador(
 
 private fun LocalDateTime.enMillis(zona: ZoneId): Long = toJavaLocalDateTime().atZone(zona).toInstant().toEpochMilli()
 
-/** Atajo usado por la pantalla para saber si los avisos están activos. */
-fun notificacionesActivas(context: Context): Boolean =
-    context.getSystemService(NotificationManager::class.java).areNotificationsEnabled()
+/**
+ * Verdadero solo si las notificaciones de la app están habilitadas Y el canal de recordatorios
+ * no fue silenciado por el usuario (`IMPORTANCE_NONE`).
+ */
+fun notificacionesActivas(context: Context): Boolean {
+    val notificaciones = context.getSystemService(NotificationManager::class.java)
+    if (!notificaciones.areNotificationsEnabled()) return false
+    val canal = notificaciones.getNotificationChannel(Avisos.CANAL)
+    return canal == null || canal.importance != NotificationManager.IMPORTANCE_NONE
+}
+
+/** Verdadero cuando la app tiene permiso de notificaciones pero el canal de recordatorios fue desactivado. */
+fun canalAvisosSilenciado(context: Context): Boolean {
+    val notificaciones = context.getSystemService(NotificationManager::class.java)
+    if (!notificaciones.areNotificationsEnabled()) return false
+    val canal = notificaciones.getNotificationChannel(Avisos.CANAL)
+    return canal != null && canal.importance == NotificationManager.IMPORTANCE_NONE
+}

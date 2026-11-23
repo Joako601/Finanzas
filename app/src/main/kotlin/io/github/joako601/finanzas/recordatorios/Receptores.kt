@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import io.github.joako601.finanzas.FinanzasApp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -17,6 +18,10 @@ private fun BroadcastReceiver.ejecutarProgramador(context: Context) {
     contenedor.alcance.launch {
         try {
             contenedor.programador.ejecutar()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // Un error transitorio en segundo plano no debe cerrar el proceso ni omitir pendiente.finish().
         } finally {
             pendiente.finish()
         }

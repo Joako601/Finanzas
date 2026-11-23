@@ -102,6 +102,7 @@ data class CapturaEstadoDeCuenta(
     val tarjeta: Tarjeta,
     val fechaCorte: LocalDate,
     val fechaLimite: LocalDate,
+    val fechaCorteOriginal: LocalDate? = null,
     val pagoSinIntereses: String = "",
     val pagoMinimo: String = "",
     val errores: Set<ErrorEstadoDeCuenta> = emptySet(),
@@ -378,6 +379,7 @@ class TarjetasViewModel(
             tarjeta = resumen.tarjeta,
             fechaCorte = corte,
             fechaLimite = limite,
+            fechaCorteOriginal = estadoEditable?.fechaCorte,
             pagoSinIntereses = estadoEditable?.pagoSinIntereses?.textoEditable().orEmpty(),
             pagoMinimo = estadoEditable?.pagoMinimo?.textoEditable().orEmpty(),
         )
@@ -397,7 +399,12 @@ class TarjetasViewModel(
         viewModelScope.launch {
             try {
                 val errores = servicio.capturarEstadoDeCuenta(
-                    actual.tarjeta, actual.fechaCorte, actual.fechaLimite, actual.pagoSinIntereses, actual.pagoMinimo,
+                    tarjeta = actual.tarjeta,
+                    fechaCorte = actual.fechaCorte,
+                    fechaLimite = actual.fechaLimite,
+                    pagoSinInteresesTexto = actual.pagoSinIntereses,
+                    pagoMinimoTexto = actual.pagoMinimo,
+                    fechaCorteAnterior = actual.fechaCorteOriginal,
                 )
                 _captura.value = if (errores.isEmpty()) null else actual.copy(errores = errores)
             } catch (e: CancellationException) {

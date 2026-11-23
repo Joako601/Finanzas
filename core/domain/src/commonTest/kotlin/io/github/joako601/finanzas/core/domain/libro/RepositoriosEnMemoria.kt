@@ -83,6 +83,10 @@ internal class RepositorioTarjetasEnMemoria : RepositorioTarjetas {
         val sinDuplicado = estados.value.filterNot { it.tarjeta == estado.tarjeta && it.fechaCorte == estado.fechaCorte }
         estados.value = (sinDuplicado + estado.copy(id = estados.value.size + 1L)).sortedByDescending { it.fechaCorte }
     }
+
+    override suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate) {
+        estados.value = estados.value.filterNot { it.tarjeta == tarjetaId && it.fechaCorte == fechaCorte }
+    }
 }
 
 internal class RepositorioRecurrentesEnMemoria : RepositorioRecurrentes {

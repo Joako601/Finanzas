@@ -253,6 +253,59 @@ class AnalizadorTarjetaTest {
         assertFalse(analisisVacio(actualizada).desglose.sobregiro.esPositivo)
     }
 
+    @Test
+    fun simulador_sin_estado_capturado_avisa_en_lugar_de_prometer_sin_intereses() {
+        val sinEstado = AnalizadorTarjeta.analizar(
+            tarjeta = nu,
+            deuda = Dinero.pesos(5_000),
+            estados = emptyList(),
+            pagos = emptyList(),
+            hoy = fecha("2026-11-22"),
+        )
+        val parcial = AnalizadorTarjeta.simularPago(sinEstado, Dinero.pesos(1_000))
+        assertEquals(CategoriaSimulacionPago.SIN_ESTADO_CAPTURADO, parcial.categoria)
+        assertEquals(Dinero.pesos(4_000), parcial.deudaRestanteTrasPago)
+
+        val total = AnalizadorTarjeta.simularPago(sinEstado, Dinero.pesos(5_000))
+        assertEquals(CategoriaSimulacionPago.LIQUIDACION_TOTAL, total.categoria)
+    }
+
+    @Test
+    fun corregir_fecha_de_corte_reemplaza_el_estado_anterior_y_rechaza_linea_cero() = runTest {
+        val libro = RepositorioEnMemoria()
+        val repo = RepositorioTarjetasEnMemoria()
+        val servicio = ServicioTarjetas(libro, repo)
+
+        assertTrue(ErrorTarjeta.LINEA_INVALIDA in servicio.validarAlta("Nu", "0", "15", "5", ""))
+        assertTrue(ErrorTarjeta.LINEA_INVALIDA in servicio.validarEdicion("Nu", "0.00", "15", "5"))
+
+        val tarjeta = servicio.crearTarjeta("Nu", Dinero.pesos(10_000), 15, 5, Dinero.CERO, fecha("2026-11-18"))
+        assertTrue(
+            servicio.capturarEstadoDeCuenta(
+                tarjeta = tarjeta,
+                fechaCorte = fecha("2026-11-15"),
+                fechaLimite = fecha("2026-12-05"),
+                pagoSinInteresesTexto = "2,000",
+                pagoMinimoTexto = "300",
+            ).isEmpty(),
+        )
+        assertEquals(1, repo.estados.value.size)
+
+        // Usuario corrige la fecha de corte del 15 al 16: debe quedar un solo estado (no duplicado).
+        assertTrue(
+            servicio.capturarEstadoDeCuenta(
+                tarjeta = tarjeta,
+                fechaCorte = fecha("2026-11-16"),
+                fechaLimite = fecha("2026-12-06"),
+                pagoSinInteresesTexto = "2,000",
+                pagoMinimoTexto = "300",
+                fechaCorteAnterior = fecha("2026-11-15"),
+            ).isEmpty(),
+        )
+        assertEquals(1, repo.estados.value.size)
+        assertEquals(fecha("2026-11-16"), repo.estados.value.single().fechaCorte)
+    }
+
     private fun analisisVacio(tarjeta: Tarjeta) = AnalizadorTarjeta.analizar(
         tarjeta = tarjeta,
         deuda = Dinero.CERO,

@@ -99,8 +99,8 @@ fun DialogoNuevoRecurrente(
                 Grupo(titulo = stringResource(R.string.se_repite), error = null) {
                     Frecuencia.entries.forEach { frecuencia ->
                         FilterChip(
-                            selected = nuevo.frecuencia == frecuencia,
-                            onClick = { onEditar { copy(frecuencia = frecuencia) } },
+                            selected = nuevo.periodicidadPersonalizada == null && nuevo.frecuencia == frecuencia,
+                            onClick = { onEditar { copy(frecuencia = frecuencia, periodicidadPersonalizada = null) } },
                             label = { Text(stringResource(frecuencia.etiqueta)) },
                         )
                     }

@@ -41,4 +41,7 @@ internal interface TarjetasDao {
     /** REPLACE usa el índice único (tarjeta, corte): una nueva captura del mismo corte sustituye a la anterior. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuentaEntity)
+
+    @Query("DELETE FROM estado_de_cuenta WHERE tarjeta_id = :tarjetaId AND fecha_corte = :fechaCorte")
+    suspend fun eliminarEstadoDeCuenta(tarjetaId: Long, fechaCorte: Long)
 }

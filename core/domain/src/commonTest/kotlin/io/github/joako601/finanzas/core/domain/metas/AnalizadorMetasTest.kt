@@ -168,4 +168,38 @@ class AnalizadorMetasTest {
         assertEquals(Dinero.pesos(2_000), sinMetas.disponibleLibre)
         assertEquals(Dinero.CERO, sinMetas.excesoApartados)
     }
+
+    @Test
+    fun plazo_menor_a_60_dias_solo_muestra_cuota_quincenal_sin_contradiccion_mensual() {
+        val hoy = LocalDate(2026, 11, 1)
+        val meta45 = MetaAhorro(
+            id = MetaAhorroId(1),
+            nombre = "Regalo",
+            objetivo = Dinero.pesos(10_000),
+            apartado = Dinero.CERO,
+            fechaLimite = LocalDate(2026, 12, 16), // 45 días -> 3 quincenas, < 60 días
+        )
+        val analisis = AnalizadorMetas.analizarUna(meta45, hoy)
+        assertEquals(45, analisis.diasRestantes)
+        assertEquals(Dinero(333_334), analisis.cuotaQuincenal)
+        assertNull(analisis.cuotaMensual)
+    }
+
+    @Test
+    fun analizar_con_disponible_real_usa_disponible_para_sobre_reserva() {
+        val hoy = LocalDate(2026, 11, 22)
+        val metas = listOf(
+            MetaAhorro(MetaAhorroId(1), "Emergencia", Dinero.pesos(10_000), Dinero.pesos(3_000), reservarDeDisponible = true),
+        )
+        // En cuentas hay $5,000 pero el disponible real (descontando pagos) es $2,000 -> sobre-reserva = $1,000.
+        val saldos = mapOf(efectivo.id to Dinero.pesos(5_000))
+        val resumen = AnalizadorMetas.analizar(
+            metas = metas,
+            cuentas = cuentas,
+            saldos = saldos,
+            hoy = hoy,
+            disponibleReal = Dinero.pesos(2_000),
+        )
+        assertEquals(Dinero.pesos(1_000), resumen.sobreReserva)
+    }
 }
