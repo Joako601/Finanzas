@@ -15,4 +15,5 @@
     <string name="nube_recuperar_titulo">Recuperar contraseña</string>
     <string name="nube_catalogo_titulo">Catálogo</string>
     <string name="nube_cerrar_sesion">Cerrar sesión</string>
+    <string name="nube_ir_a_finanzas">Ir a mis finanzas</string>
 </resources>

@@ -57,6 +57,36 @@ internal interface RecurrentesDao {
     @Insert
     suspend fun insertar(recurrente: RecurrenteEntity): Long
 
+    @Query(
+        """
+        UPDATE recurrente
+        SET nombre = :nombre,
+            clase = :clase,
+            monto_centavos = :montoCentavos,
+            categoria_id = :categoriaId,
+            periodo = :periodo,
+            cada = :cada,
+            primer_dia = :primerDia,
+            segundo_dia = :segundoDia,
+            inicio = :inicio,
+            proxima = :proxima
+        WHERE id = :id
+        """,
+    )
+    suspend fun actualizar(
+        id: Long,
+        nombre: String,
+        clase: String,
+        montoCentavos: Long,
+        categoriaId: Long,
+        periodo: String,
+        cada: Int?,
+        primerDia: Int?,
+        segundoDia: Int?,
+        inicio: Long,
+        proxima: Long,
+    )
+
     @Query("UPDATE recurrente SET proxima = :proxima WHERE id = :id")
     suspend fun cambiarProxima(id: Long, proxima: Long)
 
@@ -69,6 +99,24 @@ internal class RepositorioRecurrentesRoom(private val dao: RecurrentesDao) : Rep
     override fun observarRecurrentes(): Flow<List<Recurrente>> = dao.observar().map { filas -> filas.map { it.aDominio() } }
 
     override suspend fun guardar(recurrente: Recurrente): RecurrenteId = RecurrenteId(dao.insertar(recurrente.aEntidad()))
+
+    override suspend fun actualizar(recurrente: Recurrente) {
+        val id = requireNotNull(recurrente.id) { "Se requiere id para actualizar" }.valor
+        val entidad = recurrente.aEntidad()
+        dao.actualizar(
+            id = id,
+            nombre = entidad.nombre,
+            clase = entidad.clase,
+            montoCentavos = entidad.montoCentavos,
+            categoriaId = entidad.categoriaId,
+            periodo = entidad.periodo,
+            cada = entidad.cada,
+            primerDia = entidad.primerDia,
+            segundoDia = entidad.segundoDia,
+            inicio = entidad.inicio,
+            proxima = entidad.proxima,
+        )
+    }
 
     override suspend fun cambiarProxima(id: RecurrenteId, proxima: LocalDate) {
         dao.cambiarProxima(id.valor, proxima.toEpochDays())

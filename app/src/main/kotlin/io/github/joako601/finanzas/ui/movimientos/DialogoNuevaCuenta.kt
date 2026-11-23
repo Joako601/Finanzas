@@ -16,7 +16,7 @@ import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.ui.componentes.Campo
 import io.github.joako601.finanzas.ui.componentes.TECLADO_MONTO
 
-/** Diálogo para dar de alta una cuenta de efectivo o débito con su saldo actual. */
+/** Diálogo para dar de alta o editar una cuenta de efectivo o débito con su saldo actual. */
 @Composable
 fun DialogoNuevaCuenta(
     nuevaCuenta: NuevaCuenta,
@@ -25,9 +25,10 @@ fun DialogoNuevaCuenta(
     onGuardar: () -> Unit,
     onCerrar: () -> Unit,
 ) {
+    val esEdicion = nuevaCuenta.editando != null
     AlertDialog(
         onDismissRequest = onCerrar,
-        title = { Text(stringResource(R.string.nueva_cuenta)) },
+        title = { Text(stringResource(if (esEdicion) R.string.editar_cuenta else R.string.nueva_cuenta)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Campo(
@@ -45,6 +46,13 @@ fun DialogoNuevaCuenta(
                     error = if (nuevaCuenta.errorSaldo) stringResource(R.string.error_saldo_invalido) else null,
                     teclado = TECLADO_MONTO.copy(imeAction = ImeAction.Done),
                 )
+                if (esEdicion) {
+                    Text(
+                        text = stringResource(R.string.editar_cuenta_ayuda),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 if (nuevaCuenta.errorAlGuardar) {
                     Text(stringResource(R.string.error_al_guardar), color = MaterialTheme.colorScheme.error)
                 }
@@ -52,7 +60,7 @@ fun DialogoNuevaCuenta(
         },
         confirmButton = {
             TextButton(onClick = onGuardar, enabled = !nuevaCuenta.guardando) {
-                Text(stringResource(R.string.crear))
+                Text(stringResource(if (esEdicion) R.string.guardar else R.string.crear))
             }
         },
         dismissButton = {

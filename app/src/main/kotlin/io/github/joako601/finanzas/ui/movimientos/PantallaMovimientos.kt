@@ -1,13 +1,24 @@
 package io.github.joako601.finanzas.ui.movimientos
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,7 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -37,15 +50,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -56,10 +75,13 @@ import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.metas.DesgloseDisponibleMetas
 import io.github.joako601.finanzas.ui.componentes.AnimacionLottie
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
+import io.github.joako601.finanzas.ui.componentes.TextoMontoAnimado
 import io.github.joako601.finanzas.ui.componentes.iconoDe
+import io.github.joako601.finanzas.ui.componentes.rememberAnimacionesDesactivadas
 import io.github.joako601.finanzas.ui.disponible.AccionesLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.HojaLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.LineaDeTiempoViewModel
@@ -76,10 +98,12 @@ import io.github.joako601.finanzas.ui.recurrentes.ResumenRecurrente
 import io.github.joako601.finanzas.ui.recurrentes.SeccionRecurrentes
 import io.github.joako601.finanzas.ui.respaldo.HojaRespaldo
 import io.github.joako601.finanzas.ui.respaldo.RespaldoViewModel
+import io.github.joako601.finanzas.ui.tarjetas.DialogoEditarTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoEstadoDeCuenta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoNuevaTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoPagoTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
+import io.github.joako601.finanzas.ui.tarjetas.HojaDetalleTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.ResumenTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.SeccionTarjetas
 import io.github.joako601.finanzas.ui.tarjetas.TarjetaActivarAvisos
@@ -99,6 +123,7 @@ class AccionesTarjetas(
     val agregar: () -> Unit,
     val pagar: (ResumenTarjeta) -> Unit,
     val capturar: (ResumenTarjeta) -> Unit,
+    val verDetalle: (ResumenTarjeta) -> Unit = {},
 )
 
 /**
@@ -113,13 +138,17 @@ fun PantallaMovimientos(
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
     lineaDeTiempoViewModel: LineaDeTiempoViewModel = viewModel(factory = LineaDeTiempoViewModel.Fabrica),
     onAbrirNube: (() -> Unit)? = null,
+    margenInferiorExtra: Dp = 0.dp,
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val captura by viewModel.captura.collectAsStateWithLifecycle()
     val nuevaCuenta by viewModel.nuevaCuenta.collectAsStateWithLifecycle()
     val transferencia by viewModel.transferencia.collectAsStateWithLifecycle()
+    val avisoGuardado by viewModel.avisoGuardado.collectAsStateWithLifecycle()
     val estadoTarjetas by tarjetasViewModel.estado.collectAsStateWithLifecycle()
     val nuevaTarjeta by tarjetasViewModel.nuevaTarjeta.collectAsStateWithLifecycle()
+    val edicionTarjeta by tarjetasViewModel.edicionTarjeta.collectAsStateWithLifecycle()
+    val detalleTarjetaId by tarjetasViewModel.detalleTarjetaId.collectAsStateWithLifecycle()
     val pago by tarjetasViewModel.pago.collectAsStateWithLifecycle()
     val capturaEstado by tarjetasViewModel.captura.collectAsStateWithLifecycle()
     val estadoRecurrentes by recurrentesViewModel.estado.collectAsStateWithLifecycle()
@@ -130,31 +159,98 @@ fun PantallaMovimientos(
     var verRespaldo by rememberSaveable { mutableStateOf(false) }
     var porEliminar by remember { mutableStateOf<MovimientoResumido?>(null) }
 
-    ContenidoMovimientos(
-        estado = estado,
-        estadoTarjetas = estadoTarjetas,
-        onRegistrar = viewModel::abrirCaptura,
-        onAgregarCuenta = viewModel::abrirNuevaCuenta,
-        onTransferir = viewModel::abrirTransferencia,
-        lineaDeTiempo = estadoLinea.linea,
-        onVerLineaDeTiempo = { verLineaDeTiempo = true },
-        accionesTarjetas = AccionesTarjetas(
-            agregar = tarjetasViewModel::abrirNuevaTarjeta,
-            pagar = tarjetasViewModel::abrirPago,
-            capturar = tarjetasViewModel::abrirCaptura,
-        ),
-        estadoRecurrentes = estadoRecurrentes,
-        accionesRecurrentes = AccionesRecurrentes(
-            agregar = recurrentesViewModel::abrirNuevo,
-            tocar = recurrentesViewModel::abrirRegistro,
-        ),
-        // Gastos, ingresos y transferencias se editan; lo demás solo se puede eliminar.
-        onTocarMovimiento = {
-            if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
-        },
-        onRespaldo = { verRespaldo = true },
-        onAbrirNube = onAbrirNube,
-    )
+    val haptica = LocalHapticFeedback.current
+    LaunchedEffect(avisoGuardado?.id) {
+        if (avisoGuardado != null) {
+            delay(320)
+            haptica.performHapticFeedback(HapticFeedbackType.LongPress)
+            delay(1_250)
+            viewModel.consumirAvisoGuardado()
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        ContenidoMovimientos(
+            estado = estado,
+            estadoTarjetas = estadoTarjetas,
+            onRegistrar = viewModel::abrirCaptura,
+            onAgregarCuenta = viewModel::abrirNuevaCuenta,
+            onEditarCuenta = viewModel::abrirEditarCuenta,
+            onTransferir = viewModel::abrirTransferencia,
+            lineaDeTiempo = estadoLinea.linea,
+            desgloseMetas = estadoLinea.desgloseMetas,
+            onVerLineaDeTiempo = { verLineaDeTiempo = true },
+            accionesTarjetas = AccionesTarjetas(
+                agregar = tarjetasViewModel::abrirNuevaTarjeta,
+                pagar = tarjetasViewModel::abrirPago,
+                capturar = tarjetasViewModel::abrirCaptura,
+                verDetalle = tarjetasViewModel::abrirDetalle,
+            ),
+            estadoRecurrentes = estadoRecurrentes,
+            accionesRecurrentes = AccionesRecurrentes(
+                agregar = recurrentesViewModel::abrirNuevo,
+                tocar = recurrentesViewModel::abrirRegistro,
+            ),
+            // Gastos, ingresos y transferencias se editan; lo demás solo se puede eliminar.
+            onTocarMovimiento = {
+                if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
+            },
+            onRespaldo = { verRespaldo = true },
+            onAbrirNube = onAbrirNube,
+            margenInferiorExtra = margenInferiorExtra,
+        )
+
+        val sinAnimaciones = rememberAnimacionesDesactivadas()
+        AnimatedVisibility(
+            visible = avisoGuardado != null,
+            enter = if (sinAnimaciones) {
+                fadeIn(tween(120))
+            } else {
+                fadeIn(tween(220)) +
+                    scaleIn(
+                        initialScale = 0.86f,
+                        animationSpec = spring(dampingRatio = 0.88f, stiffness = 360f),
+                    ) +
+                    slideInVertically(
+                        animationSpec = spring(dampingRatio = 0.88f, stiffness = 360f),
+                    ) { it / 3 }
+            },
+            exit = if (sinAnimaciones) {
+                fadeOut(tween(120))
+            } else {
+                fadeOut(tween(320)) +
+                    scaleOut(targetScale = 0.94f, animationSpec = tween(320))
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 96.dp + margenInferiorExtra),
+        ) {
+            avisoGuardado?.let { actual ->
+                val anuncio = stringResource(
+                    if (actual.clase == ClaseRegistro.INGRESO) {
+                        R.string.ingreso_registrado
+                    } else {
+                        R.string.gasto_registrado
+                    },
+                )
+                key(actual.id) {
+                    Box(
+                        modifier = Modifier.semantics {
+                            liveRegion = LiveRegionMode.Polite
+                            contentDescription = anuncio
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AnimacionLottie(
+                            resId = R.raw.anim_movimiento_exito,
+                            modifier = Modifier.size(120.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     if (verRespaldo) {
         HojaRespaldo(viewModel(factory = RespaldoViewModel.Fabrica), onCerrar = { verRespaldo = false })
@@ -206,6 +302,10 @@ fun PantallaMovimientos(
                 omitir = recurrentesViewModel::omitir,
                 eliminar = recurrentesViewModel::eliminar,
                 cerrar = recurrentesViewModel::cerrarRegistro,
+                editarSerie = recurrentesViewModel::abrirEdicionDesdeRegistro,
+                pedirEliminar = recurrentesViewModel::pedirConfirmarEliminar,
+                cancelarEliminar = recurrentesViewModel::cancelarConfirmarEliminar,
+                agregarCuenta = viewModel::abrirNuevaCuenta,
             ),
         )
     }
@@ -221,7 +321,9 @@ fun PantallaMovimientos(
             // Un gasto se puede pagar con tarjeta; un ingreso solo llega a efectivo o débito.
             cuentas = estado.cuentasDeDinero.map { it.cuenta } +
                 (if (actual.clase == ClaseRegistro.GASTO) estado.tarjetas else emptyList()) +
-                actual.archivadas.filter { it.tipo.esDeDinero },
+                actual.archivadas.filter {
+                    if (actual.clase == ClaseRegistro.GASTO) it.tipo.esDeDinero else it.tipo == TipoCuenta.ACTIVO
+                },
             acciones = AccionesCaptura(
                 cambiarClase = viewModel::cambiarClase,
                 cambiarMonto = viewModel::cambiarMonto,
@@ -231,6 +333,7 @@ fun PantallaMovimientos(
                 cambiarNota = viewModel::cambiarNota,
                 guardar = viewModel::guardarCaptura,
                 cerrar = viewModel::cerrarCaptura,
+                agregarCuenta = viewModel::abrirNuevaCuenta,
                 eliminar = actual.editando?.let { id -> { pedirEliminar(id, estado, viewModel::cerrarCaptura) { porEliminar = it } } },
             ),
         )
@@ -249,16 +352,6 @@ fun PantallaMovimientos(
         )
     }
 
-    nuevaCuenta?.let { actual ->
-        DialogoNuevaCuenta(
-            nuevaCuenta = actual,
-            onCambiarNombre = viewModel::cambiarNombreCuenta,
-            onCambiarSaldo = viewModel::cambiarSaldoCuenta,
-            onGuardar = viewModel::guardarNuevaCuenta,
-            onCerrar = viewModel::cerrarNuevaCuenta,
-        )
-    }
-
     nuevaTarjeta?.let { actual ->
         DialogoNuevaTarjeta(
             nueva = actual,
@@ -268,13 +361,36 @@ fun PantallaMovimientos(
         )
     }
 
+    edicionTarjeta?.let { actual ->
+        DialogoEditarTarjeta(
+            edicion = actual,
+            onEditar = tarjetasViewModel::editarTarjetaExistente,
+            onGuardar = tarjetasViewModel::guardarEdicionTarjeta,
+            onCerrar = tarjetasViewModel::cerrarEdicionTarjeta,
+        )
+    }
+
+    detalleTarjetaId?.let { id ->
+        estadoTarjetas.tarjetas.firstOrNull { it.tarjeta.id == id }?.let { resumen ->
+            HojaDetalleTarjeta(
+                resumen = resumen,
+                onEditarTarjeta = { tarjetasViewModel.abrirEdicionTarjeta(resumen.tarjeta) },
+                onCapturarEstado = { tarjetasViewModel.abrirCaptura(resumen) },
+                onPagar = { tarjetasViewModel.abrirPago(resumen) },
+                onCerrar = tarjetasViewModel::cerrarDetalle,
+            )
+        }
+    }
+
     pago?.let { actual ->
         DialogoPagoTarjeta(
             pago = actual,
             cuentas = estadoTarjetas.cuentasParaPagar,
+            saldosCuentas = estadoTarjetas.saldosCuentasParaPagar,
             onEditar = tarjetasViewModel::editarPago,
             onGuardar = tarjetasViewModel::guardarPago,
             onCerrar = tarjetasViewModel::cerrarPago,
+            onAgregarCuenta = viewModel::abrirNuevaCuenta,
         )
     }
 
@@ -284,6 +400,23 @@ fun PantallaMovimientos(
             onEditar = tarjetasViewModel::editarCaptura,
             onGuardar = tarjetasViewModel::guardarCaptura,
             onCerrar = tarjetasViewModel::cerrarCaptura,
+        )
+    }
+
+    // DialogoNuevaCuenta va después de los diálogos de pago y recurrentes para que, al abrirse
+    // desde "+ Agregar cuenta", su ventana siempre quede encima incluso tras rotar la pantalla.
+    nuevaCuenta?.let { actual ->
+        DialogoNuevaCuenta(
+            nuevaCuenta = actual,
+            onCambiarNombre = viewModel::cambiarNombreCuenta,
+            onCambiarSaldo = viewModel::cambiarSaldoCuenta,
+            onGuardar = {
+                viewModel.guardarNuevaCuenta { cuentaId ->
+                    tarjetasViewModel.seleccionarCuentaPago(cuentaId)
+                    recurrentesViewModel.seleccionarCuentaRegistro(cuentaId)
+                }
+            },
+            onCerrar = viewModel::cerrarNuevaCuenta,
         )
     }
 
@@ -330,6 +463,9 @@ fun ContenidoMovimientos(
     onTocarMovimiento: (MovimientoResumido) -> Unit,
     onRespaldo: () -> Unit,
     onAbrirNube: (() -> Unit)? = null,
+    margenInferiorExtra: Dp = 0.dp,
+    onEditarCuenta: (SaldoCuenta) -> Unit = {},
+    desgloseMetas: DesgloseDisponibleMetas? = null,
 ) {
     Scaffold(
         topBar = {
@@ -345,14 +481,16 @@ fun ContenidoMovimientos(
                 // El texto del botón extendido no llega al árbol de accesibilidad: TalkBack
                 // solo decía "Botón" (comprobado en el S24 FE con AccesibilidadTest). Se
                 // deja un único nodo con nombre, rol y acción.
-                modifier = Modifier.clearAndSetSemantics {
-                    contentDescription = registrar
-                    role = Role.Button
-                    onClick {
-                        onRegistrar()
-                        true
-                    }
-                },
+                modifier = Modifier
+                    .padding(bottom = margenInferiorExtra)
+                    .clearAndSetSemantics {
+                        contentDescription = registrar
+                        role = Role.Button
+                        onClick {
+                            onRegistrar()
+                            true
+                        }
+                    },
                 icon = { Icon(painterResource(R.drawable.ic_agregar), contentDescription = null) },
                 text = { Text(registrar) },
             )
@@ -367,33 +505,46 @@ fun ContenidoMovimientos(
 
         val fechaDeHoy = remember { hoy() }
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            // Espacio extra abajo para que el botón flotante no tape el último movimiento.
+            modifier = Modifier
+                .fillMaxSize()
+                .consumeWindowInsets(margenes),
+            // Espacio extra abajo para que el botón flotante y la barra inferior no tapen el último movimiento.
             contentPadding = PaddingValues(
                 top = margenes.calculateTopPadding(),
-                bottom = margenes.calculateBottomPadding() + 88.dp,
+                bottom = margenes.calculateBottomPadding() + 88.dp + margenInferiorExtra,
             ),
         ) {
-            item(key = "saldos") {
-                TarjetaSaldos(estado, lineaDeTiempo, onAgregarCuenta, onTransferir, onVerLineaDeTiempo)
+            item(key = "saldos", contentType = "saldos") {
+                TarjetaSaldos(
+                    estado = estado,
+                    linea = lineaDeTiempo,
+                    desgloseMetas = desgloseMetas,
+                    onAgregarCuenta = onAgregarCuenta,
+                    onEditarCuenta = onEditarCuenta,
+                    onTransferir = onTransferir,
+                    onVerLineaDeTiempo = onVerLineaDeTiempo,
+                )
             }
 
-            if (estadoTarjetas.tarjetas.isNotEmpty()) {
-                item(key = "avisos") {
+            val tieneRecordatoriosProgramables = estadoTarjetas.tarjetas.isNotEmpty() ||
+                estadoRecurrentes.recurrentes.any { it.recurrente.clase == ClaseRegistro.GASTO }
+            if (tieneRecordatoriosProgramables) {
+                item(key = "avisos", contentType = "avisos") {
                     TarjetaActivarAvisos(Modifier.padding(bottom = 16.dp))
                 }
             }
 
-            item(key = "tarjetas") {
+            item(key = "tarjetas", contentType = "tarjetas") {
                 SeccionTarjetas(
                     estado = estadoTarjetas,
                     onAgregar = accionesTarjetas.agregar,
                     onPagar = accionesTarjetas.pagar,
                     onCapturar = accionesTarjetas.capturar,
+                    onVerDetalle = accionesTarjetas.verDetalle,
                 )
             }
 
-            item(key = "recurrentes") {
+            item(key = "recurrentes", contentType = "recurrentes") {
                 SeccionRecurrentes(
                     estado = estadoRecurrentes,
                     onAgregar = accionesRecurrentes.agregar,
@@ -402,7 +553,7 @@ fun ContenidoMovimientos(
             }
 
             if (estado.dias.isEmpty()) {
-                item(key = "vacio") {
+                item(key = "vacio", contentType = "vacio") {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -426,7 +577,7 @@ fun ContenidoMovimientos(
             // Cada día es una tarjeta con sus movimientos. Un día rara vez tiene más de unas
             // decenas de movimientos, así que agruparlos en un solo elemento de la lista no
             // afecta el rendimiento.
-            items(estado.dias, key = { "dia-${it.fecha}" }) { dia ->
+            items(estado.dias, key = { "dia-${it.fecha}" }, contentType = { "dia" }) { dia ->
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     Text(
                         text = when (dia.fecha) {
@@ -434,7 +585,7 @@ fun ContenidoMovimientos(
                             fechaDeHoy.minus(1, DateTimeUnit.DAY) -> stringResource(R.string.ayer)
                             else -> dia.fecha.formatoEncabezado(fechaDeHoy)
                         },
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 20.dp, bottom = 8.dp, start = 4.dp),
                     )
@@ -458,7 +609,9 @@ fun ContenidoMovimientos(
 private fun TarjetaSaldos(
     estado: EstadoMovimientos,
     linea: LineaDeTiempo?,
+    desgloseMetas: DesgloseDisponibleMetas?,
     onAgregarCuenta: () -> Unit,
+    onEditarCuenta: (SaldoCuenta) -> Unit,
     onTransferir: () -> Unit,
     onVerLineaDeTiempo: () -> Unit,
 ) {
@@ -476,18 +629,32 @@ private fun TarjetaSaldos(
                 // No se muestra otra cifra mientras tanto, para que la principal no cambie de significado.
                 CircularProgressIndicator(Modifier.padding(vertical = 8.dp))
             } else {
-                ResumenDisponible(linea)
+                ResumenDisponible(linea, desgloseMetas)
             }
             TextButton(onClick = onVerLineaDeTiempo, contentPadding = PaddingValues(0.dp), enabled = linea != null) {
                 Text(stringResource(R.string.ver_proximos_30_dias))
             }
             if (estado.cuentasDeDinero.isNotEmpty()) {
                 HorizontalDivider(Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                val etiquetaEditarCuenta = stringResource(R.string.editar_cuenta)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    estado.cuentasDeDinero.forEach { (cuenta, saldo) ->
-                        Column {
-                            Text(cuenta.nombre, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(saldo.formatear(), style = MaterialTheme.typography.titleMedium)
+                    estado.cuentasDeDinero.forEach { saldoCuenta ->
+                        val (cuenta, saldo) = saldoCuenta
+                        key(cuenta.id) {
+                            Column(
+                                modifier = Modifier
+                                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = etiquetaEditarCuenta,
+                                        onClick = { onEditarCuenta(saldoCuenta) },
+                                    )
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.Center,
+                            ) {
+                                Text(cuenta.nombre, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                TextoMontoAnimado(monto = saldo, style = MaterialTheme.typography.titleMedium)
+                            }
                         }
                     }
                 }
@@ -510,23 +677,32 @@ private fun TarjetaSaldos(
 @Composable
 private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) {
     val esDeuda = movimiento.cuenta?.tipo == TipoCuenta.PASIVO
+    val bajaActivo = !esDeuda &&
+        movimiento.movimiento.asientos.firstOrNull { it.cuenta == movimiento.cuenta?.id }?.monto?.esNegativo == true
     val neutro = MaterialTheme.colorScheme.onSurfaceVariant
     val (signo, color) = when (movimiento.clase) {
         ClaseMovimiento.GASTO -> "−" to TemaFinanzas.colores.gasto
         ClaseMovimiento.INGRESO -> "+" to TemaFinanzas.colores.ingreso
-        // Una deuda inicial no es dinero que entra: sin signo.
-        ClaseMovimiento.SALDO_INICIAL -> if (esDeuda) "" to neutro else "+" to TemaFinanzas.colores.ingreso
+        // Una deuda inicial no es dinero que entra: sin signo. Un ajuste negativo en activo lleva "−" neutro.
+        ClaseMovimiento.SALDO_INICIAL -> when {
+            esDeuda -> "" to neutro
+            bajaActivo -> "−" to neutro
+            else -> "+" to TemaFinanzas.colores.ingreso
+        }
         // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.
         ClaseMovimiento.PAGO_TARJETA, ClaseMovimiento.TRANSFERENCIA, ClaseMovimiento.OTRO -> "" to neutro
     }
     val desde = movimiento.cuenta?.nombre
     val hacia = movimiento.contraparte?.nombre
-    val esTransferencia = movimiento.clase == ClaseMovimiento.TRANSFERENCIA && desde != null && hacia != null
-    val origenDestino = if (esTransferencia) stringResource(R.string.de_a, desde!!, hacia!!) else desde
+    val origenDestino = if (movimiento.clase == ClaseMovimiento.TRANSFERENCIA && desde != null && hacia != null) {
+        stringResource(R.string.de_a, desde, hacia)
+    } else {
+        desde
+    }
     val nota = movimiento.movimiento.descripcion.ifBlank { null }?.takeIf { movimiento.clase != ClaseMovimiento.SALDO_INICIAL }
     // TalkBack leería la flecha como "flecha derecha"; se le da la frase completa.
-    val detalleHablado = if (esTransferencia) {
-        listOfNotNull(stringResource(R.string.de_a_hablado, desde!!, hacia!!), nota).joinToString(", ")
+    val detalleHablado = if (movimiento.clase == ClaseMovimiento.TRANSFERENCIA && desde != null && hacia != null) {
+        listOfNotNull(stringResource(R.string.de_a_hablado, desde, hacia), nota).joinToString(", ")
     } else {
         null
     }

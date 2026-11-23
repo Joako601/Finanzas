@@ -91,22 +91,28 @@ public data class LineaDeTiempo(
     val diaMasBajo: LocalDate? get() = puntoMasBajo?.let { maxOf(it.fecha, hoy) }
 
     val primerFaltante: Faltante?
-        get() = if (enCuentas.esNegativo) {
-            Faltante(hoy, -enCuentas)
-        } else {
-            eventos.firstOrNull { it.saldoDespues.esNegativo }?.let { Faltante(maxOf(it.fecha, hoy), -it.saldoDespues) }
+        get() {
+            val fechaPrimera = when {
+                enCuentas.esNegativo -> hoy
+                else -> eventos.firstOrNull { it.saldoDespues.esNegativo }?.let { maxOf(it.fecha, hoy) }
+            } ?: return null
+            val menorEseDia = buildList {
+                if (fechaPrimera == hoy) add(enCuentas)
+                eventos.forEach { if (maxOf(it.fecha, hoy) == fechaPrimera) add(it.saldoDespues) }
+            }.min()
+            return Faltante(fechaPrimera, -menorEseDia)
         }
 
     /**
-     * Si más adelante falta más que en el [primerFaltante], cuánto y cuándo: es la cifra
+     * Si en un día posterior falta más que en el [primerFaltante], cuánto y cuándo: es la cifra
      * del disponible. Sin esto, "Hoy te faltan $1,128.50" no cuadraba con un disponible de
-     * −$3,128.50 (caso real del S24 FE).
+     * −$3,128.50 (caso real del S24 FE). Nunca repite la misma fecha que [primerFaltante].
      */
     val faltanteMayor: Faltante?
         get() {
             val primero = primerFaltante ?: return null
             val dia = diaMasBajo ?: return null
-            return if (-disponible > primero.falta) Faltante(dia, -disponible) else null
+            return if (dia > primero.fecha && -disponible > primero.falta) Faltante(dia, -disponible) else null
         }
 
     public companion object {

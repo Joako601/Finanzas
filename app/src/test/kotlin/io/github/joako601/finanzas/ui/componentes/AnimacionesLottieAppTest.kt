@@ -15,6 +15,7 @@ class AnimacionesLottieAppTest {
 
     private val esperados = setOf(
         "anim_finanzas_vacio.json",
+        "anim_movimiento_exito.json",
         "anim_respaldo_exito.json",
     )
 

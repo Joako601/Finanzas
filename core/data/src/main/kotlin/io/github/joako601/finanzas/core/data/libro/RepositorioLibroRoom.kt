@@ -49,6 +49,10 @@ internal class RepositorioLibroRoom(
         entidad.copy(id = dao.insertarCuenta(entidad)).aDominio()
     }
 
+    override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) {
+        dao.actualizarNombreCuenta(id.valor, nombre.trim())
+    }
+
     override suspend fun cuentaDeSaldosIniciales(): Cuenta =
         checkNotNull(dao.primeraDeTipo(TipoCuenta.CAPITAL.name)) {
             "Falta la cuenta de capital del catálogo inicial"

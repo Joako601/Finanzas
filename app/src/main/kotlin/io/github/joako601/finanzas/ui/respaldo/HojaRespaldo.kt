@@ -138,7 +138,7 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
                     )
                     BotonSecundario(
                         stringResource(R.string.exportar_movimientos),
-                        { destinoCsv.launch("finanzas-movimientos-$fechaDeHoy.csv") },
+                        { destinoCsv.launch("finanzas-movimientos-${hoy()}.csv") },
                         habilitado = libre,
                     )
                 }
@@ -150,7 +150,7 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
         DialogoNuevoRespaldo(
             nuevo = actual,
             onEditar = viewModel::editarNuevo,
-            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-$fechaDeHoy.respaldo") },
+            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-${hoy()}.respaldo") },
             onCerrar = viewModel::cerrarNuevo,
         )
     }
@@ -167,7 +167,7 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
 
 /** Lo que está pasando o el resultado de lo último que se hizo. TalkBack lo anuncia al cambiar. */
 @Composable
-private fun Progreso(estado: EstadoRespaldo) {
+internal fun Progreso(estado: EstadoRespaldo) {
     val tarea = estado.tarea
     val aviso = estado.aviso
     Column(
@@ -181,6 +181,8 @@ private fun Progreso(estado: EstadoRespaldo) {
                         when (tarea) {
                             Tarea.CREANDO -> R.string.creando_respaldo
                             Tarea.EXPORTANDO -> R.string.exportando_movimientos
+                            Tarea.LEYENDO -> R.string.leyendo_respaldo
+                            Tarea.RESTAURANDO -> R.string.restaurando
                         },
                     ),
                     style = MaterialTheme.typography.bodyMedium,
@@ -230,7 +232,7 @@ private fun Progreso(estado: EstadoRespaldo) {
 }
 
 @Composable
-private fun DialogoNuevoRespaldo(
+internal fun DialogoNuevoRespaldo(
     nuevo: NuevoRespaldo,
     onEditar: (NuevoRespaldo.() -> NuevoRespaldo) -> Unit,
     onContinuar: () -> Unit,
@@ -266,7 +268,7 @@ private fun DialogoNuevoRespaldo(
 }
 
 @Composable
-private fun DialogoRestaurar(
+internal fun DialogoRestaurar(
     porRestaurar: PorRestaurar,
     onEditar: (String) -> Unit,
     onConfirmar: () -> Unit,

@@ -13,6 +13,7 @@ import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
@@ -40,12 +41,23 @@ class CarruselTarjetasTest {
         nombre: String,
         deuda: Dinero = Dinero.pesos(1_000),
         situacion: SituacionTarjeta = SituacionTarjeta.EnCiclo(LocalDate(2026, 12, 15)),
-    ) = ResumenTarjeta(
-        tarjeta = Tarjeta(Cuenta(CuentaId(id), nombre, TipoCuenta.PASIVO), Dinero.pesos(10_000), 15, 5),
-        deuda = deuda,
-        disponible = Dinero.pesos(10_000) - deuda,
-        situacion = situacion,
-    )
+    ): ResumenTarjeta {
+        val tarjeta = Tarjeta(Cuenta(CuentaId(id), nombre, TipoCuenta.PASIVO), Dinero.pesos(10_000), 15, 5)
+        val analisis = AnalizadorTarjeta.analizar(
+            tarjeta = tarjeta,
+            deuda = deuda,
+            estados = emptyList(),
+            pagos = emptyList(),
+            hoy = LocalDate(2026, 11, 20),
+        ).copy(situacion = situacion)
+        return ResumenTarjeta(
+            tarjeta = tarjeta,
+            deuda = deuda,
+            disponible = analisis.desglose.creditoDisponible,
+            situacion = situacion,
+            analisis = analisis,
+        )
+    }
 
     private fun mostrar(vararg tarjetas: ResumenTarjeta) {
         regla.setContent {
@@ -70,7 +82,7 @@ class CarruselTarjetasTest {
 
     /**
      * Una con texto largo (saldo a favor y aviso de captura) y otra con texto corto: el
-     * amarillo y la tarjeta entera deben medir lo mismo para que no cambie al deslizar.
+     * plástico y la tarjeta entera deben medir lo mismo para que no cambie al deslizar.
      */
     @Test
     fun las_tarjetas_miden_lo_mismo_aunque_su_texto_no() {
@@ -84,7 +96,7 @@ class CarruselTarjetasTest {
 
         fun alto(etiqueta: String) = regla.onNodeWithTag(etiqueta, useUnmergedTree = true).getBoundsInRoot().let { it.bottom - it.top }
 
-        assertEquals("Parte amarilla", alto(etiquetaPlastico(larga)), alto(etiquetaPlastico(corta)))
+        assertEquals("Plástico de tarjeta", alto(etiquetaPlastico(larga)), alto(etiquetaPlastico(corta)))
         assertEquals("Tarjeta completa", alto(etiquetaTarjeta(larga)), alto(etiquetaTarjeta(corta)))
         // Medir las tarjetas usa copias que no se dibujan; TalkBack no debe leerlas.
         val conNu = todosLosNodos(raizDeAccesibilidad(regla)).filter { it.text?.toString() == "Nu" }

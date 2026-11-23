@@ -161,6 +161,25 @@ class RecurrentesTest {
     }
 
     @Test
+    fun actualizar_modifica_nombre_monto_y_frecuencia() = runTest {
+        val recibo = cfe(inicio = "2026-11-10", hoy = "2026-11-01")
+        val actualizado = servicio.actualizar(
+            id = recibo.id!!,
+            nombre = "CFE Hogar",
+            clase = ClaseRegistro.GASTO,
+            montoEstimado = Dinero.pesos(820),
+            categoria = luz,
+            periodicidad = Periodicidad.MENSUAL,
+            inicio = fecha("2026-11-15"),
+            hoy = fecha("2026-11-01"),
+        )
+        assertEquals("CFE Hogar", actualizado.nombre)
+        assertEquals(Dinero.pesos(820), actualizado.montoEstimado)
+        assertEquals(Periodicidad.MENSUAL, actualizado.periodicidad)
+        assertEquals(fecha("2026-11-15"), repositorio.observarRecurrentes().first().single().proxima)
+    }
+
+    @Test
     fun omitir_solo_avanza_la_fecha() = runTest {
         servicio.omitir(cfe(inicio = "2026-11-10", hoy = "2026-11-01"))
         assertTrue(libro.observarMovimientos().first().isEmpty())

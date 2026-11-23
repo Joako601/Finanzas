@@ -1,17 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Cartera simple dentro de la zona segura de 66dp del ícono adaptable (lienzo de 108). -->
+<!--
+  Capa frontal del ícono adaptable: símbolo geométrico "Flujo" (Fase 2 aprobada).
+  Dos arcos paralelos desplazados en diagonal + punto central de balance, con separación
+  vertical abierta para que se lea como flujo de entradas/salidas incluso en tamaño pequeño.
+  Coordenadas centradas en el cuadro 30..78 dentro de 108x108 (zona segura 66/108).
+-->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Arco superior de flujo (entrada) -->
     <path
-        android:fillColor="#242424"
-        android:pathData="M34,38h40a6,6 0,0 1,6 6v22a6,6 0,0 1,-6 6h-40a6,6 0,0 1,-6 -6v-22a6,6 0,0 1,6 -6z" />
+        android:pathData="M39,55C39,46.7 45.7,40 54,40H68"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="4.4" />
+
+    <!-- Arco inferior de flujo (salida, desplazado para no cerrar como ojo) -->
     <path
-        android:fillColor="#FDD835"
-        android:pathData="M64,49h16v12h-16a6,6 0,0 1,0 -12z" />
+        android:pathData="M69,53C69,61.3 62.3,68 54,68H40"
+        android:strokeAlpha="0.68"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="4.4" />
+
+    <!-- Punto central de disponible real -->
     <path
-        android:fillColor="#242424"
-        android:pathData="M64,55m-2.5,0a2.5,2.5 0,1 1,5 0a2.5,2.5 0,1 1,-5 0" />
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,50.5A3.5,3.5 0 1,0 54,57.5A3.5,3.5 0 1,0 54,50.5Z" />
 </vector>

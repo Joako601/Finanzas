@@ -326,6 +326,43 @@ class LineaDeTiempoTest {
         assertNull(l.faltanteMayor)
     }
 
+    @Test
+    fun varios_pagos_el_mismo_dia_reportan_el_faltante_total_del_dia_sin_contradiccion() {
+        val renta = fijo(1, "Renta", ClaseRegistro.GASTO, 1_200, Periodicidad.MENSUAL, "2026-11-25")
+        val luzFija = fijo(2, "Luz", ClaseRegistro.GASTO, 500, Periodicidad.MENSUAL, "2026-11-25")
+        val l = linea(hoy = "2026-11-19", enDebito = 1_000, recurrentes = listOf(renta, luzFija))
+
+        assertEquals(Faltante(fecha("2026-11-25"), Dinero.pesos(700)), l.primerFaltante)
+        assertNull(l.faltanteMayor)
+        assertEquals(-Dinero.pesos(700), l.disponible)
+    }
+
+    @Test
+    fun saldo_negativo_hoy_mas_pago_vencido_consolida_el_faltante_en_hoy() {
+        val predial = fijo(1, "Predial", ClaseRegistro.GASTO, 400, Periodicidad.ANUAL, "2026-11-10")
+        val l = linea(hoy = "2026-11-19", enDebito = -500, recurrentes = listOf(predial))
+
+        assertEquals(Faltante(fecha("2026-11-19"), Dinero.pesos(900)), l.primerFaltante)
+        assertNull(l.faltanteMayor)
+        assertEquals(-Dinero.pesos(900), l.disponible)
+    }
+
+    @Test
+    fun cuenta_de_activo_archivada_no_se_suma_en_enCuentas() {
+        val archivada = Cuenta(CuentaId(9), "Cuenta vieja", TipoCuenta.ACTIVO, archivada = true)
+        val l = LineaDeTiempo.calcular(
+            cuentas = listOf(debito, archivada),
+            saldos = mapOf(debito.id to Dinero.pesos(1_000), archivada.id to Dinero.pesos(5_000)),
+            tarjetas = emptyList(),
+            estados = emptyList(),
+            pagos = emptyList(),
+            recurrentes = emptyList(),
+            hoy = fecha("2026-11-19"),
+        )
+        assertEquals(Dinero.pesos(1_000), l.enCuentas)
+        assertEquals(Dinero.pesos(1_000), l.disponible)
+    }
+
     // ---- Propiedades ----
 
     /**

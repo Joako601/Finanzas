@@ -4,6 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -18,7 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
@@ -31,9 +34,11 @@ import io.github.joako601.finanzas.core.domain.disponible.EventoFuturo
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.disponible.TipoEvento
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.metas.DesgloseDisponibleMetas
 import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
+import io.github.joako601.finanzas.ui.componentes.TextoMontoAnimado
 import io.github.joako601.finanzas.ui.componentes.iconoDeCategoria
 import io.github.joako601.finanzas.ui.formatoDiaCorto
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
@@ -45,7 +50,10 @@ import kotlinx.coroutines.launch
  * TalkBack lo lee como un solo bloque.
  */
 @Composable
-fun ResumenDisponible(linea: LineaDeTiempo) {
+fun ResumenDisponible(
+    linea: LineaDeTiempo,
+    desgloseMetas: DesgloseDisponibleMetas? = null,
+) {
     Column(
         modifier = Modifier.semantics(mergeDescendants = true) {},
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -55,8 +63,8 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            linea.disponible.formatear(),
+        TextoMontoAnimado(
+            monto = linea.disponible,
             style = MaterialTheme.typography.headlineLarge,
             color = if (linea.disponible.esNegativo) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
         )
@@ -70,17 +78,18 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
                     when {
                         faltante.fecha != linea.hoy ->
                             stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
-                        linea.enCuentas.esNegativo -> stringResource(R.string.faltante_hoy, faltante.falta.formatear())
+                        linea.enCuentas.esNegativo && -linea.enCuentas == faltante.falta ->
+                            stringResource(R.string.faltante_hoy, faltante.falta.formatear())
                         else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
                     },
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.error,
                 )
                 // Si más adelante falta más, se dice cuándo: así cuadra con la cifra de arriba.
                 linea.faltanteMayor?.let { mayor ->
                     Text(
                         stringResource(R.string.faltante_mayor, mayor.fecha.formatoDiaCorto(linea.hoy), mayor.falta.formatear()),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -88,12 +97,12 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
             bajo != null -> {
                 Text(
                     stringResource(R.string.en_cuentas_para_pagos, linea.enCuentas.formatear(), linea.comprometido.formatear()),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                     color = secundario,
                 )
                 Text(
                     stringResource(R.string.saldo_mas_bajo, (linea.diaMasBajo ?: bajo.fecha).formatoDiaCorto(linea.hoy)),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                     color = secundario,
                 )
             }
@@ -104,6 +113,96 @@ fun ResumenDisponible(linea: LineaDeTiempo) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = secundario,
             )
+        }
+
+        // Capa informativa de apartados en metas: solo aparece si el usuario tiene metas reservadas.
+        if (desgloseMetas != null && desgloseMetas.hayApartados) {
+            HorizontalDivider(
+                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.disponible_apartado_en_metas),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = secundario,
+                    modifier = Modifier.padding(end = 8.dp),
+                )
+                Text(
+                    text = desgloseMetas.apartadoEnMetas.formatear(),
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            when {
+                !linea.disponible.esPositivo -> {
+                    val hayPagos = linea.comprometido.esPositivo || linea.eventos.any { it.esSalida }
+                    Text(
+                        text = stringResource(
+                            if (hayPagos) {
+                                R.string.disponible_apartados_sin_respaldo
+                            } else {
+                                R.string.disponible_apartados_sin_saldo
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TemaFinanzas.colores.aviso,
+                    )
+                }
+                desgloseMetas.excesoApartados.esPositivo -> {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.disponible_libre_para_gastar),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            text = Dinero.CERO.formatear(),
+                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                            color = TemaFinanzas.colores.aviso,
+                        )
+                    }
+                    Text(
+                        text = stringResource(
+                            R.string.disponible_apartados_exceden,
+                            desgloseMetas.excesoApartados.formatear(),
+                        ),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                        color = TemaFinanzas.colores.aviso,
+                    )
+                }
+                else -> {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.disponible_libre_para_gastar),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(end = 8.dp),
+                        )
+                        Text(
+                            text = desgloseMetas.disponibleLibre.formatear(),
+                            style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -158,13 +257,58 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
             )
             // En tarjeta, como en la pantalla principal: además el rojo del faltante cumple contraste sobre blanco.
             TarjetaFinanzas(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(20.dp)) { ResumenDisponible(linea) }
+                Column(Modifier.padding(20.dp)) { ResumenDisponible(linea, estado.desgloseMetas) }
             }
             Text(
                 stringResource(R.string.explicacion_disponible),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+
+            val metasReservadas = estado.desgloseMetas?.metasReservadas.orEmpty()
+            if (metasReservadas.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.disponible_seccion_apartados),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .padding(start = 4.dp, top = 8.dp)
+                            .semantics { heading() },
+                    )
+                    TarjetaFinanzas(Modifier.fillMaxWidth()) {
+                        metasReservadas.forEachIndexed { indice, meta ->
+                            if (indice > 0) {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(horizontal = 16.dp),
+                                    color = MaterialTheme.colorScheme.outlineVariant,
+                                )
+                            }
+                            FlowRow(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                                    .semantics(mergeDescendants = true) {},
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                itemVerticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = meta.nombre,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(end = 12.dp),
+                                )
+                                Text(
+                                    text = meta.apartado.formatear(),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             if (linea.eventos.isEmpty()) {
                 Text(
@@ -173,6 +317,7 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
+                val pendientes = remember(estado.proximasRecurrentes, linea) { estado.pendientes(linea) }
                 val bajo = linea.puntoMasBajo
                 // Hasta el saldo más bajo, inclusive: esos movimientos fijan el disponible.
                 val corte = bajo?.let { linea.eventos.indexOf(it) + 1 } ?: 0
@@ -182,6 +327,7 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                         eventos = linea.eventos.subList(0, corte),
                         linea = linea,
                         estado = estado,
+                        pendientes = pendientes,
                         acciones = conAnimacion,
                     )
                 }
@@ -191,6 +337,7 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                     eventos = linea.eventos.subList(corte, linea.eventos.size),
                     linea = linea,
                     estado = estado,
+                    pendientes = pendientes,
                     acciones = conAnimacion,
                 )
             }
@@ -205,6 +352,7 @@ private fun Grupo(
     eventos: List<EventoFuturo>,
     linea: LineaDeTiempo,
     estado: EstadoLineaDeTiempo,
+    pendientes: Set<EventoFuturo>,
     acciones: AccionesLineaDeTiempo,
 ) {
     if (eventos.isEmpty()) return
@@ -218,14 +366,20 @@ private fun Grupo(
         TarjetaFinanzas(Modifier.fillMaxWidth()) {
             eventos.forEachIndexed { indice, evento ->
                 if (indice > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
-                FilaEvento(evento, linea, estado, acciones)
+                FilaEvento(evento, linea, estado, pendientes, acciones)
             }
         }
     }
 }
 
 @Composable
-private fun FilaEvento(evento: EventoFuturo, linea: LineaDeTiempo, estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiempo) {
+private fun FilaEvento(
+    evento: EventoFuturo,
+    linea: LineaDeTiempo,
+    estado: EstadoLineaDeTiempo,
+    pendientes: Set<EventoFuturo>,
+    acciones: AccionesLineaDeTiempo,
+) {
     val titulo = when (evento.tipo) {
         TipoEvento.PAGO_TARJETA -> stringResource(R.string.evento_pago_tarjeta, evento.nombre)
         TipoEvento.CORTE -> stringResource(R.string.evento_corte, evento.nombre)
@@ -249,8 +403,8 @@ private fun FilaEvento(evento: EventoFuturo, linea: LineaDeTiempo, estado: Estad
     }
 
     // Tocar un pago fijo o un ingreso abre su registro; tocar un pago de tarjeta abre el pago.
-    // Solo la fecha pendiente de cada pago fijo abre el registro: es la que se registra.
-    val recurrente = evento.recurrente?.takeIf { evento in estado.pendientes(linea) }
+    // Solo la fecha pendiente real de cada pago fijo abre el registro: es la que se registra.
+    val recurrente = evento.recurrente?.takeIf { evento in pendientes }
     val tarjeta = evento.tarjeta
     val etiquetaAccion = stringResource(if (recurrente != null) R.string.accion_registrar else R.string.accion_pagar)
     val alTocar: (() -> Unit)? = when {
@@ -295,6 +449,9 @@ private fun icono(evento: EventoFuturo, estado: EstadoLineaDeTiempo): Int = when
     TipoEvento.PAGO_FIJO, TipoEvento.INGRESO_ESPERADO -> iconoDeCategoria(evento.categoria?.let { estado.categorias[it]?.nombre })
 }
 
-/** La primera fecha de cada pago o cobro fijo: la pendiente, la única que se registra. */
+/** Solo los eventos que coinciden con la fecha pendiente real ([Recurrente.proxima]) abren el registro. */
 private fun EstadoLineaDeTiempo.pendientes(linea: LineaDeTiempo): Set<EventoFuturo> =
-    linea.eventos.filter { it.recurrente != null }.distinctBy { it.recurrente }.toSet()
+    linea.eventos.filterTo(mutableSetOf()) { evento ->
+        val id = evento.recurrente ?: return@filterTo false
+        proximasRecurrentes[id] == evento.fecha
+    }

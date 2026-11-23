@@ -11,6 +11,9 @@ import io.github.joako601.finanzas.core.data.libro.AsientoEntity
 import io.github.joako601.finanzas.core.data.libro.CuentaEntity
 import io.github.joako601.finanzas.core.data.libro.LibroDao
 import io.github.joako601.finanzas.core.data.libro.MovimientoEntity
+import io.github.joako601.finanzas.core.data.metas.MetaAhorroEntity
+import io.github.joako601.finanzas.core.data.metas.MetasDao
+import io.github.joako601.finanzas.core.data.metas.TopeCategoriaEntity
 import io.github.joako601.finanzas.core.data.recordatorios.RecordatorioEntregadoEntity
 import io.github.joako601.finanzas.core.data.recordatorios.RecordatoriosDao
 import io.github.joako601.finanzas.core.data.recurrentes.RecurrenteEntity
@@ -34,6 +37,7 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
  * - 3: recordatorio_entregado (avisos entregados y su retraso). También automática.
  * - 4: recurrente (pagos e ingresos fijos). Automática, más [De3a4], que agrega la
  *   categoría "Impuestos y predial" a las bases creadas antes de que existiera.
+ * - 5: tope_categoria y meta_ahorro (límites mensuales y apartados de ahorro). Automática.
  *
  * Todavía sin cifrar. SQLCipher o no se decide con el modelo de amenazas, antes de la
  * primera versión que use alguien más.
@@ -47,13 +51,16 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
         EstadoDeCuentaEntity::class,
         RecordatorioEntregadoEntity::class,
         RecurrenteEntity::class,
+        TopeCategoriaEntity::class,
+        MetaAhorroEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4, spec = De3a4::class),
+        AutoMigration(from = 4, to = 5),
     ],
 )
 internal abstract class FinanzasDatabase : RoomDatabase() {
@@ -65,6 +72,8 @@ internal abstract class FinanzasDatabase : RoomDatabase() {
     abstract fun recordatoriosDao(): RecordatoriosDao
 
     abstract fun recurrentesDao(): RecurrentesDao
+
+    abstract fun metasDao(): MetasDao
 
     companion object {
         const val NOMBRE_ARCHIVO = "finanzas.db"

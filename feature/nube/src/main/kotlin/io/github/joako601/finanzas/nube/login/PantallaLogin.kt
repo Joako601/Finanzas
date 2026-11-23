@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -73,6 +75,7 @@ import io.github.joako601.finanzas.nube.componentes.BannerAvisoNube
 import io.github.joako601.finanzas.nube.componentes.ColoresSemanticosNube
 import io.github.joako601.finanzas.nube.componentes.IconoVisibilidad
 import io.github.joako601.finanzas.nube.componentes.TransformacionContrasena
+import io.github.joako601.finanzas.nube.componentes.toqueTactil
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 
 /**
@@ -212,7 +215,8 @@ fun PantallaLogin(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
                     ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                 ) {
                     Column(
                         modifier = Modifier
@@ -311,26 +315,31 @@ fun PantallaLogin(
                             }
                         }
 
+                        val interaccionEntrar = remember { MutableInteractionSource() }
                         Button(
                             onClick = {
                                 focusManager.clearFocus()
                                 viewModel.iniciarSesion()
                             },
                             enabled = interactivo,
+                            interactionSource = interaccionEntrar,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 52.dp),
+                                .heightIn(min = 52.dp)
+                                .toqueTactil(interaccionEntrar),
                             shape = MaterialTheme.shapes.small,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                disabledContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.72f),
+                                disabledContentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                             ),
                         ) {
                             if (estado.cargando) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(20.dp),
                                     strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = LocalContentColor.current,
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
@@ -347,12 +356,15 @@ fun PantallaLogin(
                     }
                 }
 
+                val interaccionRegistro = remember { MutableInteractionSource() }
                 OutlinedButton(
                     onClick = onIrARegistro,
                     enabled = interactivo,
+                    interactionSource = interaccionRegistro,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 52.dp),
+                        .heightIn(min = 52.dp)
+                        .toqueTactil(interaccionRegistro),
                     shape = MaterialTheme.shapes.small,
                     border = BorderStroke(
                         width = 1.dp,

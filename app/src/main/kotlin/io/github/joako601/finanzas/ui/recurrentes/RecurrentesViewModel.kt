@@ -19,17 +19,22 @@ import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.recurrentes.ErrorRecurrente
 import io.github.joako601.finanzas.core.domain.recurrentes.Periodicidad
 import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
+import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 import io.github.joako601.finanzas.ui.hoy
+import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -81,7 +86,7 @@ data class EstadoRecurrentes(
     }
 }
 
-/** Diálogo de alta. */
+/** Diálogo de alta o edición de un pago o ingreso fijo. */
 data class NuevoRecurrente(
     val clase: ClaseRegistro = ClaseRegistro.GASTO,
     val nombre: String = "",
@@ -89,6 +94,12 @@ data class NuevoRecurrente(
     val categoriaId: CuentaId? = null,
     val frecuencia: Frecuencia = Frecuencia.MENSUAL,
     val inicio: LocalDate,
+    val editando: RecurrenteId? = null,
+    val inicioOriginal: LocalDate? = null,
+    val proximaOriginal: LocalDate? = null,
+    val periodicidadOriginal: Periodicidad? = null,
+    val periodicidadPersonalizada: Periodicidad? = null,
+    val fechaModificada: Boolean = false,
     val errores: Set<ErrorRecurrente> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
@@ -100,6 +111,7 @@ data class RegistroRecurrente(
     val monto: String,
     val cuentaId: CuentaId?,
     val fecha: LocalDate,
+    val confirmandoEliminar: Boolean = false,
     val errores: Set<ErrorRegistro> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
@@ -117,19 +129,30 @@ class RecurrentesViewModel(
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
+    /** La fecha de hoy, revisada cada minuto para actualizar vencimientos si pasa la medianoche. */
+    private val dias = flow {
+        while (true) {
+            emit(fechaDeHoy())
+            delay(60_000)
+        }
+    }.distinctUntilChanged()
+
     val estado: StateFlow<EstadoRecurrentes> = combine(
         libro.observarCuentas(),
         repositorio.observarRecurrentes(),
-    ) { cuentas, recurrentes ->
-        val hoy = fechaDeHoy()
+        dias,
+    ) { cuentas, recurrentes, hoy ->
         val porId = cuentas.associateBy { it.id }
         val activas = cuentas.filterNot { it.archivada }
+        val cuentasDinero = activas.filter { it.tipo == TipoCuenta.ACTIVO }
+        val tarjetasActivas = activas.filter { it.tipo == TipoCuenta.PASIVO }
+
         EstadoRecurrentes(
             recurrentes = recurrentes.map { ResumenRecurrente(it, porId[it.categoria], hoy.daysUntil(it.proxima)) },
             categoriasDeGasto = activas.filter { it.tipo == TipoCuenta.GASTO },
             categoriasDeIngreso = activas.filter { it.tipo == TipoCuenta.INGRESO },
-            cuentasDeDinero = activas.filter { it.tipo == TipoCuenta.ACTIVO },
-            tarjetas = activas.filter { it.tipo == TipoCuenta.PASIVO },
+            cuentasDeDinero = cuentasDinero,
+            tarjetas = tarjetasActivas,
         )
     }
         .flowOn(Dispatchers.Default)
@@ -156,7 +179,16 @@ class RecurrentesViewModel(
         actual?.cambio()?.let { nuevo ->
             // Las categorías de pago e ingreso son distintas: al cambiar de clase se borra la elegida.
             val categoria = if (nuevo.clase != actual.clase) null else nuevo.categoriaId
-            nuevo.copy(monto = limpiarMonto(nuevo.monto), categoriaId = categoria, errores = emptySet(), errorAlGuardar = false)
+            val fechaModificada = actual.fechaModificada || nuevo.inicio != actual.inicio
+            val personalizada = if (nuevo.frecuencia != actual.frecuencia) null else nuevo.periodicidadPersonalizada
+            nuevo.copy(
+                monto = limpiarMonto(nuevo.monto),
+                categoriaId = categoria,
+                fechaModificada = fechaModificada,
+                periodicidadPersonalizada = personalizada,
+                errores = emptySet(),
+                errorAlGuardar = false,
+            )
         }
     }
 
@@ -172,15 +204,41 @@ class RecurrentesViewModel(
         _nuevo.value = actual.copy(guardando = true)
         viewModelScope.launch {
             try {
-                servicio.crear(
-                    nombre = actual.nombre,
-                    clase = actual.clase,
-                    montoEstimado = Dinero.parsear(actual.monto)!!,
-                    categoria = categoria!!,
-                    periodicidad = actual.frecuencia.periodicidad,
-                    inicio = actual.inicio,
-                    hoy = fechaDeHoy(),
-                )
+                val idEditando = actual.editando
+                val periodicidadFinal = actual.periodicidadPersonalizada ?: actual.frecuencia.periodicidad
+                if (idEditando == null) {
+                    servicio.crear(
+                        nombre = actual.nombre,
+                        clase = actual.clase,
+                        montoEstimado = Dinero.parsear(actual.monto)!!,
+                        categoria = categoria!!,
+                        periodicidad = periodicidadFinal,
+                        inicio = actual.inicio,
+                        hoy = fechaDeHoy(),
+                    )
+                } else {
+                    val existente = estado.value.recurrentes.firstOrNull { it.recurrente.id == idEditando }?.recurrente
+                    val proximaAnterior = actual.proximaOriginal ?: existente?.proxima
+                    val periodicidadOriginal = actual.periodicidadOriginal ?: existente?.periodicidad
+                    val conservarAnclaYProxima = !actual.fechaModificada && periodicidadFinal == periodicidadOriginal
+                    val inicioFinal = if (conservarAnclaYProxima) {
+                        actual.inicioOriginal ?: existente?.inicio ?: actual.inicio
+                    } else {
+                        actual.inicio
+                    }
+                    servicio.actualizar(
+                        id = idEditando,
+                        nombre = actual.nombre,
+                        clase = actual.clase,
+                        montoEstimado = Dinero.parsear(actual.monto)!!,
+                        categoria = categoria!!,
+                        periodicidad = periodicidadFinal,
+                        inicio = inicioFinal,
+                        hoy = fechaDeHoy(),
+                        proximaAnterior = proximaAnterior,
+                        conservarProxima = conservarAnclaYProxima,
+                    )
+                }
                 _nuevo.value = null
             } catch (e: CancellationException) {
                 throw e
@@ -190,19 +248,55 @@ class RecurrentesViewModel(
         }
     }
 
-    // ---- Registrar, omitir, eliminar ----
+    // ---- Registrar, editar, omitir, eliminar ----
 
     fun abrirRegistro(resumen: ResumenRecurrente) {
+        val cuentasDisponibles = estado.value.cuentasPara(resumen.recurrente.clase)
         _registro.value = RegistroRecurrente(
             resumen = resumen,
-            monto = resumen.recurrente.montoEstimado.formatear().removePrefix("$"),
-            cuentaId = estado.value.cuentasDeDinero.firstOrNull()?.id,
+            monto = resumen.recurrente.montoEstimado.formatear().removePrefix("$").replace(",", ""),
+            cuentaId = estado.value.cuentasDeDinero.firstOrNull()?.id ?: cuentasDisponibles.firstOrNull()?.id,
             fecha = fechaDeHoy(),
         )
     }
 
+    fun abrirEdicionDesdeRegistro() {
+        val actual = _registro.value ?: return
+        val r = actual.resumen.recurrente
+        val frecuenciaConocida = Frecuencia.de(r.periodicidad)
+        _registro.value = null
+        _nuevo.value = NuevoRecurrente(
+            clase = r.clase,
+            nombre = r.nombre,
+            monto = r.montoEstimado.textoEditable(),
+            categoriaId = r.categoria,
+            frecuencia = frecuenciaConocida ?: Frecuencia.MENSUAL,
+            inicio = r.proxima,
+            editando = r.id,
+            inicioOriginal = r.inicio,
+            proximaOriginal = r.proxima,
+            periodicidadOriginal = r.periodicidad,
+            periodicidadPersonalizada = if (frecuenciaConocida == null) r.periodicidad else null,
+        )
+    }
+
+    fun pedirConfirmarEliminar() {
+        _registro.update { it?.copy(confirmandoEliminar = true) }
+    }
+
+    fun cancelarConfirmarEliminar() {
+        _registro.update { it?.copy(confirmandoEliminar = false) }
+    }
+
     fun cerrarRegistro() {
         _registro.value = null
+    }
+
+    /** Selecciona explícitamente una cuenta recién creada desde "+ Agregar cuenta" mientras el diálogo de registro está abierto. */
+    fun seleccionarCuentaRegistro(id: CuentaId) {
+        _registro.update { actual ->
+            actual?.copy(cuentaId = id, errores = actual.errores - ErrorRegistro.SIN_CUENTA)
+        }
     }
 
     fun editarRegistro(cambio: RegistroRecurrente.() -> RegistroRecurrente) = _registro.update {

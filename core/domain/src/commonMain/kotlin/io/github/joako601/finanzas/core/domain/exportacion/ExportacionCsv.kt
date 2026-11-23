@@ -62,12 +62,16 @@ public object ExportacionCsv {
     }
 
     /**
-     * Un texto que empieza con = + - @ (o tabulador/retorno) Excel lo ejecuta como fórmula;
-     * con un apóstrofo delante lo muestra como texto (inyección de CSV, OWASP). Importa más
-     * cuando las descripciones lleguen de notificaciones del banco (versión 0.2).
+     * Un texto que empieza con = + - @ (o tabulador/salto de línea, incluso precedido de espacios)
+     * Excel o LibreOffice lo puede ejecutar como fórmula; con un apóstrofo delante lo muestra como
+     * texto (inyección de CSV, OWASP).
      */
     private fun campo(texto: String): String {
-        val seguro = if (texto.isNotEmpty() && texto[0] in "=+-@\t\r") "'$texto" else texto
+        val primerNoBlanco = texto.trimStart().firstOrNull()
+        val peligroso = texto.isNotEmpty() && (
+            texto[0] in "=+-@\t\r\n" || (primerNoBlanco != null && primerNoBlanco in "=+-@")
+            )
+        val seguro = if (peligroso) "'$texto" else texto
         return if (seguro.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
             "\"" + seguro.replace("\"", "\"\"") + "\""
         } else {

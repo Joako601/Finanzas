@@ -51,6 +51,9 @@ data class EstadoMovimientos(
 
 data class SaldoCuenta(val cuenta: Cuenta, val saldo: Dinero)
 
+/** Aviso efímero para celebrar un ingreso o gasto recién registrado. */
+data class AvisoMovimientoGuardado(val id: Long, val clase: ClaseRegistro)
+
 data class DiaDeMovimientos(val fecha: LocalDate, val movimientos: List<MovimientoResumido>)
 
 /** Formulario de captura abierto. `null` en el ViewModel significa hoja cerrada. */
@@ -84,10 +87,12 @@ data class Transferencia(
     val archivadas: List<Cuenta> = emptyList(),
 )
 
-/** Diálogo de nueva cuenta abierto. */
+/** Diálogo de nueva cuenta o edición de cuenta existente abierto. */
 data class NuevaCuenta(
     val nombre: String = "",
     val saldoTexto: String = "",
+    val editando: SaldoCuenta? = null,
+    val saldoModificado: Boolean = false,
     val errorNombre: Boolean = false,
     val errorSaldo: Boolean = false,
     val errorAlGuardar: Boolean = false,
@@ -143,6 +148,14 @@ class MovimientosViewModel(
 
     private val _nuevaCuenta = MutableStateFlow<NuevaCuenta?>(null)
     val nuevaCuenta: StateFlow<NuevaCuenta?> = _nuevaCuenta.asStateFlow()
+
+    private val _avisoGuardado = MutableStateFlow<AvisoMovimientoGuardado?>(null)
+    val avisoGuardado: StateFlow<AvisoMovimientoGuardado?> = _avisoGuardado.asStateFlow()
+    private var secuenciaAviso: Long = 0L
+
+    fun consumirAvisoGuardado() {
+        _avisoGuardado.value = null
+    }
 
     /** Última cuenta usada, para preseleccionarla y ahorrar un toque. Solo en memoria por ahora. */
     private var ultimaCuenta: CuentaId? = null
@@ -210,7 +223,8 @@ class MovimientosViewModel(
         if (it.clase == clase) {
             it
         } else {
-            val esTarjeta = estado.value.tarjetas.any { t -> t.id == it.cuentaId }
+            val esTarjeta = estado.value.tarjetas.any { t -> t.id == it.cuentaId } ||
+                it.archivadas.any { a -> a.id == it.cuentaId && a.tipo == TipoCuenta.PASIVO }
             val cuenta = if (clase == ClaseRegistro.INGRESO && esTarjeta) {
                 estado.value.cuentasDeDinero.firstOrNull()?.cuenta?.id
             } else {
@@ -244,6 +258,10 @@ class MovimientosViewModel(
                         guardarOActualizar(resultado.movimiento, actual.editando)
                         ultimaCuenta = actual.cuentaId
                         _captura.value = null
+                        if (actual.editando == null) {
+                            secuenciaAviso += 1L
+                            _avisoGuardado.value = AvisoMovimientoGuardado(secuenciaAviso, actual.clase)
+                        }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
@@ -279,7 +297,9 @@ class MovimientosViewModel(
             if (captura.clase == ClaseRegistro.GASTO) estado.value.tarjetas.forEach { put(it.id, it) }
             estado.value.categoriasDeGasto.forEach { put(it.id, it) }
             estado.value.categoriasDeIngreso.forEach { put(it.id, it) }
-            captura.archivadas.forEach { put(it.id, it) }
+            captura.archivadas
+                .filter { captura.clase == ClaseRegistro.GASTO || it.tipo != TipoCuenta.PASIVO }
+                .forEach { put(it.id, it) }
         }
         return Registro.desdeCaptura(
             clase = captura.clase,
@@ -355,10 +375,19 @@ class MovimientosViewModel(
         viewModelScope.launch { repositorio.eliminar(id) }
     }
 
-    // ---- Nueva cuenta ----
+    // ---- Nueva cuenta y edición de cuenta ----
 
     fun abrirNuevaCuenta() {
         _nuevaCuenta.value = NuevaCuenta()
+    }
+
+    fun abrirEditarCuenta(saldoCuenta: SaldoCuenta) {
+        val monto = saldoCuenta.saldo.textoEditable()
+        _nuevaCuenta.value = NuevaCuenta(
+            nombre = saldoCuenta.cuenta.nombre,
+            saldoTexto = if (saldoCuenta.saldo.esNegativo) "-$monto" else monto,
+            editando = saldoCuenta,
+        )
     }
 
     fun cerrarNuevaCuenta() {
@@ -368,14 +397,33 @@ class MovimientosViewModel(
     fun cambiarNombreCuenta(nombre: String) =
         _nuevaCuenta.update { it?.copy(nombre = nombre.take(Cuenta.LARGO_MAXIMO_NOMBRE), errorNombre = false, errorAlGuardar = false) }
 
-    fun cambiarSaldoCuenta(texto: String) = _nuevaCuenta.update {
-        it?.copy(saldoTexto = limpiarMonto(texto), errorSaldo = false, errorAlGuardar = false)
+    fun cambiarSaldoCuenta(texto: String) = _nuevaCuenta.update { actual ->
+        actual?.let {
+            val limpio = if (it.editando != null && texto.startsWith("-")) {
+                "-" + limpiarMonto(texto.removePrefix("-"))
+            } else {
+                limpiarMonto(texto)
+            }
+            it.copy(
+                saldoTexto = limpio,
+                saldoModificado = true,
+                errorSaldo = false,
+                errorAlGuardar = false,
+            )
+        }
     }
 
-    fun guardarNuevaCuenta() {
+    fun guardarNuevaCuenta(onCuentaCreada: (CuentaId) -> Unit = {}) {
         val actual = _nuevaCuenta.value ?: return
         if (actual.guardando) return
-        val saldo = if (actual.saldoTexto.isBlank()) Dinero.CERO else Dinero.parsear(actual.saldoTexto)
+        val editando = actual.editando
+        val saldo = when {
+            editando != null && !actual.saldoModificado -> editando.saldo
+            actual.saldoTexto.isBlank() -> Dinero.CERO
+            editando != null && actual.saldoTexto.startsWith("-") ->
+                Dinero.parsear(actual.saldoTexto.removePrefix("-"))?.let { -it }
+            else -> Dinero.parsear(actual.saldoTexto)
+        }
         val errorNombre = actual.nombre.isBlank()
         val errorSaldo = saldo == null
         if (errorNombre || errorSaldo) {
@@ -385,7 +433,23 @@ class MovimientosViewModel(
         _nuevaCuenta.value = actual.copy(guardando = true, errorAlGuardar = false)
         viewModelScope.launch {
             try {
-                servicio.crearCuentaDeDinero(actual.nombre, saldo, fechaDeHoy())
+                if (editando == null) {
+                    val creada = servicio.crearCuentaDeDinero(actual.nombre, saldo, fechaDeHoy())
+                    ultimaCuenta = creada.id
+                    // Si el usuario abrió "+ Agregar cuenta" desde HojaCaptura, seleccionarla de inmediato.
+                    _captura.update { cap ->
+                        cap?.copy(cuentaId = creada.id, errores = cap.errores - ErrorRegistro.SIN_CUENTA)
+                    }
+                    onCuentaCreada(creada.id)
+                } else {
+                    servicio.editarCuentaDeDinero(
+                        cuenta = editando.cuenta,
+                        nuevoNombre = actual.nombre,
+                        saldoActual = editando.saldo,
+                        nuevoSaldo = saldo,
+                        fecha = fechaDeHoy(),
+                    )
+                }
                 _nuevaCuenta.value = null
             } catch (e: CancellationException) {
                 throw e

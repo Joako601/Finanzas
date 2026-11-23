@@ -53,6 +53,41 @@ public class ServicioRecurrentes(
     }
 
     /**
+     * Actualiza los datos de un pago o ingreso fijo existente y recalcula su próxima fecha
+     * pendiente a partir de [inicio] y [hoy].
+     *
+     * Si [conservarProxima] es verdadero y se proporciona [proximaAnterior] (por ejemplo, al
+     * editar solo nombre, monto o categoría sin tocar fecha ni frecuencia), se conservan tanto
+     * el ancla [inicio] como la [proximaAnterior] pendiente (incluso si está vencida o adelantada).
+     * De lo contrario, si [proximaAnterior] estaba vencida y [inicio] == [proximaAnterior],
+     * conserva esa ocurrencia pendiente.
+     */
+    public suspend fun actualizar(
+        id: RecurrenteId,
+        nombre: String,
+        clase: ClaseRegistro,
+        montoEstimado: Dinero,
+        categoria: Cuenta,
+        periodicidad: Periodicidad,
+        inicio: LocalDate,
+        hoy: LocalDate,
+        proximaAnterior: LocalDate? = null,
+        conservarProxima: Boolean = false,
+    ): Recurrente {
+        require(categoria.tipo == tipoDeCategoria(clase)) { "La categoría no corresponde" }
+        val primera = periodicidad.primeraDesde(inicio)
+        val proxima = when {
+            conservarProxima && proximaAnterior != null && proximaAnterior >= primera -> proximaAnterior
+            proximaAnterior != null && inicio == proximaAnterior && primera == proximaAnterior -> primera
+            primera >= hoy -> primera
+            else -> periodicidad.siguienteDespues(inicio, hoy.minus(1, DateTimeUnit.DAY))
+        }
+        val actualizado = Recurrente(id, nombre.trim(), clase, montoEstimado, categoria.id, periodicidad, inicio, proxima)
+        recurrentes.actualizar(actualizado)
+        return actualizado
+    }
+
+    /**
      * Registra la ocurrencia pendiente con lo que pasó en realidad (monto, cuenta y fecha)
      * y avanza la próxima fecha. Devuelve los errores de captura sin guardar nada si los hay.
      */

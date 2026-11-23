@@ -4,6 +4,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -25,12 +26,23 @@ private const val MILIS_POR_DIA = 86_400_000L
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SelectorFecha(fecha: LocalDate, onCambiar: (LocalDate) -> Unit, etiqueta: String? = null) {
+fun SelectorFecha(
+    fecha: LocalDate,
+    onCambiar: (LocalDate) -> Unit,
+    etiqueta: String? = null,
+    habilitado: Boolean = true,
+) {
     var mostrarCalendario by rememberSaveable { mutableStateOf(false) }
 
     AssistChip(
         onClick = { mostrarCalendario = true },
-        label = { Text(listOfNotNull(etiqueta, fecha.formatoCorto()).joinToString(": ")) },
+        enabled = habilitado,
+        label = {
+            Text(
+                text = listOfNotNull(etiqueta, fecha.formatoCorto()).joinToString(": "),
+                style = LocalTextStyle.current.copy(fontFeatureSettings = "tnum"),
+            )
+        },
     )
 
     if (mostrarCalendario) {

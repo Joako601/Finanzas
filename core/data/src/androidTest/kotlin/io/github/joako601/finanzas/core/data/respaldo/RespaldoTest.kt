@@ -8,6 +8,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.joako601.finanzas.core.data.CATEGORIA_PREDIAL
 import io.github.joako601.finanzas.core.data.FinanzasDatabase
 import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
+import io.github.joako601.finanzas.core.data.metas.RepositorioMetasRoom
 import io.github.joako601.finanzas.core.data.recurrentes.RepositorioRecurrentesRoom
 import io.github.joako601.finanzas.core.data.tarjetas.RepositorioTarjetasRoom
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
@@ -15,6 +16,7 @@ import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
 import io.github.joako601.finanzas.core.domain.recurrentes.Periodicidad
 import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.ServicioTarjetas
@@ -74,6 +76,9 @@ class RespaldoTest {
         ServicioRecurrentes(libro, RepositorioRecurrentesRoom(base.recurrentesDao())).crear(
             "Quincena", ClaseRegistro.INGRESO, Dinero.pesos(9_000), cuenta("Sueldo"), Periodicidad.QUINCENAL, hoy, hoy,
         )
+        val metas = ServicioMetas(RepositorioMetasRoom(base.metasDao()))
+        metas.guardarTope(cuenta("Súper y despensa"), Dinero.pesos(4_000))
+        metas.crearMeta("Fondo de emergencia", Dinero.pesos(20_000), Dinero.pesos(3_500), LocalDate(2027, 6, 30))
     }
 
     /** Todas las filas de todas las tablas de datos, como texto, para comparar dos bases. */
@@ -209,16 +214,44 @@ class RespaldoTest {
     }
 
     @Test
-    fun al_arrancar_se_borra_un_temporal_que_dejo_una_restauracion_interrumpida() {
+    fun al_arrancar_se_borra_un_temporal_que_dejo_una_restauracion_interrumpida() = runTest {
         val huerfano = contexto.getDatabasePath("respaldo-entrada.db")
         huerfano.parentFile!!.mkdirs()
         huerfano.writeText("datos sin cifrar")
         contexto.getDatabasePath("respaldo-entrada.db-journal").writeText("más datos")
 
-        Respaldo(contexto, base)
+        Respaldo(contexto, base).limpiarTemporales()
 
         assertTrue(!huerfano.exists(), "quedó ${huerfano.name}")
         assertTrue(!contexto.getDatabasePath("respaldo-entrada.db-journal").exists())
+    }
+
+    @Test
+    fun rechaza_respaldo_con_movimiento_descuadrado_sin_tocar_datos_actuales() = runTest {
+        llenar()
+        val sobreValido = respaldo.crear(contrasena)
+        val bytesBase = CifradoRespaldo.descifrar(sobreValido, contrasena)
+
+        val alterada = contexto.getDatabasePath("respaldo-alterada-test.db")
+        try {
+            alterada.parentFile!!.mkdirs()
+            alterada.writeBytes(bytesBase)
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                alterada.path,
+                null,
+                android.database.sqlite.SQLiteDatabase.OPEN_READWRITE,
+            ).use { db ->
+                // Rompe partida doble en un asiento para verificar la guardia de dominio.
+                db.execSQL("UPDATE asiento SET centavos = centavos + 1 WHERE id = (SELECT MIN(id) FROM asiento)")
+            }
+            val sobreCorrupto = CifradoRespaldo.cifrar(alterada.readBytes(), contrasena, CifradoRespaldo.MINIMO_ITERACIONES)
+            val error = assertFailsWith<ErrorRespaldo> { respaldo.restaurar(sobreCorrupto, contrasena) }
+            assertEquals(ErrorRespaldo.Motivo.BASE_INVALIDA, error.motivo)
+            // Los datos actuales permanecen intactos.
+            assertEquals(3, libro.observarMovimientos().first().size)
+        } finally {
+            android.database.sqlite.SQLiteDatabase.deleteDatabase(alterada)
+        }
     }
 
     @Test

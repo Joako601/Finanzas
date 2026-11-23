@@ -114,7 +114,12 @@ class ExportacionCsvTest {
 
     @Test
     fun tabulador_y_retorno_al_inicio_tambien_se_neutralizan() {
-        listOf("\t=1+1" to "'\t=1+1", "\r=1+1" to "\"'\r=1+1\"").forEach { (texto, esperado) ->
+        listOf(
+            "\t=1+1" to "'\t=1+1",
+            "\r=1+1" to "\"'\r=1+1\"",
+            "\n=1+1" to "\"'\n=1+1\"",
+            "  =1+1" to "'  =1+1",
+        ).forEach { (texto, esperado) ->
             val csv = ExportacionCsv.generar(listOf(mov(1, 1, texto, super_ to 100, efectivo to -100)), cuentas)
             assertEquals(esperado, csv.removePrefix("\uFEFF").removeSuffix("\r\n").substringAfter("\r\n").split(",")[2], "sin neutralizar: $texto")
         }

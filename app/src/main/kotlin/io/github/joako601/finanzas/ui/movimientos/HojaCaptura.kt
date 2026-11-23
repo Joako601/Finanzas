@@ -1,5 +1,7 @@
 package io.github.joako601.finanzas.ui.movimientos
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -7,28 +9,32 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -42,7 +48,12 @@ import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.ErrorRegistro
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.SelectorFecha
+import io.github.joako601.finanzas.ui.componentes.SelectorSegmentadoSeda
+import io.github.joako601.finanzas.ui.componentes.iconoDeCategoria
+import io.github.joako601.finanzas.ui.componentes.rememberAnimacionesDesactivadas
 import kotlinx.datetime.LocalDate
+
+private const val CATEGORIAS_VISIBLES_INICIALES = 6
 
 /** Todas las acciones del formulario agrupadas, para no pasar ocho lambdas sueltas. */
 class AccionesCaptura(
@@ -54,6 +65,8 @@ class AccionesCaptura(
     val cambiarNota: (String) -> Unit,
     val guardar: () -> Unit,
     val cerrar: () -> Unit,
+    /** Permite crear una cuenta de efectivo/débito sin salir de la hoja en el Día 0. */
+    val agregarCuenta: (() -> Unit)? = null,
     /** Solo al editar un movimiento guardado: pide confirmación antes de borrarlo. */
     val eliminar: (() -> Unit)? = null,
 )
@@ -76,6 +89,8 @@ fun HojaCaptura(
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val foco = remember { FocusRequester() }
+    val sinAnimaciones = rememberAnimacionesDesactivadas()
+    var mostrarTodasCategorias by rememberSaveable(captura.clase) { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = acciones.cerrar,
@@ -100,24 +115,19 @@ fun HojaCaptura(
                         modifier = Modifier.semantics { heading() },
                     )
                 }
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    ClaseRegistro.entries.forEachIndexed { indice, clase ->
-                        SegmentedButton(
-                            selected = captura.clase == clase,
-                            onClick = { acciones.cambiarClase(clase) },
-                            shape = SegmentedButtonDefaults.itemShape(indice, ClaseRegistro.entries.size),
-                        ) {
-                            Text(
-                                stringResource(
-                                    when (clase) {
-                                        ClaseRegistro.GASTO -> R.string.gasto
-                                        ClaseRegistro.INGRESO -> R.string.ingreso
-                                    },
-                                ),
-                            )
-                        }
-                    }
-                }
+                SelectorSegmentadoSeda(
+                    opciones = ClaseRegistro.entries,
+                    seleccionada = captura.clase,
+                    etiqueta = { clase ->
+                        stringResource(
+                            when (clase) {
+                                ClaseRegistro.GASTO -> R.string.gasto
+                                ClaseRegistro.INGRESO -> R.string.ingreso
+                            },
+                        )
+                    },
+                    onSeleccionar = acciones.cambiarClase,
+                )
 
                 val errorMonto = captura.errores.firstOrNull {
                     it == ErrorRegistro.MONTO_VACIO || it == ErrorRegistro.MONTO_INVALIDO || it == ErrorRegistro.MONTO_CERO
@@ -129,23 +139,67 @@ fun HojaCaptura(
                     label = { Text(stringResource(R.string.monto)) },
                     prefix = { Text("$") },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.headlineSmall,
+                    textStyle = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"),
                     isError = errorMonto != null,
                     supportingText = errorMonto?.let { { Text(textoError(it)) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                 )
+
+                val hayMasCategorias = categorias.size > CATEGORIAS_VISIBLES_INICIALES
+                val categoriasVisibles = remember(categorias, mostrarTodasCategorias, captura.categoriaId) {
+                    if (mostrarTodasCategorias || !hayMasCategorias) {
+                        categorias
+                    } else {
+                        val iniciales = categorias.take(CATEGORIAS_VISIBLES_INICIALES)
+                        val seleccionada = captura.categoriaId?.let { id ->
+                            categorias.firstOrNull { it.id == id }
+                        }
+                        if (seleccionada != null && iniciales.none { it.id == seleccionada.id }) {
+                            iniciales + seleccionada
+                        } else {
+                            iniciales
+                        }
+                    }
+                }
 
                 Seccion(
                     titulo = stringResource(R.string.categoria),
                     error = captura.errores.firstOrNull {
                         it == ErrorRegistro.SIN_CATEGORIA || it == ErrorRegistro.CATEGORIA_NO_CORRESPONDE
                     },
+                    modifier = if (sinAnimaciones) {
+                        Modifier
+                    } else {
+                        Modifier.animateContentSize(spring(dampingRatio = 0.88f, stiffness = 420f))
+                    },
                 ) {
-                    categorias.forEach { categoria ->
+                    categoriasVisibles.forEach { categoria ->
                         FilterChip(
                             selected = captura.categoriaId == categoria.id,
                             onClick = { acciones.elegirCategoria(categoria.id) },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(iconoDeCategoria(categoria.nombre)),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            },
                             label = { Text(categoria.nombre) },
+                        )
+                    }
+                    if (hayMasCategorias) {
+                        FilterChip(
+                            selected = false,
+                            onClick = { mostrarTodasCategorias = !mostrarTodasCategorias },
+                            label = {
+                                Text(
+                                    if (mostrarTodasCategorias) {
+                                        stringResource(R.string.ver_menos_categorias)
+                                    } else {
+                                        stringResource(R.string.ver_todas_categorias, categorias.size)
+                                    },
+                                )
+                            },
                         )
                     }
                 }
@@ -159,6 +213,13 @@ fun HojaCaptura(
                             selected = captura.cuentaId == cuenta.id,
                             onClick = { acciones.elegirCuenta(cuenta.id) },
                             label = { Text(cuenta.nombre) },
+                        )
+                    }
+                    if (acciones.agregarCuenta != null) {
+                        FilterChip(
+                            selected = false,
+                            onClick = acciones.agregarCuenta,
+                            label = { Text(stringResource(R.string.chip_agregar_cuenta)) },
                         )
                     }
                 }
@@ -208,8 +269,13 @@ fun HojaCaptura(
 }
 
 @Composable
-private fun Seccion(titulo: String, error: ErrorRegistro?, contenido: @Composable () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+private fun Seccion(
+    titulo: String,
+    error: ErrorRegistro?,
+    modifier: Modifier = Modifier,
+    contenido: @Composable () -> Unit,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(titulo, style = MaterialTheme.typography.labelLarge)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) { contenido() }
         if (error != null) {

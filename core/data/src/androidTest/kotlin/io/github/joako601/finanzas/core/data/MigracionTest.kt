@@ -187,6 +187,33 @@ class MigracionTest {
         }
     }
 
+    /** El caso del teléfono del autor hoy: versión 4 con cuentas, tarjetas y fijos migra a versión 5 sin pérdida. */
+    @Test
+    fun de_4_a_5_agrega_topes_y_metas_conservando_todo() {
+        ayudante.createDatabase(nombre, 4).use { db ->
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (1, 'Efectivo', 'ACTIVO', 0, 1)")
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (4, 'Comida fuera', 'GASTO', 0, 4)")
+            db.execSQL(
+                "INSERT INTO recurrente (id, nombre, clase, monto_centavos, categoria_id, periodo, cada, primer_dia, segundo_dia, inicio, proxima) " +
+                    "VALUES (1, 'Internet', 'GASTO', 60000, 4, 'MESES', 1, NULL, NULL, 20770, 20800)",
+            )
+        }
+        ayudante.runMigrationsAndValidate(nombre, 5, true).use { db ->
+            db.query("SELECT COUNT(*) FROM tope_categoria").use { c ->
+                c.moveToFirst()
+                assertEquals(0, c.getInt(0))
+            }
+            db.query("SELECT COUNT(*) FROM meta_ahorro").use { c ->
+                c.moveToFirst()
+                assertEquals(0, c.getInt(0))
+            }
+            db.query("SELECT nombre FROM recurrente WHERE id = 1").use { c ->
+                c.moveToFirst()
+                assertEquals("Internet", c.getString(0))
+            }
+        }
+    }
+
     /** El nombre que inserta la migración es el mismo del catálogo de bases nuevas. */
     @Test
     fun la_categoria_de_la_migracion_esta_en_el_catalogo() {

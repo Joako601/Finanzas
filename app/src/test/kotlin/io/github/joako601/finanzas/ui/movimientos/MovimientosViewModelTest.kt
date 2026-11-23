@@ -215,14 +215,48 @@ class MovimientosViewModelTest {
         assertEquals(true, vm.captura.value?.errorAlGuardar)
         assertEquals(false, vm.captura.value?.guardando)
     }
+
+    @Test
+    fun editar_cuenta_con_saldo_negativo_conserva_el_signo_y_permite_ajustarlo() = runTest {
+        val vm = viewModel()
+        vm.abrirEditarCuenta(SaldoCuenta(efectivo, -Dinero.pesos(50)))
+
+        assertEquals("-50", vm.nuevaCuenta.value?.saldoTexto)
+
+        vm.cambiarSaldoCuenta("-20.50")
+        assertEquals("-20.50", vm.nuevaCuenta.value?.saldoTexto)
+        vm.guardarNuevaCuenta()
+
+        assertNull(vm.nuevaCuenta.value)
+        // El ajuste es (-20.50) - (-50.00) = +29.50 en efectivo.
+        assertEquals(Dinero(2_950), saldosPorCuenta(libro.movimientos.value)[efectivo.id])
+    }
+
+    @Test
+    fun crear_cuenta_invoca_callback_con_el_id_creado() = runTest {
+        val vm = viewModel()
+        var creadaId: CuentaId? = null
+        vm.abrirNuevaCuenta()
+        vm.cambiarNombreCuenta("BBVA")
+        vm.cambiarSaldoCuenta("1000")
+        vm.guardarNuevaCuenta { creadaId = it }
+
+        assertNull(vm.nuevaCuenta.value)
+        assertTrue(creadaId != null)
+        assertEquals("BBVA", libro.cuentasActuales().last().nombre)
+    }
 }
 
 /** Libro en memoria con registrar, actualizar y eliminar reales, para probar el ViewModel. */
 private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
     private val cuentas = MutableStateFlow(cuentas)
+    private val capital = Cuenta(CuentaId(99), "Saldos iniciales", TipoCuenta.CAPITAL)
     val movimientos = MutableStateFlow(emptyList<Movimiento>())
     private var siguiente = 1L
+    private var siguienteCuenta = 100L
     var fallarAlActualizar = false
+
+    fun cuentasActuales(): List<Cuenta> = cuentas.value
 
     override fun observarCuentas(): Flow<List<Cuenta>> = cuentas
     override fun observarSaldos(): Flow<Map<CuentaId, Dinero>> = movimientos.map { saldosPorCuenta(it) }
@@ -240,7 +274,14 @@ private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
     override suspend fun eliminar(id: MovimientoId) {
         movimientos.value = movimientos.value.filterNot { it.id == id }
     }
-    override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = error("no se usa")
-    override suspend fun cuentaDeSaldosIniciales(): Cuenta = error("no se usa")
+    override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta {
+        val nueva = Cuenta(CuentaId(siguienteCuenta++), nombre, tipo)
+        cuentas.value = cuentas.value + nueva
+        return nueva
+    }
+    override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) {
+        cuentas.value = cuentas.value.map { if (it.id == id) it.copy(nombre = nombre) else it }
+    }
+    override suspend fun cuentaDeSaldosIniciales(): Cuenta = capital
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()
 }
