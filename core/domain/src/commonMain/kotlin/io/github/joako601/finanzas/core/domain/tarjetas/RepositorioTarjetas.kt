@@ -19,6 +19,9 @@ public interface RepositorioTarjetas {
     /** Registra los datos de tarjeta de una cuenta de pasivo ya creada. */
     public suspend fun guardarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta
 
+    /** Actualiza nombre, línea de crédito, día de corte y día límite de una tarjeta existente. */
+    public suspend fun actualizarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta
+
     /**
      * Guarda un estado de cuenta. Si ya hay uno de la misma tarjeta con la misma fecha de
      * corte, lo reemplaza (el usuario corrigió una captura).

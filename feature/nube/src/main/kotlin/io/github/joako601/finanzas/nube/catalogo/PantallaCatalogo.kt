@@ -31,6 +31,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -76,6 +77,7 @@ fun PantallaCatalogo(
     usuario: UsuarioSesion,
     repositorioSesion: RepositorioSesion,
     onSalir: () -> Unit,
+    onIrAFinanzas: (() -> Unit)? = null,
 ) {
     val factory = remember(repositorioSesion) {
         CatalogoViewModel.factory(repositorioSesion = repositorioSesion)
@@ -92,6 +94,7 @@ fun PantallaCatalogo(
         onSalir = onSalir,
         onCerrarSesion = viewModel::cerrarSesion,
         onReintentar = viewModel::reintentar,
+        onIrAFinanzas = onIrAFinanzas,
     )
 }
 
@@ -103,6 +106,7 @@ internal fun ContenidoPantallaCatalogo(
     onSalir: () -> Unit,
     onCerrarSesion: () -> Unit,
     onReintentar: () -> Unit,
+    onIrAFinanzas: (() -> Unit)? = null,
 ) {
     var mostrarConfirmarCierre by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -182,6 +186,7 @@ internal fun ContenidoPantallaCatalogo(
                 titulo = stringResource(R.string.catalogo_vacio_titulo),
                 texto = stringResource(R.string.catalogo_vacio_texto),
                 onReintentar = onReintentar,
+                onIrAFinanzas = onIrAFinanzas,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(margenes),
@@ -198,6 +203,7 @@ internal fun ContenidoPantallaCatalogo(
                     titulo = stringResource(tituloRes),
                     texto = stringResource(textoRes),
                     onReintentar = onReintentar,
+                    onIrAFinanzas = onIrAFinanzas,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(margenes),
@@ -208,6 +214,7 @@ internal fun ContenidoPantallaCatalogo(
                 correoUsuario = usuario.correo,
                 productos = lista.productos,
                 margenes = margenes,
+                onIrAFinanzas = onIrAFinanzas,
                 modifier = Modifier
                     .fillMaxSize()
                     .consumeWindowInsets(margenes),
@@ -248,6 +255,7 @@ private fun EstadoMensajeCatalogo(
     texto: String,
     onReintentar: () -> Unit,
     modifier: Modifier = Modifier,
+    onIrAFinanzas: (() -> Unit)? = null,
 ) {
     Box(
         modifier = modifier
@@ -305,6 +313,27 @@ private fun EstadoMensajeCatalogo(
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
+                if (onIrAFinanzas != null) {
+                    val interaccionFinanzas = remember { MutableInteractionSource() }
+                    OutlinedButton(
+                        onClick = onIrAFinanzas,
+                        interactionSource = interaccionFinanzas,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 52.dp)
+                            .toqueTactil(interaccionFinanzas),
+                        shape = MaterialTheme.shapes.small,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.nube_ir_a_finanzas),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
+                }
             }
         }
     }
@@ -316,6 +345,7 @@ private fun ListaProductosCatalogo(
     productos: List<ProductoFinanciero>,
     margenes: PaddingValues,
     modifier: Modifier = Modifier,
+    onIrAFinanzas: (() -> Unit)? = null,
 ) {
     val layoutDirection = LocalLayoutDirection.current
     LazyVerticalGrid(
@@ -338,6 +368,7 @@ private fun ListaProductosCatalogo(
             EncabezadoCatalogo(
                 correoUsuario = correoUsuario,
                 totalProductos = productos.size,
+                onIrAFinanzas = onIrAFinanzas,
             )
         }
         items(
@@ -354,6 +385,7 @@ private fun ListaProductosCatalogo(
 private fun EncabezadoCatalogo(
     correoUsuario: String,
     totalProductos: Int,
+    onIrAFinanzas: (() -> Unit)? = null,
 ) {
     Surface(
         modifier = Modifier
@@ -365,7 +397,7 @@ private fun EncabezadoCatalogo(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = stringResource(R.string.catalogo_sesion_activa, correoUsuario),
@@ -382,6 +414,27 @@ private fun EncabezadoCatalogo(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (onIrAFinanzas != null) {
+                val interaccionFinanzas = remember { MutableInteractionSource() }
+                Button(
+                    onClick = onIrAFinanzas,
+                    interactionSource = interaccionFinanzas,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .toqueTactil(interaccionFinanzas),
+                    shape = MaterialTheme.shapes.small,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    ),
+                ) {
+                    Text(
+                        text = stringResource(R.string.nube_ir_a_finanzas),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
         }
     }
 }

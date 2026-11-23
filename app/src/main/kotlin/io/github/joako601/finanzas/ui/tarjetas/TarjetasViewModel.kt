@@ -12,6 +12,8 @@ import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.AnalisisTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorEstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorTarjeta
@@ -21,15 +23,18 @@ import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.deudaDe
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
-import io.github.joako601.finanzas.core.domain.tarjetas.situacionTarjeta
 import io.github.joako601.finanzas.ui.hoy
+import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -42,12 +47,15 @@ data class ResumenTarjeta(
     val deuda: Dinero,
     val disponible: Dinero,
     val situacion: SituacionTarjeta,
+    val analisis: AnalisisTarjeta,
 )
 
 data class EstadoTarjetas(
     val tarjetas: List<ResumenTarjeta> = emptyList(),
     /** Cuentas desde las que se puede pagar una tarjeta (efectivo y débito). */
     val cuentasParaPagar: List<Cuenta> = emptyList(),
+    /** Saldo disponible actual en cada cuenta de efectivo o débito. */
+    val saldosCuentasParaPagar: Map<CuentaId, Dinero> = emptyMap(),
 )
 
 /** Diálogo de alta de tarjeta. Los campos son texto tal cual se escribe. */
@@ -62,14 +70,28 @@ data class NuevaTarjeta(
     val guardando: Boolean = false,
 )
 
+/** Diálogo de edición de los parámetros de una tarjeta existente. */
+data class EdicionTarjeta(
+    val actual: Tarjeta,
+    val nombre: String,
+    val linea: String,
+    val diaCorte: String,
+    val diaLimite: String,
+    val errores: Set<ErrorTarjeta> = emptySet(),
+    val errorAlGuardar: Boolean = false,
+    val guardando: Boolean = false,
+)
+
 enum class ErrorPago { MONTO_INVALIDO, SIN_CUENTA }
 
-/** Diálogo de pago de tarjeta. */
+/** Diálogo de pago de tarjeta con análisis y simulación de intereses en vivo. */
 data class PagoTarjeta(
     val tarjeta: Tarjeta,
     val montoTexto: String,
     val desdeId: CuentaId?,
     val fecha: LocalDate,
+    val analisis: AnalisisTarjeta? = null,
+    val tasaAnualPorcentaje: Int = AnalizadorTarjeta.TASA_ANUAL_REFERENCIA_MEXICO,
     val errores: Set<ErrorPago> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
@@ -99,26 +121,43 @@ class TarjetasViewModel(
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
+    /** La fecha de hoy, revisada cada minuto para recalcular si la app queda abierta tras la medianoche. */
+    private val dias = flow {
+        while (true) {
+            emit(fechaDeHoy())
+            delay(60_000)
+        }
+    }.distinctUntilChanged()
+
     val estado: StateFlow<EstadoTarjetas> = combine(
-        libro.observarCuentas(),
-        libro.observarSaldos(),
-        libro.observarMovimientos(),
-        repositorioTarjetas.observarTarjetas(),
-        repositorioTarjetas.observarEstadosDeCuenta(),
-    ) { cuentas, saldos, movimientos, tarjetas, estadosDeCuenta ->
-        val hoy = fechaDeHoy()
-        val pagos = pagosATarjetas(movimientos, cuentas.associateBy { it.id })
+        combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
+        combine(repositorioTarjetas.observarTarjetas(), repositorioTarjetas.observarEstadosDeCuenta(), dias, ::Triple),
+    ) { (cuentas, saldos, movimientos), (tarjetas, estadosDeCuenta, hoy) ->
+        val porId = cuentas.associateBy { it.id }
+        val pagos = pagosATarjetas(movimientos, porId)
+        val cuentasActivas = cuentas.filter { it.tipo == TipoCuenta.ACTIVO && !it.archivada }
+        val saldosActivas = cuentasActivas.associate { it.id to (saldos[it.id] ?: Dinero.CERO) }
+
         EstadoTarjetas(
             tarjetas = tarjetas.filterNot { it.cuenta.archivada }.map { tarjeta ->
                 val deuda = deudaDe(tarjeta, saldos)
+                val analisis = AnalizadorTarjeta.analizar(
+                    tarjeta = tarjeta,
+                    deuda = deuda,
+                    estados = estadosDeCuenta,
+                    pagos = pagos,
+                    hoy = hoy,
+                )
                 ResumenTarjeta(
                     tarjeta = tarjeta,
                     deuda = deuda,
-                    disponible = tarjeta.lineaDeCredito - deuda,
-                    situacion = situacionTarjeta(tarjeta, estadosDeCuenta, pagos, hoy, deuda),
+                    disponible = analisis.desglose.creditoDisponible,
+                    situacion = analisis.situacion,
+                    analisis = analisis,
                 )
             },
-            cuentasParaPagar = cuentas.filter { it.tipo == TipoCuenta.ACTIVO && !it.archivada },
+            cuentasParaPagar = cuentasActivas,
+            saldosCuentasParaPagar = saldosActivas,
         )
     }
         .flowOn(Dispatchers.Default)
@@ -127,11 +166,74 @@ class TarjetasViewModel(
     private val _nuevaTarjeta = MutableStateFlow<NuevaTarjeta?>(null)
     val nuevaTarjeta: StateFlow<NuevaTarjeta?> = _nuevaTarjeta.asStateFlow()
 
+    private val _edicionTarjeta = MutableStateFlow<EdicionTarjeta?>(null)
+    val edicionTarjeta: StateFlow<EdicionTarjeta?> = _edicionTarjeta.asStateFlow()
+
+    private val _detalleTarjetaId = MutableStateFlow<CuentaId?>(null)
+    val detalleTarjetaId: StateFlow<CuentaId?> = _detalleTarjetaId.asStateFlow()
+
     private val _pago = MutableStateFlow<PagoTarjeta?>(null)
     val pago: StateFlow<PagoTarjeta?> = _pago.asStateFlow()
 
     private val _captura = MutableStateFlow<CapturaEstadoDeCuenta?>(null)
     val captura: StateFlow<CapturaEstadoDeCuenta?> = _captura.asStateFlow()
+
+    /** Tasas anuales personalizadas en sesión por tarjeta (por defecto 60%). */
+    private val tasasPorTarjeta = mutableMapOf<CuentaId, Int>()
+
+    // ---- Detalle y Edición ----
+
+    fun abrirDetalle(resumen: ResumenTarjeta) {
+        _detalleTarjetaId.value = resumen.tarjeta.id
+    }
+
+    fun cerrarDetalle() {
+        _detalleTarjetaId.value = null
+    }
+
+    fun abrirEdicionTarjeta(tarjeta: Tarjeta) {
+        _edicionTarjeta.value = EdicionTarjeta(
+            actual = tarjeta,
+            nombre = tarjeta.cuenta.nombre,
+            linea = tarjeta.lineaDeCredito.textoEditable(),
+            diaCorte = tarjeta.diaDeCorte.toString(),
+            diaLimite = tarjeta.diaLimite.toString(),
+        )
+    }
+
+    fun cerrarEdicionTarjeta() {
+        _edicionTarjeta.value = null
+    }
+
+    fun editarTarjetaExistente(cambio: EdicionTarjeta.() -> EdicionTarjeta) =
+        _edicionTarjeta.update { it?.cambio()?.copy(errores = emptySet(), errorAlGuardar = false) }
+
+    fun guardarEdicionTarjeta() {
+        val actual = _edicionTarjeta.value ?: return
+        if (actual.guardando) return
+        val errores = servicio.validarEdicion(actual.nombre, actual.linea, actual.diaCorte, actual.diaLimite)
+        if (errores.isNotEmpty()) {
+            _edicionTarjeta.value = actual.copy(errores = errores)
+            return
+        }
+        _edicionTarjeta.value = actual.copy(guardando = true)
+        viewModelScope.launch {
+            try {
+                servicio.actualizarTarjeta(
+                    actual = actual.actual,
+                    nombre = actual.nombre,
+                    lineaDeCredito = Dinero.parsear(actual.linea)!!,
+                    diaDeCorte = actual.diaCorte.trim().toInt(),
+                    diaLimite = actual.diaLimite.trim().toInt(),
+                )
+                _edicionTarjeta.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _edicionTarjeta.update { it?.copy(guardando = false, errorAlGuardar = true) }
+            }
+        }
+    }
 
     // ---- Alta ----
 
@@ -180,15 +282,31 @@ class TarjetasViewModel(
     /**
      * Abre el pago. Sugiere [montoSugerido] si se indica (por ejemplo, desde la línea de
      * tiempo: un estado vencido o el estimado sin estado de cuenta); si no, lo que falta
-     * para no generar intereses del estado vigente.
+     * para no generar intereses del estado vigente o vencido, o la deuda total si está en ciclo.
      */
     fun abrirPago(resumen: ResumenTarjeta, montoSugerido: Dinero? = null) {
-        val sugerido = montoSugerido ?: (resumen.situacion as? SituacionTarjeta.PagoPendiente)?.restante
+        val exigibleCiclo = resumen.analisis.progresoCiclo?.restanteSinIntereses
+        val sugerido = montoSugerido
+            ?: exigibleCiclo?.takeIf { it.esPositivo }
+            ?: resumen.analisis.desglose.deudaTotal.takeIf { it.esPositivo }
+        val tasa = tasasPorTarjeta[resumen.tarjeta.id] ?: AnalizadorTarjeta.TASA_ANUAL_REFERENCIA_MEXICO
+
+        // Preseleccionar la primera cuenta cuyo saldo cubra el pago, o la primera cuenta disponible.
+        val cuentas = estado.value.cuentasParaPagar
+        val saldos = estado.value.saldosCuentasParaPagar
+        val cuentaPreferida = if (sugerido != null) {
+            cuentas.firstOrNull { (saldos[it.id] ?: Dinero.CERO) >= sugerido } ?: cuentas.firstOrNull()
+        } else {
+            cuentas.firstOrNull()
+        }
+
         _pago.value = PagoTarjeta(
             tarjeta = resumen.tarjeta,
-            montoTexto = sugerido?.formatear()?.removePrefix("$").orEmpty(),
-            desdeId = estado.value.cuentasParaPagar.firstOrNull()?.id,
+            montoTexto = sugerido?.textoEditable().orEmpty(),
+            desdeId = cuentaPreferida?.id,
             fecha = fechaDeHoy(),
+            analisis = resumen.analisis,
+            tasaAnualPorcentaje = tasa,
         )
     }
 
@@ -196,8 +314,19 @@ class TarjetasViewModel(
         _pago.value = null
     }
 
+    /** Selecciona explícitamente una cuenta recién creada desde "+ Agregar cuenta" mientras el diálogo de pago está abierto. */
+    fun seleccionarCuentaPago(id: CuentaId) {
+        _pago.update { actual ->
+            actual?.copy(desdeId = id, errores = actual.errores - ErrorPago.SIN_CUENTA)
+        }
+    }
+
     fun editarPago(cambio: PagoTarjeta.() -> PagoTarjeta) =
-        _pago.update { it?.cambio()?.copy(errores = emptySet(), errorAlGuardar = false) }
+        _pago.update { actual ->
+            actual?.cambio()?.also { actualizado ->
+                tasasPorTarjeta[actualizado.tarjeta.id] = actualizado.tasaAnualPorcentaje
+            }?.copy(errores = emptySet(), errorAlGuardar = false)
+        }
 
     fun guardarPago() {
         val actual = _pago.value ?: return
@@ -229,15 +358,29 @@ class TarjetasViewModel(
 
     fun abrirCaptura(resumen: ResumenTarjeta) {
         val hoy = fechaDeHoy()
-        // Propone las fechas del corte que falta capturar o, si no, del último corte.
+        val ultimoCorte = CalendarioTarjeta.ultimoCorteHasta(resumen.tarjeta, hoy)
+        val estadoEditable = when (val s = resumen.situacion) {
+            is SituacionTarjeta.CapturaPendiente -> null
+            is SituacionTarjeta.PagoPendiente -> s.estado
+            is SituacionTarjeta.Pagado -> s.estado
+            is SituacionTarjeta.EnCiclo -> resumen.analisis.vencidoPendiente?.estado
+                ?.takeIf { it.fechaCorte >= ultimoCorte }
+        }
         val (corte, limite) = when (val s = resumen.situacion) {
             is SituacionTarjeta.CapturaPendiente -> s.cortePredicho to s.limitePredicho
-            else -> {
-                val ultimo = CalendarioTarjeta.ultimoCorteHasta(resumen.tarjeta, hoy)
-                ultimo to CalendarioTarjeta.limiteParaCorte(resumen.tarjeta, ultimo)
+            else -> if (estadoEditable != null) {
+                estadoEditable.fechaCorte to estadoEditable.fechaLimite
+            } else {
+                ultimoCorte to CalendarioTarjeta.limiteParaCorte(resumen.tarjeta, ultimoCorte)
             }
         }
-        _captura.value = CapturaEstadoDeCuenta(resumen.tarjeta, corte, limite)
+        _captura.value = CapturaEstadoDeCuenta(
+            tarjeta = resumen.tarjeta,
+            fechaCorte = corte,
+            fechaLimite = limite,
+            pagoSinIntereses = estadoEditable?.pagoSinIntereses?.textoEditable().orEmpty(),
+            pagoMinimo = estadoEditable?.pagoMinimo?.textoEditable().orEmpty(),
+        )
     }
 
     fun cerrarCaptura() {

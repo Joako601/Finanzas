@@ -30,9 +30,10 @@ import io.github.joako601.finanzas.ui.componentes.Campo
 import io.github.joako601.finanzas.ui.componentes.ErrorAlGuardar
 import io.github.joako601.finanzas.ui.componentes.SelectorFecha
 import io.github.joako601.finanzas.ui.componentes.TECLADO_MONTO
+import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 import io.github.joako601.finanzas.ui.movimientos.textoError
 
-/** Alta de un pago o ingreso fijo. */
+/** Alta o edición de un pago o ingreso fijo. */
 @Composable
 fun DialogoNuevoRecurrente(
     nuevo: NuevoRecurrente,
@@ -41,9 +42,10 @@ fun DialogoNuevoRecurrente(
     onGuardar: () -> Unit,
     onCerrar: () -> Unit,
 ) {
+    val esEdicion = nuevo.editando != null
     AlertDialog(
         onDismissRequest = onCerrar,
-        title = { Text(stringResource(R.string.nuevo_recurrente)) },
+        title = { Text(stringResource(if (esEdicion) R.string.editar_recurrente else R.string.nuevo_recurrente)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -76,7 +78,7 @@ fun DialogoNuevoRecurrente(
                 )
                 Campo(
                     valor = nuevo.monto,
-                    onCambio = { v -> onEditar { copy(monto = v) } },
+                    onCambio = { v -> onEditar { copy(monto = limpiarMonto(v)) } },
                     etiqueta = stringResource(R.string.monto_aproximado),
                     prefijo = "$",
                     error = if (ErrorRecurrente.MONTO_INVALIDO in nuevo.errores) stringResource(R.string.error_monto_pago) else null,
@@ -113,19 +115,25 @@ fun DialogoNuevoRecurrente(
             }
         },
         confirmButton = {
-            TextButton(onClick = onGuardar, enabled = !nuevo.guardando) { Text(stringResource(R.string.crear)) }
+            TextButton(onClick = onGuardar, enabled = !nuevo.guardando) {
+                Text(stringResource(if (esEdicion) R.string.guardar else R.string.crear))
+            }
         },
         dismissButton = { TextButton(onClick = onCerrar) { Text(stringResource(R.string.cancelar)) } },
     )
 }
 
-/** Acciones del diálogo de registro, para no pasar cinco lambdas sueltas. */
+/** Acciones del diálogo de registro, para no pasar lambdas sueltas. */
 class AccionesRegistroRecurrente(
     val editar: (RegistroRecurrente.() -> RegistroRecurrente) -> Unit,
     val registrar: () -> Unit,
     val omitir: () -> Unit,
     val eliminar: () -> Unit,
     val cerrar: () -> Unit,
+    val editarSerie: () -> Unit = {},
+    val pedirEliminar: () -> Unit = eliminar,
+    val cancelarEliminar: () -> Unit = {},
+    val agregarCuenta: (() -> Unit)? = null,
 )
 
 /** Registra el pago o cobro pendiente con el monto, la cuenta y la fecha reales. */
@@ -137,6 +145,26 @@ fun DialogoRegistroRecurrente(
 ) {
     val recurrente = registro.resumen.recurrente
     val erroresMonto = setOf(ErrorRegistro.MONTO_VACIO, ErrorRegistro.MONTO_INVALIDO, ErrorRegistro.MONTO_CERO)
+
+    if (registro.confirmandoEliminar) {
+        AlertDialog(
+            onDismissRequest = acciones.cancelarEliminar,
+            title = { Text(stringResource(R.string.eliminar)) },
+            text = { Text(stringResource(R.string.eliminar_recurrente_pregunta, recurrente.nombre)) },
+            confirmButton = {
+                TextButton(onClick = acciones.eliminar, enabled = !registro.guardando) {
+                    Text(stringResource(R.string.eliminar), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = acciones.cancelarEliminar, enabled = !registro.guardando) {
+                    Text(stringResource(R.string.cancelar))
+                }
+            },
+        )
+        return
+    }
+
     AlertDialog(
         onDismissRequest = acciones.cerrar,
         title = { Text(stringResource(R.string.registrar_recurrente, recurrente.nombre)) },
@@ -147,7 +175,7 @@ fun DialogoRegistroRecurrente(
             ) {
                 Campo(
                     valor = registro.monto,
-                    onCambio = { v -> acciones.editar { copy(monto = v) } },
+                    onCambio = { v -> acciones.editar { copy(monto = limpiarMonto(v)) } },
                     etiqueta = stringResource(R.string.monto),
                     prefijo = "$",
                     error = registro.errores.firstOrNull { it in erroresMonto }?.let { textoError(it) },
@@ -169,6 +197,13 @@ fun DialogoRegistroRecurrente(
                             label = { Text(cuenta.nombre) },
                         )
                     }
+                    if (acciones.agregarCuenta != null) {
+                        FilterChip(
+                            selected = false,
+                            onClick = acciones.agregarCuenta,
+                            label = { Text(stringResource(R.string.chip_agregar_cuenta)) },
+                        )
+                    }
                 }
                 SelectorFecha(
                     fecha = registro.fecha,
@@ -182,10 +217,13 @@ fun DialogoRegistroRecurrente(
                 ErrorAlGuardar(registro.errorAlGuardar)
                 Text(stringResource(R.string.ayuda_omitir), style = MaterialTheme.typography.bodySmall)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = acciones.editarSerie, enabled = !registro.guardando) {
+                        Text(stringResource(R.string.accion_editar_serie))
+                    }
                     TextButton(onClick = acciones.omitir, enabled = !registro.guardando) {
                         Text(stringResource(R.string.omitir))
                     }
-                    TextButton(onClick = acciones.eliminar, enabled = !registro.guardando) {
+                    TextButton(onClick = acciones.pedirEliminar, enabled = !registro.guardando) {
                         Text(stringResource(R.string.eliminar), color = MaterialTheme.colorScheme.error)
                     }
                 }

@@ -30,6 +30,9 @@ internal abstract class LibroDao {
     @Insert
     abstract suspend fun insertarCuenta(cuenta: CuentaEntity): Long
 
+    @Query("UPDATE cuenta SET nombre = :nombre WHERE id = :id")
+    abstract suspend fun actualizarNombreCuenta(id: Long, nombre: String)
+
     /** El saldo se calcula en SQLite sumando asientos, no cargando todo a memoria. */
     @Query("SELECT cuenta_id, SUM(centavos) AS centavos FROM asiento GROUP BY cuenta_id")
     abstract fun observarSaldos(): Flow<List<SaldoFila>>

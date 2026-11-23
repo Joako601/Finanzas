@@ -23,6 +23,18 @@ internal interface TarjetasDao {
     @Insert
     suspend fun insertarTarjeta(tarjeta: TarjetaEntity)
 
+    @Query("UPDATE cuenta SET nombre = :nombre WHERE id = :cuentaId")
+    suspend fun actualizarNombreCuentaTarjeta(cuentaId: Long, nombre: String)
+
+    @Query(
+        """
+        UPDATE tarjeta
+        SET linea_centavos = :lineaCentavos, dia_corte = :diaCorte, dia_limite = :diaLimite
+        WHERE cuenta_id = :cuentaId
+        """,
+    )
+    suspend fun actualizarDatosTarjeta(cuentaId: Long, lineaCentavos: Long, diaCorte: Int, diaLimite: Int)
+
     @Query("SELECT * FROM estado_de_cuenta ORDER BY fecha_corte DESC, id DESC")
     fun observarEstadosDeCuenta(): Flow<List<EstadoDeCuentaEntity>>
 

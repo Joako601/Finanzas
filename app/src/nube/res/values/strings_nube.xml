@@ -5,4 +5,6 @@
     <string name="bienvenida_nube_iniciar">Iniciar sesión</string>
     <string name="bienvenida_nube_privado">Entrar en modo privado</string>
     <string name="bienvenida_nube_nota">Tus movimientos nunca salen sin cifrar.</string>
+    <string name="bienvenida_escena_disponible">Disponible real</string>
+    <string name="bienvenida_escena_movimiento">Quincena · Débito</string>
 </resources>

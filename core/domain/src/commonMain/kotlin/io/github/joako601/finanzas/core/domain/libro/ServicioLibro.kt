@@ -26,4 +26,33 @@ public class ServicioLibro(private val repositorio: RepositorioLibro) {
             cuenta
         }
     }
+
+    /**
+     * Renombra una cuenta de dinero (efectivo o débito) y, si el [nuevoSaldo] difiere del
+     * [saldoActual], registra un movimiento de ajuste contra la cuenta de capital para que
+     * el libro de partida doble cuadre al centavo.
+     */
+    public suspend fun editarCuentaDeDinero(
+        cuenta: Cuenta,
+        nuevoNombre: String,
+        saldoActual: Dinero,
+        nuevoSaldo: Dinero,
+        fecha: LocalDate,
+    ): Cuenta {
+        val nombreLimpio = nuevoNombre.trim()
+        require(nombreLimpio.isNotEmpty()) { "La cuenta necesita nombre" }
+        require(cuenta.tipo == TipoCuenta.ACTIVO) { "Solo se editan cuentas de dinero" }
+        return repositorio.enTransaccion {
+            val actualizada = cuenta.copy(nombre = nombreLimpio)
+            if (nombreLimpio != cuenta.nombre) {
+                repositorio.actualizarNombreCuenta(cuenta.id, nombreLimpio)
+            }
+            val diferencia = nuevoSaldo - saldoActual
+            if (!diferencia.esCero) {
+                val capital = repositorio.cuentaDeSaldosIniciales()
+                repositorio.registrar(Registro.saldoInicial(fecha, actualizada, diferencia, capital))
+            }
+            actualizada
+        }
+    }
 }

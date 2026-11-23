@@ -46,8 +46,11 @@
     <string name="eliminar">Eliminar</string>
     <string name="eliminar_movimiento_pregunta">¿Eliminar este movimiento?</string>
 
-    <!-- Nueva cuenta -->
+    <!-- Nueva cuenta / Editar cuenta -->
     <string name="nueva_cuenta">Nueva cuenta</string>
+    <string name="editar_cuenta">Editar cuenta</string>
+    <string name="editar_cuenta_ayuda">Si modificas el saldo actual, se registra un ajuste automático para cuadrar la cuenta.</string>
+    <string name="chip_agregar_cuenta">+ Agregar cuenta</string>
     <string name="nombre_cuenta">Nombre (por ejemplo, Nu débito)</string>
     <string name="saldo_actual">Saldo actual</string>
     <string name="crear">Crear</string>
@@ -107,7 +110,50 @@
     <string name="pago_sin_intereses">Pago para no generar intereses</string>
     <string name="pago_minimo">Pago mínimo</string>
     <string name="error_pago_invalido">Monto no válido</string>
+    <string name="error_minimo_mayor_sin_intereses">El pago mínimo no puede ser mayor al pago sin intereses</string>
     <string name="error_limite_antes_del_corte">La fecha límite debe ser posterior al corte</string>
+
+    <!-- Mejoras de tarjetas, pagos, intereses y detalle -->
+    <string name="tarjeta_credito_corte_dia">Crédito · Corte día %1$d</string>
+    <string name="tarjeta_porcentaje_usado">%1$d%% usado</string>
+    <string name="tarjeta_sobregiro_plastico">Línea agotada · Sobregiro %1$s de %2$s</string>
+    <string name="tarjeta_ver_detalle_cd">Ver detalle y opciones de %1$s</string>
+    <string name="tarjeta_vencido_titulo">Pago vencido (%1$s): faltan %2$s</string>
+    <plurals name="tarjeta_vencido_dias">
+        <item quantity="one">Venció hace %d día · Puede generar intereses</item>
+        <item quantity="many">Venció hace %d días · Puede generar intereses</item>
+        <item quantity="other">Venció hace %d días · Puede generar intereses</item>
+    </plurals>
+    <string name="tarjeta_abono_parcial">Abonado %1$s de %2$s</string>
+    <string name="tarjeta_minimo_cubierto_badge">Mínimo cubierto</string>
+    <string name="tarjeta_minimo_pendiente_badge">Falta mínimo %1$s</string>
+    <string name="tarjeta_compras_nuevo_ciclo">+%1$s del nuevo ciclo (próximo corte)</string>
+    <string name="pago_rapido_sin_intereses">Sin intereses · %1$s</string>
+    <string name="pago_rapido_minimo">Mínimo · %1$s</string>
+    <string name="pago_rapido_deuda_total">Liquidar todo · %1$s</string>
+    <string name="pago_cuenta_con_saldo">%1$s · %2$s</string>
+    <string name="pago_aviso_supera_saldo_cuenta">Supera el saldo actual de %1$s (%2$s).</string>
+    <string name="pago_sim_sin_intereses">Cubres el corte actual: $0.00 de intereses. Quedan %1$s para el próximo ciclo.</string>
+    <string name="pago_sim_liquidacion_total">Liquidas el 100%% de tu deuda actual: $0.00 de intereses.</string>
+    <string name="pago_sim_saldo_a_favor">Supera tu deuda actual: quedarás con %1$s de saldo a favor.</string>
+    <string name="pago_sim_intereses_titulo">Cubres el mínimo, pero los %1$s restantes generarán intereses</string>
+    <string name="pago_sim_intereses_detalle">Con tasa de %1$d%% anual (incluye IVA): ~%2$s sobre lo que falta, o hasta ~%3$s sobre el total del corte.</string>
+    <string name="pago_sim_bajo_minimo_titulo">Faltan %1$s para cubrir el pago mínimo (%2$s)</string>
+    <string name="pago_sim_bajo_minimo_detalle">Pagar menos del mínimo genera intereses (~%1$s), recargos del banco y afecta tu historial.</string>
+    <string name="pago_tasa_anual_etiqueta">Tasa anual estimada</string>
+    <string name="pago_tasa_opcion">%1$d%%</string>
+    <string name="editar_tarjeta">Editar tarjeta</string>
+    <string name="detalle_tarjeta_ciclo">Ciclo y uso de línea</string>
+    <string name="detalle_tarjeta_ultimo_corte">Último corte</string>
+    <string name="detalle_tarjeta_proximo_corte">Próximo corte</string>
+    <string name="detalle_tarjeta_exigible_corte">Por pagar en este corte</string>
+    <string name="detalle_tarjeta_compras_nuevas">Compras del nuevo ciclo</string>
+    <string name="detalle_tarjeta_estados_recientes">Estados de cuenta capturados</string>
+    <string name="detalle_tarjeta_pagos_recientes">Pagos realizados</string>
+    <string name="detalle_tarjeta_sin_estados">Aún no has capturado estados de cuenta en esta tarjeta.</string>
+    <string name="detalle_tarjeta_sin_pagos">Aún no hay pagos registrados a esta tarjeta.</string>
+    <string name="detalle_tarjeta_item_estado">Corte %1$s · Límite %2$s</string>
+    <string name="detalle_tarjeta_item_estado_montos">Sin intereses %1$s · Mínimo %2$s</string>
 
     <!-- Recordatorios -->
     <!-- Pagos y cobros fijos -->
@@ -115,6 +161,9 @@
     <string name="agregar_recurrente">Agregar</string>
     <string name="sin_recurrentes">Agrega la luz, el internet o tu quincena. Te avisamos antes de cada pago y lo registras con un toque.</string>
     <string name="nuevo_recurrente">Pago o cobro fijo</string>
+    <string name="editar_recurrente">Editar pago o cobro fijo</string>
+    <string name="accion_editar_serie">Editar</string>
+    <string name="eliminar_recurrente_pregunta">¿Eliminar %1$s de tus pagos y cobros fijos?</string>
     <string name="pago">Pago</string>
     <string name="nombre_recurrente">Nombre (por ejemplo, CFE o Quincena)</string>
     <string name="monto_aproximado">Monto aproximado</string>
@@ -219,4 +268,67 @@
     <string name="error_restaurar_base">El respaldo está incompleto o dañado. Tus datos no cambiaron.</string>
     <string name="ingreso_registrado">Ingreso registrado</string>
     <string name="gasto_registrado">Gasto registrado</string>
+
+    <!-- Barra de navegación inferior (4 apartados) -->
+    <string name="nav_inicio">Inicio</string>
+    <string name="nav_analisis">Análisis</string>
+    <string name="nav_presupuesto">Metas</string>
+    <string name="nav_boveda">Bóveda</string>
+    <string name="nav_proximamente_badge">PRÓXIMAMENTE</string>
+    <string name="nav_volver_inicio">Volver a Inicio</string>
+    <string name="nav_analisis_titulo">Tu dinero, explicado por categoría y ritmo</string>
+    <string name="nav_analisis_desc">Aquí verás comparativas mensuales, tendencias de gasto fijo vs. variable y en qué categorías se concentra tu flujo, todo calculado localmente en tu teléfono.</string>
+    <string name="nav_presupuesto_titulo">Límites tranquilos y metas de ahorro</string>
+    <string name="nav_presupuesto_desc">Define topes mensuales por categoría y apartados de ahorro sin estrés, conectados directamente con tu disponible real de los próximos 30 días.</string>
+    <string name="nav_boveda_titulo">Seguridad local, llaves y preferencias</string>
+    <string name="nav_boveda_desc">Administra el cifrado de tu base de datos, respaldos automáticos, horarios de recordatorios y opciones de privacidad desde un solo lugar.</string>
+
+    <!-- Apartado Análisis: histórico + proyección 30 días -->
+    <string name="analisis_periodo_15_dias">15 días</string>
+    <string name="analisis_periodo_30_dias">30 días</string>
+    <string name="analisis_disponible_subtitulo">Disponible real · Efectivo y débito</string>
+    <string name="analisis_fase_historico">%1$s · Saldo en cuentas</string>
+    <string name="analisis_fase_hoy">Hoy · En cuentas</string>
+    <string name="analisis_fase_proyeccion">%1$s · Proyección</string>
+    <string name="analisis_sin_actividad_dia">Sin movimientos en efectivo o débito este día</string>
+    <string name="analisis_sin_eventos_proyeccion">Sin pagos ni ingresos programados este día</string>
+    <string name="analisis_un_movimiento_dia">1 movimiento · Neto en cuentas %1$s</string>
+    <string name="analisis_varios_movimientos_dia">%1$d movimientos · Neto en cuentas %2$s</string>
+    <string name="analisis_mas_eventos">%1$s (+%2$d más)</string>
+    <string name="analisis_eje_menos_15">−15 d</string>
+    <string name="analisis_eje_menos_30">−30 d</string>
+    <string name="analisis_eje_mas_30">+30 d</string>
+    <string name="analisis_accion_inicio_periodo">Inspeccionar inicio del periodo</string>
+    <string name="analisis_accion_saldo_hoy">Inspeccionar saldo de hoy</string>
+    <string name="analisis_accion_punto_mas_bajo">Inspeccionar día de saldo más bajo</string>
+    <string name="analisis_accion_restablecer">Mostrar disponible real</string>
+    <string name="analisis_grafico_cd">Gráfico de liquidez de %1$d días pasados y 30 días futuros. Hoy tienes %2$s en cuentas; tu disponible real es %3$s.</string>
+    <string name="analisis_flujo_titulo_15">Flujo de los últimos 15 días</string>
+    <string name="analisis_flujo_titulo_30">Flujo de los últimos 30 días</string>
+    <string name="analisis_flujo_subtitulo">Ingresos y gastos · Salidas: %1$s / día</string>
+    <string name="analisis_flujo_sin_salidas">Ingresos y gastos registrados en el periodo</string>
+    <string name="analisis_entradas">Entradas</string>
+    <string name="analisis_salidas">Salidas</string>
+    <string name="analisis_categorias_titulo">Gastos por categoría</string>
+    <string name="analisis_categorias_subtitulo">Efectivo, débito y compras con tarjeta</string>
+    <string name="analisis_categorias_vacio">Sin gastos registrados en estos %1$d días.</string>
+    <string name="analisis_otras_categorias">Otras categorías (%1$d)</string>
+    <string name="analisis_porcentaje">%1$d%%</string>
+
+    <!-- Bóveda (pestaña 4) -->
+    <string name="boveda_estado_al_dia">Al día</string>
+    <string name="boveda_estado_pendiente">Pendiente</string>
+    <string name="boveda_avisos_titulo">Recordatorios y avisos</string>
+    <string name="boveda_avisos_activos">Activos</string>
+    <string name="boveda_avisos_inactivos">Desactivados</string>
+    <string name="boveda_avisos_texto_activos">Te avisaremos antes del corte y de la fecha límite de tus tarjetas.</string>
+    <string name="boveda_avisos_texto_inactivos">Activa las notificaciones para recibir avisos antes de la fecha límite de tus tarjetas.</string>
+    <string name="boveda_ajustes_avisos">Ajustes de notificaciones</string>
+    <string name="boveda_nube_titulo">Cuenta y catálogo</string>
+    <string name="boveda_nube_texto">Inicia sesión para consultar el catálogo de artículos en la nube. Tus finanzas personales siguen guardadas únicamente en este teléfono.</string>
+    <string name="boveda_abrir_nube">Abrir cuenta y catálogo</string>
+
+    <!-- Hoja de captura rápida -->
+    <string name="ver_todas_categorias">Ver todas (%1$d)</string>
+    <string name="ver_menos_categorias">Ver menos</string>
 </resources>

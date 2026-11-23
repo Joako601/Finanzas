@@ -167,7 +167,7 @@ fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
 
 /** Lo que está pasando o el resultado de lo último que se hizo. TalkBack lo anuncia al cambiar. */
 @Composable
-private fun Progreso(estado: EstadoRespaldo) {
+internal fun Progreso(estado: EstadoRespaldo) {
     val tarea = estado.tarea
     val aviso = estado.aviso
     Column(
@@ -230,7 +230,7 @@ private fun Progreso(estado: EstadoRespaldo) {
 }
 
 @Composable
-private fun DialogoNuevoRespaldo(
+internal fun DialogoNuevoRespaldo(
     nuevo: NuevoRespaldo,
     onEditar: (NuevoRespaldo.() -> NuevoRespaldo) -> Unit,
     onContinuar: () -> Unit,
@@ -266,7 +266,7 @@ private fun DialogoNuevoRespaldo(
 }
 
 @Composable
-private fun DialogoRestaurar(
+internal fun DialogoRestaurar(
     porRestaurar: PorRestaurar,
     onEditar: (String) -> Unit,
     onConfirmar: () -> Unit,

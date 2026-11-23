@@ -10,6 +10,7 @@ import kotlinx.datetime.LocalDate
 public enum class ErrorEstadoDeCuenta {
     PAGO_SIN_INTERESES_INVALIDO,
     PAGO_MINIMO_INVALIDO,
+    MINIMO_MAYOR_A_SIN_INTERESES,
     LIMITE_NO_POSTERIOR_AL_CORTE,
 }
 
@@ -49,6 +50,20 @@ public class ServicioTarjetas(
         if (deudaTexto.isNotBlank() && Dinero.parsear(deudaTexto) == null) add(ErrorTarjeta.DEUDA_INVALIDA)
     }
 
+    /** Valida la edición de los parámetros de una tarjeta existente. */
+    public fun validarEdicion(
+        nombre: String,
+        lineaTexto: String,
+        diaDeCorteTexto: String,
+        diaLimiteTexto: String,
+    ): Set<ErrorTarjeta> = validarAlta(
+        nombre = nombre,
+        lineaTexto = lineaTexto,
+        diaDeCorteTexto = diaDeCorteTexto,
+        diaLimiteTexto = diaLimiteTexto,
+        deudaTexto = "",
+    )
+
     /**
      * Da de alta una tarjeta: crea su cuenta de pasivo, guarda sus datos y, si se indica,
      * registra la deuda actual como saldo inicial. Todo en una transacción.
@@ -75,6 +90,22 @@ public class ServicioTarjetas(
         }
     }
 
+    /** Actualiza nombre, línea de crédito y días de corte/límite de una tarjeta existente. */
+    public suspend fun actualizarTarjeta(
+        actual: Tarjeta,
+        nombre: String,
+        lineaDeCredito: Dinero,
+        diaDeCorte: Int,
+        diaLimite: Int,
+    ): Tarjeta {
+        val nombreLimpio = nombre.trim()
+        require(nombreLimpio.isNotEmpty()) { "La tarjeta necesita nombre" }
+        return libro.enTransaccion {
+            val cuentaActualizada = actual.cuenta.copy(nombre = nombreLimpio)
+            tarjetas.actualizarTarjeta(cuentaActualizada, lineaDeCredito, diaDeCorte, diaLimite)
+        }
+    }
+
     /**
      * Valida y guarda el estado de cuenta capturado, junto con la predicción que la app
      * tenía para ese ciclo (para medir su error, D-011).
@@ -91,6 +122,9 @@ public class ServicioTarjetas(
         val errores = buildSet {
             if (pagoSinIntereses == null) add(ErrorEstadoDeCuenta.PAGO_SIN_INTERESES_INVALIDO)
             if (pagoMinimo == null) add(ErrorEstadoDeCuenta.PAGO_MINIMO_INVALIDO)
+            if (pagoSinIntereses != null && pagoMinimo != null && pagoMinimo > pagoSinIntereses) {
+                add(ErrorEstadoDeCuenta.MINIMO_MAYOR_A_SIN_INTERESES)
+            }
             if (fechaLimite <= fechaCorte) add(ErrorEstadoDeCuenta.LIMITE_NO_POSTERIOR_AL_CORTE)
         }
         if (errores.isNotEmpty()) return errores

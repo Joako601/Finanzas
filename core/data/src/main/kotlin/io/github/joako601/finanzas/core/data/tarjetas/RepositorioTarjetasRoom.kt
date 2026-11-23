@@ -49,6 +49,13 @@ internal class RepositorioTarjetasRoom(
         return tarjeta
     }
 
+    override suspend fun actualizarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta {
+        val tarjeta = Tarjeta(cuenta, lineaDeCredito, diaDeCorte, diaLimite)
+        dao.actualizarNombreCuentaTarjeta(cuenta.id.valor, cuenta.nombre)
+        dao.actualizarDatosTarjeta(cuenta.id.valor, lineaDeCredito.centavos, diaDeCorte, diaLimite)
+        return tarjeta
+    }
+
     override suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta) {
         dao.guardarEstadoDeCuenta(
             EstadoDeCuentaEntity(

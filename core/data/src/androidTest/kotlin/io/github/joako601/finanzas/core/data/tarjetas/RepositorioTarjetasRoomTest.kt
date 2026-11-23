@@ -88,4 +88,24 @@ class RepositorioTarjetasRoomTest {
             tarjetas.guardarTarjeta(Cuenta(CuentaId(9_999), "Fantasma", TipoCuenta.PASIVO), Dinero.CERO, 1, 20)
         }
     }
+
+    @Test
+    fun actualizar_tarjeta_modifica_datos_sin_borrar_estados_de_cuenta() = runTest {
+        val tarjeta = servicio.crearTarjeta("Nu", Dinero.pesos(30_000), 15, 5, Dinero.CERO, hoy)
+        servicio.capturarEstadoDeCuenta(tarjeta, LocalDate(2026, 11, 15), LocalDate(2026, 12, 5), "1500", "150")
+
+        val actualizada = servicio.actualizarTarjeta(
+            actual = tarjeta,
+            nombre = "Nu Platino",
+            lineaDeCredito = Dinero.pesos(45_000),
+            diaDeCorte = 20,
+            diaLimite = 10,
+        )
+
+        val leida = tarjetas.observarTarjetas().first().single()
+        assertEquals(actualizada, leida)
+        assertEquals("Nu Platino", leida.cuenta.nombre)
+        assertEquals(Dinero.pesos(45_000), leida.lineaDeCredito)
+        assertEquals(1, tarjetas.observarEstadosDeCuenta().first().size)
+    }
 }

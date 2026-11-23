@@ -87,7 +87,10 @@ private object DemoSesionHolder {
  * instrucciones y un botón para volver, sin cerrarse.
  */
 @Composable
-fun SeccionNube(onSalir: () -> Unit) {
+fun SeccionNube(
+    onSalir: () -> Unit,
+    onIrAFinanzas: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val contenedor = remember(context) { ContenedorNube.obtener(context) }
     val repositorio = contenedor.repositorioSesion
@@ -96,7 +99,11 @@ fun SeccionNube(onSalir: () -> Unit) {
         // mientras todavía no se configura firebase.properties. En release nunca se habilita.
         var usarDemo by rememberSaveable { mutableStateOf(false) }
         if (BuildConfig.DEBUG && usarDemo) {
-            SeccionNube(repositorioSesion = DemoSesionHolder.repositorio, onSalir = onSalir)
+            SeccionNube(
+                repositorioSesion = DemoSesionHolder.repositorio,
+                onSalir = onSalir,
+                onIrAFinanzas = onIrAFinanzas,
+            )
         } else {
             PantallaSinConfigurar(
                 onExplorarDemo = if (BuildConfig.DEBUG) ({ usarDemo = true }) else null,
@@ -104,7 +111,11 @@ fun SeccionNube(onSalir: () -> Unit) {
             )
         }
     } else {
-        SeccionNube(repositorioSesion = repositorio, onSalir = onSalir)
+        SeccionNube(
+            repositorioSesion = repositorio,
+            onSalir = onSalir,
+            onIrAFinanzas = onIrAFinanzas,
+        )
     }
 }
 
@@ -116,6 +127,7 @@ fun SeccionNube(onSalir: () -> Unit) {
 fun SeccionNube(
     repositorioSesion: RepositorioSesion,
     onSalir: () -> Unit,
+    onIrAFinanzas: (() -> Unit)? = null,
 ) {
     val estadoSesion by repositorioSesion.estado.collectAsStateWithLifecycle()
     var rutaActual by rememberSaveable { mutableStateOf<RutaNube?>(null) }
@@ -177,6 +189,7 @@ fun SeccionNube(
                 usuario = destino.usuario,
                 repositorioSesion = repositorioSesion,
                 onSalir = onSalir,
+                onIrAFinanzas = onIrAFinanzas,
             )
 
             DestinoNube.Registro -> PantallaRegistro(

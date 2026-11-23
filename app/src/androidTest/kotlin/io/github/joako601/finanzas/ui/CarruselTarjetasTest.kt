@@ -13,6 +13,7 @@ import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.ui.tarjetas.EstadoTarjetas
@@ -40,12 +41,23 @@ class CarruselTarjetasTest {
         nombre: String,
         deuda: Dinero = Dinero.pesos(1_000),
         situacion: SituacionTarjeta = SituacionTarjeta.EnCiclo(LocalDate(2026, 12, 15)),
-    ) = ResumenTarjeta(
-        tarjeta = Tarjeta(Cuenta(CuentaId(id), nombre, TipoCuenta.PASIVO), Dinero.pesos(10_000), 15, 5),
-        deuda = deuda,
-        disponible = Dinero.pesos(10_000) - deuda,
-        situacion = situacion,
-    )
+    ): ResumenTarjeta {
+        val tarjeta = Tarjeta(Cuenta(CuentaId(id), nombre, TipoCuenta.PASIVO), Dinero.pesos(10_000), 15, 5)
+        val analisis = AnalizadorTarjeta.analizar(
+            tarjeta = tarjeta,
+            deuda = deuda,
+            estados = emptyList(),
+            pagos = emptyList(),
+            hoy = LocalDate(2026, 11, 20),
+        ).copy(situacion = situacion)
+        return ResumenTarjeta(
+            tarjeta = tarjeta,
+            deuda = deuda,
+            disponible = analisis.desglose.creditoDisponible,
+            situacion = situacion,
+            analisis = analisis,
+        )
+    }
 
     private fun mostrar(vararg tarjetas: ResumenTarjeta) {
         regla.setContent {

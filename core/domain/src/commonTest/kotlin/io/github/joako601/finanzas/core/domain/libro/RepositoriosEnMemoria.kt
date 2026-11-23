@@ -47,6 +47,10 @@ internal class RepositorioEnMemoria : RepositorioLibro {
         return cuenta
     }
 
+    override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) {
+        cuentas.value = cuentas.value.map { if (it.id == id) it.copy(nombre = nombre) else it }
+    }
+
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = cuentas.value.first { it.tipo == TipoCuenta.CAPITAL }
 
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T {
@@ -69,6 +73,12 @@ internal class RepositorioTarjetasEnMemoria : RepositorioTarjetas {
         return tarjeta
     }
 
+    override suspend fun actualizarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta {
+        val tarjeta = Tarjeta(cuenta, lineaDeCredito, diaDeCorte, diaLimite)
+        tarjetas.value = tarjetas.value.map { if (it.id == cuenta.id) tarjeta else it }
+        return tarjeta
+    }
+
     override suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta) {
         val sinDuplicado = estados.value.filterNot { it.tarjeta == estado.tarjeta && it.fechaCorte == estado.fechaCorte }
         estados.value = (sinDuplicado + estado.copy(id = estados.value.size + 1L)).sortedByDescending { it.fechaCorte }
@@ -84,6 +94,10 @@ internal class RepositorioRecurrentesEnMemoria : RepositorioRecurrentes {
         val id = RecurrenteId(recurrentes.value.size + 1L)
         recurrentes.value = recurrentes.value + recurrente.copy(id = id)
         return id
+    }
+
+    override suspend fun actualizar(recurrente: Recurrente) {
+        recurrentes.value = recurrentes.value.map { if (it.id == recurrente.id) recurrente else it }
     }
 
     override suspend fun cambiarProxima(id: RecurrenteId, proxima: LocalDate) {

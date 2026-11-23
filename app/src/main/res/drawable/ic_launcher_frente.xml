@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Capa frontal del ícono adaptable: símbolo geométrico "Equilibrio" (tres barras escalonadas
-  y punto de balance que insinúan una F arquitectónica sin parecer un ojo).
+  Capa frontal del ícono adaptable: símbolo geométrico "Flujo" (Fase 2 aprobada).
+  Dos arcos paralelos desplazados en diagonal + punto central de balance, con separación
+  vertical abierta para que se lea como flujo de entradas/salidas incluso en tamaño pequeño.
   Coordenadas centradas en el cuadro 30..78 dentro de 108x108 (zona segura 66/108).
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -10,24 +11,23 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Barra superior -->
+    <!-- Arco superior de flujo (entrada) -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M41.5,38H66.5A3.5,3.5 0 0,1 70,41.5A3.5,3.5 0 0,1 66.5,45H41.5A3.5,3.5 0 0,1 38,41.5A3.5,3.5 0 0,1 41.5,38Z" />
+        android:pathData="M39,55C39,46.7 45.7,40 54,40H68"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="4.4" />
 
-    <!-- Barra media (con ligera atenuación para profundidad) -->
+    <!-- Arco inferior de flujo (salida, desplazado para no cerrar como ojo) -->
     <path
-        android:fillAlpha="0.78"
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M41.5,50.5H58.5A3.5,3.5 0 0,1 62,54A3.5,3.5 0 0,1 58.5,57.5H41.5A3.5,3.5 0 0,1 38,54A3.5,3.5 0 0,1 41.5,50.5Z" />
+        android:pathData="M69,53C69,61.3 62.3,68 54,68H40"
+        android:strokeAlpha="0.68"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="4.4" />
 
-    <!-- Barra inferior -->
+    <!-- Punto central de disponible real -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M41.5,63H49.5A3.5,3.5 0 0,1 53,66.5A3.5,3.5 0 0,1 49.5,70H41.5A3.5,3.5 0 0,1 38,66.5A3.5,3.5 0 0,1 41.5,63Z" />
-
-    <!-- Punto de balance -->
-    <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M66.5,63A3.5,3.5 0 1,0 66.5,70A3.5,3.5 0 1,0 66.5,63Z" />
+        android:pathData="M54,50.5A3.5,3.5 0 1,0 54,57.5A3.5,3.5 0 1,0 54,50.5Z" />
 </vector>

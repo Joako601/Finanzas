@@ -3,19 +3,28 @@ package io.github.joako601.finanzas.ui.componentes
 import android.provider.Settings
 import androidx.annotation.DrawableRes
 import androidx.annotation.RawRes
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,18 +43,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.airbnb.lottie.compose.LottieAnimation
@@ -288,4 +307,124 @@ fun AnimacionLottie(
         progress = { if (animacionesDesactivadas) 1f else progreso },
         modifier = modificadorSemantica,
     )
+}
+
+/**
+ * Selector segmentado deslizante estilo "Seda iOS": pista `secondaryContainer` y píldora activa
+ * blanca (carbón en oscuro) con borde de 1 dp que se desliza con resorte amortiguado.
+ *
+ * Cada segmento garantiza un área táctil mínima de 48 dp de alto y escala su altura con
+ * [IntrinsicSize.Min] para que la píldora nunca se recorte con `font_scale` al 200%.
+ */
+@Composable
+fun <T> SelectorSegmentadoSeda(
+    opciones: List<T>,
+    seleccionada: T,
+    etiqueta: @Composable (T) -> String,
+    onSeleccionar: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (opciones.isEmpty()) return
+    val sinAnimaciones = rememberAnimacionesDesactivadas()
+    val indiceObjetivo = opciones.indexOf(seleccionada).coerceAtLeast(0).toFloat()
+    val fraccionDesplazamiento by animateFloatAsState(
+        targetValue = indiceObjetivo,
+        animationSpec = if (sinAnimaciones) {
+            snap()
+        } else {
+            spring(dampingRatio = 0.86f, stiffness = 460f)
+        },
+        label = "selectorSegmentadoSeda",
+    )
+
+    val colorPastilla = MaterialTheme.colorScheme.surfaceContainerLowest
+    val colorBordePastilla = MaterialTheme.colorScheme.outlineVariant
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+            .background(MaterialTheme.colorScheme.secondaryContainer, CircleShape),
+    ) {
+        // Píldora activa deslizante dibujada sobre el tamaño exacto del contenedor (sin SubcomposeLayout,
+        // compatible con IntrinsicSize.Min y escalado al 200%).
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val margen = 3.dp.toPx()
+                    val anchoSegmento = size.width / opciones.size
+                    val anchoPastilla = (anchoSegmento - margen * 2f).coerceAtLeast(0f)
+                    val altoPastilla = (size.height - margen * 2f).coerceAtLeast(0f)
+                    val xPastilla = anchoSegmento * fraccionDesplazamiento + margen
+                    val radio = altoPastilla / 2f
+                    val esquina = CornerRadius(radio, radio)
+                    drawRoundRect(
+                        color = colorPastilla,
+                        topLeft = Offset(xPastilla, margen),
+                        size = Size(anchoPastilla, altoPastilla),
+                        cornerRadius = esquina,
+                    )
+                    drawRoundRect(
+                        color = colorBordePastilla,
+                        topLeft = Offset(xPastilla, margen),
+                        size = Size(anchoPastilla, altoPastilla),
+                        cornerRadius = esquina,
+                        style = Stroke(width = 1.dp.toPx()),
+                    )
+                },
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            opciones.forEach { opcion ->
+                val activo = opcion == seleccionada
+                val interaccion = remember { MutableInteractionSource() }
+                val texto = etiqueta(opcion)
+                val colorTexto by animateColorAsState(
+                    targetValue = if (activo) {
+                        MaterialTheme.colorScheme.onSurface
+                    } else {
+                        MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.74f)
+                    },
+                    animationSpec = tween(durationMillis = if (sinAnimaciones) 0 else 160),
+                    label = "textoSegmentoSeda",
+                )
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .clip(CircleShape)
+                        .toqueTactil(interaccion)
+                        .clickable(
+                            interactionSource = interaccion,
+                            indication = null,
+                            onClick = { onSeleccionar(opcion) },
+                        )
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Tab
+                            selected = activo
+                        }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = texto,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = if (activo) FontWeight.SemiBold else FontWeight.Medium,
+                            fontFeatureSettings = "tnum",
+                        ),
+                        color = colorTexto,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
 }
