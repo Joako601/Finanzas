@@ -2,6 +2,8 @@ package io.github.joako601.finanzas.ui.navegacion
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -27,22 +29,31 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.PI
+import kotlin.math.sin
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -213,6 +224,29 @@ private fun ItemBarraNavegacion(
         label = "pildoraTab",
     )
 
+    val progresoIcono = remember { Animatable(if (activo) 1f else 0f) }
+    var eraActivo by remember { mutableStateOf(activo) }
+
+    LaunchedEffect(activo, sinAnimaciones) {
+        if (activo) {
+            if (sinAnimaciones || eraActivo) {
+                progresoIcono.snapTo(1f)
+            } else {
+                progresoIcono.snapTo(0f)
+                progresoIcono.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = 360,
+                        easing = CurvaMicroIconoNavbar,
+                    ),
+                )
+            }
+        } else {
+            progresoIcono.snapTo(0f)
+        }
+        eraActivo = activo
+    }
+
     val colorPildora = MaterialTheme.colorScheme.secondaryContainer
 
     Column(
@@ -251,8 +285,9 @@ private fun ItemBarraNavegacion(
 
             IconoPestanaPrincipal(
                 pestana = pestana,
-                color = colorContenido,
+                color = { colorContenido },
                 activo = activo,
+                progresoAnim = { progresoIcono.value },
                 modifier = Modifier.size(22.dp),
             )
         }
@@ -269,124 +304,304 @@ private fun ItemBarraNavegacion(
     }
 }
 
+private val CurvaMicroIconoNavbar = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
+
 /**
- * Librería de íconos de navegación en contorno fino uniforme (1.75–2.05 dp, puntas redondas,
- * estilo SF Symbols / Lucide) usando `drawWithCache` para cachear `Path` y `Stroke` por tamaño
- * (0 alocaciones por frame durante las transiciones).
+ * Librería propia de íconos de navegación de Kren — **Familia H (Uber Precision)**
+ * con micro-animaciones *Seda iOS* al seleccionar cada pestaña:
+ * - **Inicio:** expansión suave del umbral inferior y relleno translúcido.
+ * - **Análisis:** trazado progresivo de la curva Stocks + aparición del punto pico.
+ * - **Metas:** impulso vertical sutil del trofeo + dos micro-destellos pasajeros.
+ * - **Bóveda:** giro preciso de `60°` del dial de la caja fuerte.
+ *
+ * Recibe [color] y [progresoAnim] como lambdas para no invalidar `drawWithCache`
+ * durante las animaciones (0 alocaciones de `Path`/`Stroke` por frame).
  */
 @Composable
 internal fun IconoPestanaPrincipal(
     pestana: PestanaPrincipal,
-    color: Color,
+    color: () -> Color,
     activo: Boolean,
+    progresoAnim: () -> Float = { if (activo) 1f else 0f },
     modifier: Modifier = Modifier,
 ) {
     Spacer(
         modifier = modifier.drawWithCache {
             val u = size.minDimension / 24f
+            val anchoTrazo = (if (activo) 1.90f else 1.65f) * u
             val trazo = Stroke(
-                width = (if (activo) 2.05f else 1.75f) * u,
+                width = anchoTrazo,
                 cap = StrokeCap.Round,
                 join = StrokeJoin.Round,
             )
-            val radioBarra = CornerRadius(1.5f * u, 1.5f * u)
 
-            val techoInicio = Path().apply {
-                moveTo(3.5f * u, 10.5f * u)
-                lineTo(12f * u, 3.5f * u)
-                lineTo(20.5f * u, 10.5f * u)
-            }
-            val cuerpoInicio = Path().apply {
-                moveTo(5.5f * u, 9.5f * u)
-                lineTo(5.5f * u, 19.5f * u)
-                lineTo(18.5f * u, 19.5f * u)
-                lineTo(18.5f * u, 9.5f * u)
-            }
+            when (pestana) {
+                PestanaPrincipal.INICIO -> {
+                    // Casa arquitectónica con cúspide suavizada y umbral interior expansivo
+                    val casaInicio = Path().apply {
+                        moveTo(5f * u, 10.6f * u)
+                        lineTo(10.6f * u, 5.6f * u)
+                        quadraticTo(12f * u, 4.4f * u, 13.4f * u, 5.6f * u)
+                        lineTo(19f * u, 10.6f * u)
+                        lineTo(19f * u, 17.4f * u)
+                        arcTo(
+                            rect = Rect(15f * u, 15.4f * u, 19f * u, 19.4f * u),
+                            startAngleDegrees = 0f,
+                            sweepAngleDegrees = 90f,
+                            forceMoveTo = false,
+                        )
+                        lineTo(7f * u, 19.4f * u)
+                        arcTo(
+                            rect = Rect(5f * u, 15.4f * u, 9f * u, 19.4f * u),
+                            startAngleDegrees = 90f,
+                            sweepAngleDegrees = 90f,
+                            forceMoveTo = false,
+                        )
+                        close()
+                    }
+                    val centroUmbralX = 12f * u
+                    val umbralY = 15.8f * u
+                    val medioUmbral = 2.2f * u
 
-            val escudoBoveda = Path().apply {
-                moveTo(12f * u, 3.2f * u)
-                lineTo(19f * u, 6.0f * u)
-                lineTo(19f * u, 11.8f * u)
-                cubicTo(
-                    19f * u, 16.2f * u,
-                    15.8f * u, 19.3f * u,
-                    12f * u, 20.8f * u,
-                )
-                cubicTo(
-                    8.2f * u, 19.3f * u,
-                    5f * u, 16.2f * u,
-                    5f * u, 11.8f * u,
-                )
-                lineTo(5f * u, 6.0f * u)
-                close()
-            }
-            val checkBoveda = Path().apply {
-                moveTo(9.3f * u, 12.2f * u)
-                lineTo(11.2f * u, 14.1f * u)
-                lineTo(14.9f * u, 10.2f * u)
-            }
-
-            onDrawBehind {
-                when (pestana) {
-                    PestanaPrincipal.INICIO -> {
-                        drawPath(path = techoInicio, color = color, style = trazo)
-                        drawPath(path = cuerpoInicio, color = color, style = trazo)
+                    onDrawBehind {
+                        val tinta = color()
+                        val p = progresoAnim().coerceIn(0f, 1f)
+                        if (activo) {
+                            drawPath(path = casaInicio, color = tinta.copy(alpha = 0.14f * p))
+                        }
+                        drawPath(path = casaInicio, color = tinta, style = trazo)
+                        val extension = if (activo) medioUmbral * (0.25f + 0.75f * p) else medioUmbral
                         drawLine(
-                            color = color,
-                            start = Offset(9.5f * u, 19.5f * u),
-                            end = Offset(14.5f * u, 19.5f * u),
-                            strokeWidth = trazo.width,
+                            color = tinta,
+                            start = Offset(centroUmbralX - extension, umbralY),
+                            end = Offset(centroUmbralX + extension, umbralY),
+                            strokeWidth = anchoTrazo,
                             cap = StrokeCap.Round,
                         )
                     }
+                }
 
-                    PestanaPrincipal.ANALISIS -> {
-                        drawRoundRect(
-                            color = color,
-                            topLeft = Offset(4.5f * u, 13f * u),
-                            size = Size(3.5f * u, 7f * u),
-                            cornerRadius = radioBarra,
-                            style = trazo,
+                PestanaPrincipal.ANALISIS -> {
+                    // Eje L redondeado + trazado progresivo de la línea de tendencia Stocks
+                    val ejeAnalisis = Path().apply {
+                        moveTo(4.8f * u, 5.2f * u)
+                        lineTo(4.8f * u, 17.2f * u)
+                        arcTo(
+                            rect = Rect(4.8f * u, 15.2f * u, 8.8f * u, 19.2f * u),
+                            startAngleDegrees = 180f,
+                            sweepAngleDegrees = -90f,
+                            forceMoveTo = false,
                         )
-                        drawRoundRect(
-                            color = color,
-                            topLeft = Offset(10.25f * u, 8.5f * u),
-                            size = Size(3.5f * u, 11.5f * u),
-                            cornerRadius = radioBarra,
-                            style = trazo,
-                        )
-                        drawRoundRect(
-                            color = color,
-                            topLeft = Offset(16f * u, 4.5f * u),
-                            size = Size(3.5f * u, 15.5f * u),
-                            cornerRadius = radioBarra,
-                            style = trazo,
-                        )
+                        lineTo(19.2f * u, 19.2f * u)
                     }
-
-                    PestanaPrincipal.METAS -> {
-                        drawCircle(
-                            color = color,
-                            radius = 8.2f * u,
-                            center = Offset(12f * u, 12f * u),
-                            style = trazo,
-                        )
-                        drawCircle(
-                            color = color.copy(alpha = 0.88f),
-                            radius = 4.4f * u,
-                            center = Offset(12f * u, 12f * u),
-                            style = trazo,
-                        )
-                        drawCircle(
-                            color = color,
-                            radius = 1.4f * u,
-                            center = Offset(12f * u, 12f * u),
-                        )
+                    val tendenciaAnalisis = Path().apply {
+                        moveTo(7.8f * u, 14.8f * u)
+                        lineTo(11.2f * u, 11.2f * u)
+                        lineTo(14.2f * u, 13.2f * u)
+                        lineTo(18.2f * u, 8.2f * u)
                     }
+                    val medidor = PathMeasure().apply { setPath(tendenciaAnalisis, false) }
+                    val longitudTendencia = medidor.length
+                    val trazoParcial = Path()
+                    val puntoPico = Offset(18.2f * u, 8.2f * u)
+                    val radioPico = (if (activo) 1.65f else 1.25f) * u
 
-                    PestanaPrincipal.BOVEDA -> {
-                        drawPath(path = escudoBoveda, color = color, style = trazo)
-                        drawPath(path = checkBoveda, color = color, style = trazo)
+                    onDrawBehind {
+                        val tinta = color()
+                        val p = progresoAnim().coerceIn(0f, 1f)
+                        drawPath(path = ejeAnalisis, color = tinta, style = trazo)
+                        if (activo && p < 0.999f) {
+                            trazoParcial.rewind()
+                            medidor.getSegment(0f, longitudTendencia * p, trazoParcial, true)
+                            drawPath(path = trazoParcial, color = tinta, style = trazo)
+                            val escalaPico = ((p - 0.85f) / 0.15f).coerceIn(0f, 1f)
+                            if (escalaPico > 0f) {
+                                drawCircle(
+                                    color = tinta,
+                                    radius = radioPico * escalaPico,
+                                    center = puntoPico,
+                                )
+                            }
+                        } else {
+                            drawPath(path = tendenciaAnalisis, color = tinta, style = trazo)
+                            drawCircle(color = tinta, radius = radioPico, center = puntoPico)
+                        }
+                    }
+                }
+
+                PestanaPrincipal.METAS -> {
+                    // Trofeo minimalista con micro-impulso vertical y 2 destellos pasajeros
+                    val trazoAsa = Stroke(
+                        width = (if (activo) 1.75f else 1.55f) * u,
+                        cap = StrokeCap.Round,
+                        join = StrokeJoin.Round,
+                    )
+                    val copaMetas = Path().apply {
+                        moveTo(8f * u, 5.2f * u)
+                        lineTo(16f * u, 5.2f * u)
+                        lineTo(16f * u, 9.8f * u)
+                        arcTo(
+                            rect = Rect(8f * u, 5.8f * u, 16f * u, 13.8f * u),
+                            startAngleDegrees = 0f,
+                            sweepAngleDegrees = 180f,
+                            forceMoveTo = false,
+                        )
+                        close()
+                    }
+                    val asaIzqMetas = Path().apply {
+                        moveTo(8f * u, 7.2f * u)
+                        lineTo(5.6f * u, 7.2f * u)
+                        arcTo(
+                            rect = Rect(4.0f * u, 7.2f * u, 7.2f * u, 10.4f * u),
+                            startAngleDegrees = -90f,
+                            sweepAngleDegrees = -180f,
+                            forceMoveTo = false,
+                        )
+                        lineTo(8.1f * u, 10.4f * u)
+                    }
+                    val asaDerMetas = Path().apply {
+                        moveTo(16f * u, 7.2f * u)
+                        lineTo(18.4f * u, 7.2f * u)
+                        arcTo(
+                            rect = Rect(16.8f * u, 7.2f * u, 20.0f * u, 10.4f * u),
+                            startAngleDegrees = -90f,
+                            sweepAngleDegrees = 180f,
+                            forceMoveTo = false,
+                        )
+                        lineTo(15.9f * u, 10.4f * u)
+                    }
+                    val talloInicio = Offset(12f * u, 13.8f * u)
+                    val talloFin = Offset(12f * u, 18.8f * u)
+                    val baseInicio = Offset(9f * u, 18.8f * u)
+                    val baseFin = Offset(15f * u, 18.8f * u)
+                    val destelloIzqA = Offset(6.0f * u, 3.5f * u)
+                    val destelloIzqB = Offset(4.9f * u, 2.4f * u)
+                    val destelloDerA = Offset(18.0f * u, 3.5f * u)
+                    val destelloDerB = Offset(19.1f * u, 2.4f * u)
+
+                    onDrawBehind {
+                        val tinta = color()
+                        val p = progresoAnim().coerceIn(0f, 1f)
+                        val elevacion = if (activo && p < 0.999f) {
+                            -1.2f * u * sin(PI * p).toFloat()
+                        } else {
+                            0f
+                        }
+
+                        translate(top = elevacion) {
+                            if (activo) {
+                                drawPath(path = copaMetas, color = tinta.copy(alpha = 0.14f * p))
+                            }
+                            drawPath(path = copaMetas, color = tinta, style = trazo)
+                            drawPath(path = asaIzqMetas, color = tinta, style = trazoAsa)
+                            drawPath(path = asaDerMetas, color = tinta, style = trazoAsa)
+                            drawLine(
+                                color = tinta,
+                                start = talloInicio,
+                                end = talloFin,
+                                strokeWidth = anchoTrazo,
+                                cap = StrokeCap.Round,
+                            )
+                            drawLine(
+                                color = tinta,
+                                start = baseInicio,
+                                end = baseFin,
+                                strokeWidth = anchoTrazo,
+                                cap = StrokeCap.Round,
+                            )
+                        }
+
+                        // Dos micro-destellos discretos durante la transición que desaparecen en reposo
+                        if (activo && p in 0.12f..0.96f) {
+                            val faseDestello = ((p - 0.12f) / 0.84f).coerceIn(0f, 1f)
+                            val opacidadDestello = sin(PI * faseDestello).toFloat() * 0.85f
+                            val tintaDestello = tinta.copy(alpha = opacidadDestello)
+                            drawLine(
+                                color = tintaDestello,
+                                start = destelloIzqA,
+                                end = destelloIzqB,
+                                strokeWidth = 1.4f * u,
+                                cap = StrokeCap.Round,
+                            )
+                            drawLine(
+                                color = tintaDestello,
+                                start = destelloDerA,
+                                end = destelloDerB,
+                                strokeWidth = 1.4f * u,
+                                cap = StrokeCap.Round,
+                            )
+                        }
+                    }
+                }
+
+                PestanaPrincipal.BOVEDA -> {
+                    // Caja fuerte minimalista con giro de 60° del dial al activarse
+                    val origenBoveda = Offset(4.8f * u, 5.2f * u)
+                    val tamanoBoveda = Size(14.4f * u, 13.4f * u)
+                    val radioBoveda = CornerRadius(2.8f * u, 2.8f * u)
+                    val centroDial = Offset(12f * u, 11.9f * u)
+                    val radioAroDial = 3.60f * u
+                    val radioCentroDial = (if (activo) 1.10f else 0.95f) * u
+                    // Muesca anclada al borde interior del aro, despejada del punto central (>0.32u)
+                    val muescaInicio = Offset(12f * u, 9.00f * u)
+                    val muescaFin = Offset(12f * u, 9.90f * u)
+                    val pataIzqInicio = Offset(8f * u, 18.6f * u)
+                    val pataIzqFin = Offset(8f * u, 19.6f * u)
+                    val pataDerInicio = Offset(16f * u, 18.6f * u)
+                    val pataDerFin = Offset(16f * u, 19.6f * u)
+
+                    onDrawBehind {
+                        val tinta = color()
+                        val p = progresoAnim().coerceIn(0f, 1f)
+                        if (activo) {
+                            drawRoundRect(
+                                color = tinta.copy(alpha = 0.14f * p),
+                                topLeft = origenBoveda,
+                                size = tamanoBoveda,
+                                cornerRadius = radioBoveda,
+                            )
+                        }
+                        drawRoundRect(
+                            color = tinta,
+                            topLeft = origenBoveda,
+                            size = tamanoBoveda,
+                            cornerRadius = radioBoveda,
+                            style = trazo,
+                        )
+                        drawCircle(
+                            color = tinta,
+                            radius = radioAroDial,
+                            center = centroDial,
+                            style = trazo,
+                        )
+                        rotate(degrees = if (activo) -60f + 60f * p else 0f, pivot = centroDial) {
+                            drawLine(
+                                color = tinta,
+                                start = muescaInicio,
+                                end = muescaFin,
+                                strokeWidth = 1.15f * u,
+                                cap = StrokeCap.Round,
+                            )
+                        }
+                        drawCircle(
+                            color = tinta,
+                            radius = radioCentroDial,
+                            center = centroDial,
+                        )
+                        drawLine(
+                            color = tinta,
+                            start = pataIzqInicio,
+                            end = pataIzqFin,
+                            strokeWidth = anchoTrazo,
+                            cap = StrokeCap.Round,
+                        )
+                        drawLine(
+                            color = tinta,
+                            start = pataDerInicio,
+                            end = pataDerFin,
+                            strokeWidth = anchoTrazo,
+                            cap = StrokeCap.Round,
+                        )
                     }
                 }
             }

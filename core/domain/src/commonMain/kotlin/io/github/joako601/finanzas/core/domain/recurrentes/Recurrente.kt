@@ -49,7 +49,7 @@ public interface RepositorioRecurrentes {
 
     public suspend fun guardar(recurrente: Recurrente): RecurrenteId
 
-    public suspend fun actualizar(recurrente: Recurrente) {}
+    public suspend fun actualizar(recurrente: Recurrente)
 
     public suspend fun cambiarProxima(id: RecurrenteId, proxima: LocalDate)
 

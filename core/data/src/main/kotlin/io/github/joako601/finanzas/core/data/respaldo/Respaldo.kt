@@ -8,10 +8,13 @@ import android.database.sqlite.SQLiteException
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.joako601.finanzas.core.data.FinanzasDatabase
-import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
-import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
-import io.github.joako601.finanzas.core.domain.recordatorios.TipoRecordatorio
+import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
+import io.github.joako601.finanzas.core.data.metas.RepositorioMetasRoom
+import io.github.joako601.finanzas.core.data.recurrentes.RepositorioRecurrentesRoom
+import io.github.joako601.finanzas.core.data.tarjetas.RepositorioTarjetasRoom
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -86,7 +89,7 @@ public class Respaldo internal constructor(
                 try {
                     // Abrirla corre las migraciones si el respaldo es de una versión anterior.
                     val origen = copia.openHelper.writableDatabase
-                    validarIntegridadDominio(origen)
+                    validarConElDominio(copia)
                     base.runInTransaction { copiarTodo(origen = origen, destino = base.openHelper.writableDatabase) }
                 } catch (e: ErrorRespaldo) {
                     throw e
@@ -103,57 +106,25 @@ public class Respaldo internal constructor(
     }
 
     /**
-     * Verifica invariantes de dominio y partida doble sobre la base ya migrada ANTES de tocar
-     * la base real del usuario. Si cualquier fila está corrupta, lanza [ErrorRespaldo.Motivo.BASE_INVALIDA].
+     * Antes de tocar la base real: llaves foráneas sanas y que cada fila la puedan leer los
+     * mismos repositorios que usa la app. Así cualquier regla del dominio (partida doble,
+     * metas, periodicidades) se valida sin copiarla aquí. Si algo falla, [ErrorRespaldo.Motivo.BASE_INVALIDA].
      */
-    private fun validarIntegridadDominio(db: SupportSQLiteDatabase) {
-        if (db.query("PRAGMA foreign_key_check").use { it.moveToFirst() }) {
+    private suspend fun validarConElDominio(copia: FinanzasDatabase) {
+        if (copia.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { it.moveToFirst() }) {
             throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
         }
-        val hayDescuadre = db.query(
-            """
-            SELECT m.id
-            FROM movimiento m
-            LEFT JOIN asiento a ON a.movimiento_id = m.id
-            GROUP BY m.id
-            HAVING COUNT(a.id) < 2 OR COALESCE(SUM(a.centavos), 0) != 0
-            LIMIT 1
-            """.trimIndent(),
-        ).use { it.moveToFirst() }
-        if (hayDescuadre) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
-
-        val tiposCuenta = TipoCuenta.entries.mapTo(HashSet()) { it.name }
-        db.query("SELECT DISTINCT tipo FROM cuenta").use { cursor ->
-            while (cursor.moveToNext()) {
-                if (cursor.getString(0) !in tiposCuenta) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
-            }
+        try {
+            // Saldos también: un SUM que se desborda (montos enormes alterados) tronaría en cada arranque.
+            RepositorioLibroRoom(copia).run { observarCuentas().first(); observarMovimientos().first(); observarSaldos().first() }
+            RepositorioTarjetasRoom(copia.tarjetasDao()).run { observarTarjetas().first(); observarEstadosDeCuenta().first() }
+            RepositorioRecurrentesRoom(copia.recurrentesDao()).observarRecurrentes().first()
+            RepositorioMetasRoom(copia.metasDao()).run { observarTopes().first(); observarMetas().first() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA, e)
         }
-
-        val clasesRecurrente = ClaseRegistro.entries.mapTo(HashSet()) { it.name }
-        val periodosValidos = setOf("DIAS", "MESES", "DOS_VECES_AL_MES")
-        db.query("SELECT DISTINCT clase, periodo FROM recurrente").use { cursor ->
-            while (cursor.moveToNext()) {
-                if (cursor.getString(0) !in clasesRecurrente || cursor.getString(1) !in periodosValidos) {
-                    throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
-                }
-            }
-        }
-
-        val tiposRecordatorio = TipoRecordatorio.entries.mapTo(HashSet()) { it.name }
-        db.query("SELECT DISTINCT tipo FROM recordatorio_entregado").use { cursor ->
-            while (cursor.moveToNext()) {
-                if (cursor.getString(0) !in tiposRecordatorio) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
-            }
-        }
-
-        val hayTopeInvalido = db.query("SELECT 1 FROM tope_categoria WHERE limite_centavos <= 0 LIMIT 1")
-            .use { it.moveToFirst() }
-        if (hayTopeInvalido) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
-
-        val hayMetaInvalida = db.query(
-            "SELECT 1 FROM meta_ahorro WHERE objetivo_centavos <= 0 OR apartado_centavos < 0 LIMIT 1",
-        ).use { it.moveToFirst() }
-        if (hayMetaInvalida) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
     }
 
     /** Integridad y versión, con SQLite directo y antes de que Room la abra (Room no sabe bajar de versión). */

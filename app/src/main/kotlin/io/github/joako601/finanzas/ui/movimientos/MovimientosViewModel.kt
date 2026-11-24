@@ -371,8 +371,23 @@ class MovimientosViewModel(
 
     // ---- Eliminar ----
 
+    private val _errorAlEliminar = MutableStateFlow(false)
+    val errorAlEliminar: StateFlow<Boolean> = _errorAlEliminar.asStateFlow()
+
+    fun consumirErrorAlEliminar() {
+        _errorAlEliminar.value = false
+    }
+
     fun eliminar(id: MovimientoId) {
-        viewModelScope.launch { repositorio.eliminar(id) }
+        viewModelScope.launch {
+            try {
+                repositorio.eliminar(id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _errorAlEliminar.value = true
+            }
+        }
     }
 
     // ---- Nueva cuenta y edición de cuenta ----

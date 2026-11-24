@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="divisas_cargando">Consultando tipo de cambio…</string>
+    <string name="divisas_titulo_cotizaciones">Tipo de cambio vigente</string>
+    <string name="divisas_subtitulo_cotizaciones">Referencia frente al peso mexicano (MXN)</string>
+    <string name="divisas_actualizar">Actualizar</string>
+    <string name="divisas_etiqueta_en_vivo">En vivo</string>
+    <string name="divisas_etiqueta_cache">Caché</string>
+    <string name="divisas_unidad_equivalencia">1 %1$s =</string>
+    <string name="divisas_meta_fuente">%1$s · %2$s</string>
+
+    <string name="divisas_conversor_titulo">Conversor rápido</string>
+    <string name="divisas_conversor_monto_etiqueta">Monto a convertir</string>
+    <string name="divisas_conversor_boton">Convertir</string>
+    <string name="divisas_conversor_convirtiendo">Convirtiendo…</string>
+    <string name="divisas_conversor_resultado_tasa">Tasa %1$s (%2$s · %3$s)</string>
+
+    <string name="divisas_error_monto">Ingresa un monto entre 0.01 y 100,000,000 (máximo 2 decimales).</string>
+    <string name="divisas_error_sin_conexion_titulo">Sin conexión al servidor</string>
+    <string name="divisas_error_sin_conexion_texto">No pudimos consultar el tipo de cambio. Verifica que el backend esté activo e intenta de nuevo.</string>
+    <string name="divisas_error_sesion_titulo">Sesión no autorizada</string>
+    <string name="divisas_error_sesion_texto">El servidor no pudo validar tu sesión de Firebase. Cierra sesión e inicia de nuevo.</string>
+    <string name="divisas_error_servidor_titulo">No pudimos cargar las divisas</string>
+    <string name="divisas_error_servidor_texto">Ocurrió un problema al consultar el tipo de cambio. Intenta de nuevo.</string>
+</resources>

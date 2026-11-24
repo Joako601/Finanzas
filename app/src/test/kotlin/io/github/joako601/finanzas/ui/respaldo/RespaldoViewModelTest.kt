@@ -174,17 +174,6 @@ class RespaldoViewModelTest {
     }
 
     @Test
-    fun al_cerrar_la_hoja_se_olvida_el_ultimo_aviso() = runTest {
-        val vm = viewModel()
-        vm.exportarCsv("content://descargas/movimientos.csv")
-        assertEquals(Aviso.CSV_GUARDADO, vm.estado.value.aviso)
-
-        vm.cerrarHoja()
-
-        assertNull(vm.estado.value.aviso)
-    }
-
-    @Test
     fun cancelar_el_selector_deja_abierto_el_dialogo_de_contrasena() {
         val vm = viewModel()
         vm.abrirNuevoRespaldo()

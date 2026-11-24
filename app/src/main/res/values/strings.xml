@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- tools:locale: los textos base están en español de México; lint usa ese diccionario. -->
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
-    <string name="app_name">Finanzas</string>
+    <string name="app_name">Kren</string>
 
     <!-- Pantalla principal -->
     <string name="agregar_cuenta">Agregar cuenta</string>
@@ -41,6 +41,7 @@
     <string name="error_sin_destino">Elige a qué cuenta llega</string>
     <string name="error_misma_cuenta">Elige dos cuentas distintas</string>
     <string name="error_al_guardar">No se pudo guardar. Intenta de nuevo.</string>
+    <string name="error_al_eliminar">No se pudo eliminar el movimiento. Sigue en la lista; intenta de nuevo.</string>
 
     <!-- Detalle -->
     <string name="eliminar">Eliminar</string>
@@ -223,7 +224,7 @@
     <string name="aviso_capturar_texto">Tu corte fue el %1$s. Anota la fecha límite y el pago para no generar intereses.</string>
     <string name="aviso_recurrente_titulo">Mañana pagas %1$s</string>
     <string name="aviso_recurrente_titulo_hoy">Hoy pagas %1$s</string>
-    <string name="aviso_recurrente_texto">Monto estimado: %1$s. Regístralo en Finanzas cuando lo pagues.</string>
+    <string name="aviso_recurrente_texto">Monto estimado: %1$s. Regístralo en Kren cuando lo pagues.</string>
     <string name="aviso_pago_titulo">Paga %1$s de %2$s antes del %3$s</string>
     <string name="aviso_pago_texto_hoy">Hoy es la fecha límite. Así no generas intereses.</string>
     <plurals name="aviso_pago_texto">
@@ -257,7 +258,7 @@
     <string name="aviso_no_se_pudo_escribir">No se pudo guardar el archivo y se borró. Intenta en otra carpeta.</string>
     <string name="aviso_respaldo_interrumpido">No se terminó el respaldo porque Android cerró la app. Vuelve a crearlo.</string>
     <string name="aviso_no_se_pudo_leer">No se pudo abrir el archivo.</string>
-    <string name="aviso_no_es_respaldo">Ese archivo no es un respaldo de Finanzas. Busca uno que termine en .respaldo.</string>
+    <string name="aviso_no_es_respaldo">Ese archivo no es un respaldo de Kren. Busca uno que termine en .respaldo.</string>
     <string name="contrasena_respaldo_titulo">Contraseña del respaldo</string>
     <string name="contrasena_respaldo_texto">La necesitarás para restaurar. Si la olvidas, el respaldo no se puede abrir: nadie puede recuperarla.</string>
     <string name="contrasena">Contraseña</string>
@@ -270,7 +271,7 @@
     <string name="reemplazar_mis_datos">Reemplazar mis datos</string>
     <string name="restaurando">Restaurando…</string>
     <string name="error_restaurar_contrasena">La contraseña no es correcta o el archivo está dañado. Tus datos no cambiaron.</string>
-    <string name="error_restaurar_version">Este respaldo es de una versión más nueva de Finanzas. Actualiza la app y vuelve a intentarlo.</string>
+    <string name="error_restaurar_version">Este respaldo es de una versión más nueva de Kren. Actualiza la app y vuelve a intentarlo.</string>
     <string name="error_restaurar_base">El respaldo está incompleto o dañado. Tus datos no cambiaron.</string>
     <string name="ingreso_registrado">Ingreso registrado</string>
     <string name="gasto_registrado">Gasto registrado</string>

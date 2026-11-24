@@ -1,5 +1,6 @@
 package io.github.joako601.finanzas.nube.registro
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -89,6 +90,11 @@ fun PantallaRegistro(
         factory = factory,
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    // Atrás del sistema hace lo mismo que "Volver": sin esto la contraseña quedaba escrita y visible.
+    BackHandler {
+        viewModel.reiniciar()
+        onIrALogin()
+    }
 
     ContenidoRegistro(
         estado = estado,
@@ -543,6 +549,7 @@ private fun DialogoRegistroExitoso(onConfirmar: () -> Unit) {
 @Composable
 private fun mensajeErrorGlobal(errorGlobal: ErrorGlobalRegistro): String = when (errorGlobal) {
     ErrorGlobalRegistro.SinConexion -> stringResource(R.string.registro_error_sin_conexion)
+    ErrorGlobalRegistro.DemasiadosIntentos -> stringResource(R.string.registro_error_demasiados_intentos)
     ErrorGlobalRegistro.ErrorInesperado -> stringResource(R.string.registro_error_inesperado)
 }
 

@@ -36,6 +36,7 @@
     <string name="registro_error_confirmacion_no_coincide">Las contraseñas no coinciden.</string>
 
     <string name="registro_error_sin_conexion">Sin conexión a internet. Revisa tu red e inténtalo de nuevo.</string>
+    <string name="registro_error_demasiados_intentos">Hiciste varios intentos seguidos. Espera unos minutos antes de volver a intentarlo.</string>
     <string name="registro_error_inesperado">No se pudo crear la cuenta. Inténtalo de nuevo.</string>
 
     <string name="registro_boton_crear">Crear cuenta</string>

@@ -32,14 +32,17 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,21 +59,29 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airbnb.lottie.compose.LottieConstants
 import io.github.joako601.finanzas.nube.R
 import io.github.joako601.finanzas.nube.componentes.AnimacionLottie
+import io.github.joako601.finanzas.nube.componentes.ChipEstadoServidor
+import io.github.joako601.finanzas.nube.componentes.EstadoConexionServidor
 import io.github.joako601.finanzas.nube.componentes.toqueTactil
+import io.github.joako601.finanzas.nube.divisas.DivisasViewModel
+import io.github.joako601.finanzas.nube.divisas.EstadoUiDivisas
+import io.github.joako601.finanzas.nube.divisas.ParDivisas
+import io.github.joako601.finanzas.nube.divisas.RepositorioDivisas
+import io.github.joako601.finanzas.nube.divisas.RepositorioDivisasFalso
+import io.github.joako601.finanzas.nube.divisas.SeccionDivisas
 import io.github.joako601.finanzas.nube.recuperar.DialogoCerrarSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
 
 /**
- * Pantalla del catálogo financiero público (visible cuando hay sesión iniciada).
- *
- * Muestra productos financieros de referencia en México con categoría, entidad, costo
- * formateado y detalle, además del botón para cerrar sesión en la barra superior.
+ * Pantalla principal autenticada de `:feature:nube`: catálogo de productos financieros
+ * y cotizaciones/conversor de divisas conectados al backend Spring Boot.
  */
 @Composable
 fun PantallaCatalogo(
@@ -78,22 +89,46 @@ fun PantallaCatalogo(
     repositorioSesion: RepositorioSesion,
     onSalir: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
+    repositorioCatalogo: RepositorioCatalogo = remember { RepositorioCatalogoFalso() },
+    repositorioDivisas: RepositorioDivisas = remember { RepositorioDivisasFalso() },
+    conectadoAlServidor: Boolean = false,
+    claveSesion: String = usuario.uid,
 ) {
-    val factory = remember(repositorioSesion) {
-        CatalogoViewModel.factory(repositorioSesion = repositorioSesion)
+    val factoryCatalogo = remember(repositorioCatalogo, repositorioSesion) {
+        CatalogoViewModel.factory(
+            repositorioCatalogo = repositorioCatalogo,
+            repositorioSesion = repositorioSesion,
+        )
     }
-    val viewModel: CatalogoViewModel = viewModel(
-        key = "catalogo-${usuario.uid}",
-        factory = factory,
+    val viewModelCatalogo: CatalogoViewModel = viewModel(
+        key = "catalogo-$claveSesion",
+        factory = factoryCatalogo,
     )
-    val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val estadoCatalogo by viewModelCatalogo.estado.collectAsStateWithLifecycle()
+
+    val factoryDivisas = remember(repositorioDivisas) {
+        DivisasViewModel.factory(repositorioDivisas = repositorioDivisas)
+    }
+    val viewModelDivisas: DivisasViewModel = viewModel(
+        key = "divisas-$claveSesion",
+        factory = factoryDivisas,
+    )
+    val estadoDivisas by viewModelDivisas.estado.collectAsStateWithLifecycle()
 
     ContenidoPantallaCatalogo(
         usuario = usuario,
-        estado = estado,
+        estado = estadoCatalogo,
+        estadoDivisas = estadoDivisas,
+        conectadoAlServidor = conectadoAlServidor,
         onSalir = onSalir,
-        onCerrarSesion = viewModel::cerrarSesion,
-        onReintentar = viewModel::reintentar,
+        onCerrarSesion = viewModelCatalogo::cerrarSesion,
+        onReintentar = viewModelCatalogo::reintentar,
+        onRefrescar = viewModelCatalogo::refrescar,
+        onReintentarDivisas = viewModelDivisas::reintentar,
+        onRefrescarDivisas = viewModelDivisas::refrescar,
+        onCambiarMontoDivisa = viewModelDivisas::cambiarMonto,
+        onSeleccionarParDivisa = viewModelDivisas::seleccionarPar,
+        onConvertirDivisa = viewModelDivisas::convertir,
         onIrAFinanzas = onIrAFinanzas,
     )
 }
@@ -107,9 +142,29 @@ internal fun ContenidoPantallaCatalogo(
     onCerrarSesion: () -> Unit,
     onReintentar: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
+    onRefrescar: () -> Unit = onReintentar,
+    estadoDivisas: EstadoUiDivisas = EstadoUiDivisas(),
+    conectadoAlServidor: Boolean = false,
+    onReintentarDivisas: () -> Unit = {},
+    onRefrescarDivisas: () -> Unit = onReintentarDivisas,
+    onCambiarMontoDivisa: (String) -> Unit = {},
+    onSeleccionarParDivisa: (ParDivisas) -> Unit = {},
+    onConvertirDivisa: () -> Unit = {},
 ) {
     var mostrarConfirmarCierre by rememberSaveable { mutableStateOf(false) }
+    var pestanaActiva by rememberSaveable { mutableIntStateOf(0) }
+    var primerResume by remember { mutableStateOf(true) }
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (primerResume) {
+            primerResume = false
+        } else if (pestanaActiva == 0) {
+            onRefrescar()
+        } else {
+            onRefrescarDivisas()
+        }
+    }
 
     if (mostrarConfirmarCierre) {
         DialogoCerrarSesion(
@@ -175,50 +230,127 @@ internal fun ContenidoPantallaCatalogo(
             )
         },
     ) { margenes ->
-        when (val lista = estado.lista) {
-            EstadoListaCatalogo.Cargando -> EstadoCargandoCatalogo(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(margenes),
-            )
-
-            EstadoListaCatalogo.Vacio -> EstadoMensajeCatalogo(
-                titulo = stringResource(R.string.catalogo_vacio_titulo),
-                texto = stringResource(R.string.catalogo_vacio_texto),
-                onReintentar = onReintentar,
-                onIrAFinanzas = onIrAFinanzas,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(margenes),
-            )
-
-            is EstadoListaCatalogo.Error -> {
-                val (tituloRes, textoRes) = when (lista.tipo) {
-                    ErrorCatalogo.SIN_CONEXION ->
-                        R.string.catalogo_error_sin_conexion_titulo to R.string.catalogo_error_sin_conexion_texto
-                    ErrorCatalogo.ERROR_SERVIDOR ->
-                        R.string.catalogo_error_servidor_titulo to R.string.catalogo_error_servidor_texto
-                }
-                EstadoMensajeCatalogo(
-                    titulo = stringResource(tituloRes),
-                    texto = stringResource(textoRes),
-                    onReintentar = onReintentar,
-                    onIrAFinanzas = onIrAFinanzas,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(margenes),
+        val layoutDirection = LocalLayoutDirection.current
+        val paddingInicio = margenes.calculateStartPadding(layoutDirection)
+        val paddingFin = margenes.calculateEndPadding(layoutDirection)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = margenes.calculateTopPadding()),
+        ) {
+            PrimaryTabRow(
+                selectedTabIndex = pestanaActiva,
+                containerColor = MaterialTheme.colorScheme.background,
+                modifier = Modifier.padding(start = paddingInicio, end = paddingFin),
+            ) {
+                Tab(
+                    selected = pestanaActiva == 0,
+                    onClick = {
+                        val cambio = pestanaActiva != 0
+                        pestanaActiva = 0
+                        scrollBehavior.state.contentOffset = 0f
+                        if (cambio) onRefrescar()
+                    },
+                    text = { Text(stringResource(R.string.catalogo_tab_productos)) },
+                )
+                Tab(
+                    selected = pestanaActiva == 1,
+                    onClick = {
+                        val cambio = pestanaActiva != 1
+                        pestanaActiva = 1
+                        scrollBehavior.state.contentOffset = 0f
+                        if (cambio) onRefrescarDivisas()
+                    },
+                    text = { Text(stringResource(R.string.catalogo_tab_divisas)) },
                 )
             }
 
-            is EstadoListaCatalogo.Contenido -> ListaProductosCatalogo(
-                correoUsuario = usuario.correo,
-                productos = lista.productos,
-                margenes = margenes,
-                onIrAFinanzas = onIrAFinanzas,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .consumeWindowInsets(margenes),
+            val margenesContenido = PaddingValues(
+                start = paddingInicio,
+                top = 0.dp,
+                end = paddingFin,
+                bottom = margenes.calculateBottomPadding(),
             )
+
+            if (pestanaActiva == 1) {
+                SeccionDivisas(
+                    estado = estadoDivisas,
+                    conectadoAlServidor = conectadoAlServidor,
+                    margenes = margenesContenido,
+                    onReintentar = onReintentarDivisas,
+                    onCerrarSesion = { mostrarConfirmarCierre = true },
+                    onCambiarMonto = onCambiarMontoDivisa,
+                    onSeleccionarPar = onSeleccionarParDivisa,
+                    onConvertir = onConvertirDivisa,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .consumeWindowInsets(margenes),
+                )
+            } else {
+                when (val lista = estado.lista) {
+                    EstadoListaCatalogo.Cargando -> EstadoCargandoCatalogo(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(margenesContenido),
+                    )
+
+                    EstadoListaCatalogo.Vacio -> EstadoMensajeCatalogo(
+                        titulo = stringResource(R.string.catalogo_vacio_titulo),
+                        texto = stringResource(R.string.catalogo_vacio_texto),
+                        textoAccionPrimaria = stringResource(R.string.catalogo_reintentar),
+                        onAccionPrimaria = onReintentar,
+                        onIrAFinanzas = onIrAFinanzas,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(margenesContenido),
+                    )
+
+                    is EstadoListaCatalogo.Error -> {
+                        val (tituloRes, textoRes) = when (lista.tipo) {
+                            ErrorCatalogo.SIN_CONEXION ->
+                                R.string.catalogo_error_sin_conexion_titulo to R.string.catalogo_error_sin_conexion_texto
+                            ErrorCatalogo.SESION_EXPIRADA ->
+                                R.string.catalogo_error_sesion_titulo to R.string.catalogo_error_sesion_texto
+                            ErrorCatalogo.ERROR_SERVIDOR ->
+                                R.string.catalogo_error_servidor_titulo to R.string.catalogo_error_servidor_texto
+                        }
+                        val esSesionExpirada = lista.tipo == ErrorCatalogo.SESION_EXPIRADA
+                        EstadoMensajeCatalogo(
+                            titulo = stringResource(tituloRes),
+                            texto = stringResource(textoRes),
+                            textoAccionPrimaria = stringResource(
+                                if (esSesionExpirada) R.string.nube_cerrar_sesion else R.string.catalogo_reintentar,
+                            ),
+                            onAccionPrimaria = if (esSesionExpirada) {
+                                { mostrarConfirmarCierre = true }
+                            } else {
+                                onReintentar
+                            },
+                            onIrAFinanzas = onIrAFinanzas,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(margenesContenido),
+                        )
+                    }
+
+                    is EstadoListaCatalogo.Contenido -> ListaProductosCatalogo(
+                        correoUsuario = usuario.correo,
+                        productos = lista.productos,
+                        estadoConexion = when {
+                            !conectadoAlServidor -> EstadoConexionServidor.DEMO
+                            estado.refrescando -> EstadoConexionServidor.CONECTANDO
+                            else -> EstadoConexionServidor.CONECTADO
+                        },
+                        refrescando = estado.refrescando,
+                        margenes = margenesContenido,
+                        onActualizar = onReintentar,
+                        onIrAFinanzas = onIrAFinanzas,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .consumeWindowInsets(margenes),
+                    )
+                }
+            }
         }
     }
 }
@@ -253,7 +385,8 @@ private fun EstadoCargandoCatalogo(modifier: Modifier = Modifier) {
 private fun EstadoMensajeCatalogo(
     titulo: String,
     texto: String,
-    onReintentar: () -> Unit,
+    textoAccionPrimaria: String,
+    onAccionPrimaria: () -> Unit,
     modifier: Modifier = Modifier,
     onIrAFinanzas: (() -> Unit)? = null,
 ) {
@@ -296,7 +429,7 @@ private fun EstadoMensajeCatalogo(
                 )
                 val interaccionReintentar = remember { MutableInteractionSource() }
                 Button(
-                    onClick = onReintentar,
+                    onClick = onAccionPrimaria,
                     interactionSource = interaccionReintentar,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -309,7 +442,7 @@ private fun EstadoMensajeCatalogo(
                     ),
                 ) {
                     Text(
-                        text = stringResource(R.string.catalogo_reintentar),
+                        text = textoAccionPrimaria,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
@@ -343,7 +476,10 @@ private fun EstadoMensajeCatalogo(
 private fun ListaProductosCatalogo(
     correoUsuario: String,
     productos: List<ProductoFinanciero>,
+    estadoConexion: EstadoConexionServidor,
+    refrescando: Boolean,
     margenes: PaddingValues,
+    onActualizar: () -> Unit,
     modifier: Modifier = Modifier,
     onIrAFinanzas: (() -> Unit)? = null,
 ) {
@@ -368,6 +504,9 @@ private fun ListaProductosCatalogo(
             EncabezadoCatalogo(
                 correoUsuario = correoUsuario,
                 totalProductos = productos.size,
+                estadoConexion = estadoConexion,
+                refrescando = refrescando,
+                onActualizar = onActualizar,
                 onIrAFinanzas = onIrAFinanzas,
             )
         }
@@ -381,16 +520,18 @@ private fun ListaProductosCatalogo(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EncabezadoCatalogo(
     correoUsuario: String,
     totalProductos: Int,
+    estadoConexion: EstadoConexionServidor,
+    refrescando: Boolean,
+    onActualizar: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
 ) {
     Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics(mergeDescendants = true) {},
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLowest,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
@@ -399,40 +540,71 @@ private fun EncabezadoCatalogo(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                text = stringResource(R.string.catalogo_sesion_activa, correoUsuario),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(R.string.catalogo_aviso_referencia),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(R.string.catalogo_total_productos, totalProductos),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (onIrAFinanzas != null) {
-                val interaccionFinanzas = remember { MutableInteractionSource() }
-                Button(
-                    onClick = onIrAFinanzas,
-                    interactionSource = interaccionFinanzas,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .toqueTactil(interaccionFinanzas),
-                    shape = MaterialTheme.shapes.small,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    ),
+            // Solo los textos informativos se agrupan para TalkBack; los botones quedan fuera.
+            Column(
+                modifier = Modifier.semantics(mergeDescendants = true) {},
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = stringResource(R.string.nube_ir_a_finanzas),
+                        text = stringResource(R.string.catalogo_sesion_activa, correoUsuario),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    ChipEstadoServidor(estado = estadoConexion)
+                }
+                Text(
+                    // Solo el modo demostración (sin servidor) usa cifras de ejemplo sin verificar.
+                    text = stringResource(
+                        if (estadoConexion == EstadoConexionServidor.DEMO) R.string.catalogo_aviso_ejemplo else R.string.catalogo_aviso_referencia,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = stringResource(R.string.catalogo_total_productos, totalProductos),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onActualizar,
+                    enabled = !refrescando,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = stringResource(R.string.catalogo_actualizar),
                         style = MaterialTheme.typography.labelLarge,
                     )
+                }
+                if (onIrAFinanzas != null) {
+                    val interaccionFinanzas = remember { MutableInteractionSource() }
+                    Button(
+                        onClick = onIrAFinanzas,
+                        interactionSource = interaccionFinanzas,
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .toqueTactil(interaccionFinanzas),
+                        shape = MaterialTheme.shapes.small,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        ),
+                    ) {
+                        Text(
+                            text = stringResource(R.string.nube_ir_a_finanzas),
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                 }
             }
         }
@@ -491,6 +663,13 @@ private fun TarjetaProductoFinanciero(producto: ProductoFinanciero) {
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            producto.tasaAnualReferencia?.let { tasa ->
+                Text(
+                    text = stringResource(R.string.catalogo_tasa_referencia, tasa),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Text(
                 text = producto.detalleReferencia,
                 style = MaterialTheme.typography.bodyMedium,

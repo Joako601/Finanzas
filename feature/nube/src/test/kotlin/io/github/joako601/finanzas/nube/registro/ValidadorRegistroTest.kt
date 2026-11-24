@@ -159,6 +159,15 @@ class ValidadorRegistroTest {
     }
 
     @Test
+    fun mayusculas_y_minusculas_con_acento_o_ene_cuentan() {
+        val requisitos = ValidadorRegistro.evaluarRequisitosContrasena("ÑANDÚ#2024á")
+        assertTrue(requisitos.tieneMayuscula)
+        assertTrue(requisitos.tieneMinuscula)
+        val soloMayusculaAcentuada = ValidadorRegistro.evaluarRequisitosContrasena("ñandú#2024Á")
+        assertTrue(soloMayusculaAcentuada.tieneMayuscula)
+    }
+
+    @Test
     fun contrasena_que_cumple_las_cinco_reglas_es_valida() {
         val validas = listOf(
             "Segura1!",

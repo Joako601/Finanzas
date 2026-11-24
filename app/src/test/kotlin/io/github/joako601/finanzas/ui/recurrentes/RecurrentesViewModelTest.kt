@@ -83,7 +83,7 @@ class RecurrentesViewModelTest {
     fun registrar_valido_cierra_el_dialogo_y_avanza_la_fecha() = runTest {
         val vm = viewModel()
         vm.abrirRegistro(cargar(vm))
-        assertEquals("650.00", vm.registro.value?.monto)
+        assertEquals("650", vm.registro.value?.monto)
         vm.guardarRegistro()
         advanceUntilIdle()
 
@@ -132,7 +132,7 @@ class RecurrentesViewModelTest {
         val vm = viewModel()
         val resumen = cargar(vm)
         vm.abrirRegistro(resumen)
-        assertEquals("8500.00", vm.registro.value?.monto)
+        assertEquals("8500", vm.registro.value?.monto)
 
         // Editar solo el nombre no debe destruir el ancla del día 31 ni cambiar la próxima fecha.
         vm.abrirEdicionDesdeRegistro()
@@ -162,6 +162,7 @@ private class LibroFalso(cuentas: List<Cuenta>) : RepositorioLibro {
     override suspend fun eliminar(id: MovimientoId) = Unit
     override suspend fun actualizar(movimiento: Movimiento) = Unit
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = error("no se usa")
+    override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) = error("no se usa")
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = error("no se usa")
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()
 }

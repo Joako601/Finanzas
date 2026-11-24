@@ -26,8 +26,8 @@ val credencialesFirebase: Properties = Properties().apply {
 }
 
 /** Texto listo para ir entre comillas en BuildConfig, sin permitir que rompa el código Java. */
-fun valorFirebase(clave: String): String {
-    val valor = credencialesFirebase.getProperty(clave, "").trim()
+fun valorFirebase(clave: String, defecto: String = ""): String {
+    val valor = credencialesFirebase.getProperty(clave, "").trim().ifEmpty { defecto }
     require(valor.none { it == '"' || it == '\\' || it.isISOControl() }) {
         "firebase.properties: el valor de $clave tiene caracteres no permitidos"
     }
@@ -49,6 +49,27 @@ android {
         buildConfigField("String", "FIREBASE_API_KEY", valorFirebase("firebase.apiKey"))
         buildConfigField("String", "FIREBASE_APP_ID", valorFirebase("firebase.appId"))
         buildConfigField("String", "FIREBASE_PROJECT_ID", valorFirebase("firebase.projectId"))
+    }
+
+    buildTypes {
+        debug {
+            // En desarrollo apunta por defecto a localhost:8090 (puerto del backend Spring Boot,
+            // usando `adb reverse tcp:8090 tcp:8090` en teléfono físico). Puede sobrescribirse
+            // en firebase.properties con `backend.baseUrl.debug=http://10.0.2.2:8090` para emulador.
+            buildConfigField(
+                "String",
+                "BACKEND_BASE_URL",
+                valorFirebase("backend.baseUrl.debug", defecto = "http://localhost:8090"),
+            )
+        }
+        release {
+            // En release nunca hereda la URL HTTP local de debug; exige HTTPS en backend.baseUrl.release.
+            buildConfigField(
+                "String",
+                "BACKEND_BASE_URL",
+                valorFirebase("backend.baseUrl.release", defecto = ""),
+            )
+        }
     }
 
     compileOptions {

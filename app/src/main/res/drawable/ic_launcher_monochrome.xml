@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Capa monocromática del ícono adaptable de Kren para íconos temáticos Android 13+.
+  Usa tinta plana #FFFFFFFF en las 3 primitivas para un teñido limpio del sistema.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path
+        android:pathData="M34,38 L62,38"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="8.5" />
+
+    <path
+        android:pathData="M46,70 L74,70"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeWidth="8.5" />
+
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,48.5 A5.5,5.5 0 1,0 54,59.5 A5.5,5.5 0 1,0 54,48.5 Z" />
+</vector>

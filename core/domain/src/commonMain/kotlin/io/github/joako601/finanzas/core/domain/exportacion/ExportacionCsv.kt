@@ -16,8 +16,9 @@ import io.github.joako601.finanzas.core.domain.libro.resumir
  * - UTF-8 con BOM: sin él, Excel en Windows muestra "SÃºper" en vez de "Súper".
  * - Coma como separador y punto decimal, sin "$" ni separador de miles: así Excel lo
  *   toma como número.
- * - Una fila por movimiento, del más antiguo al más reciente. El monto siempre es
- *   positivo y el sentido lo da la columna Tipo, como en la app.
+ * - Una fila por movimiento, del más antiguo al más reciente. El monto es positivo y el
+ *   sentido lo da la columna Tipo, como en la app; la excepción es un ajuste de saldo a la
+ *   baja, que va negativo para que sumar la columna cuadre con los saldos.
  *
  * Los textos de las columnas viven aquí y no en strings.xml porque son parte del formato
  * del archivo, no de la pantalla.
@@ -40,7 +41,7 @@ public object ExportacionCsv {
                         campo(movimiento.descripcion),
                         campo(resumen.cuenta?.nombre.orEmpty()),
                         campo((resumen.categoria ?: resumen.contraparte)?.nombre.orEmpty()),
-                        decimal(resumen.monto),
+                        decimal(if (resumen.esAjusteALaBaja) -resumen.monto else resumen.monto),
                     ),
                 )
             }

@@ -1,10 +1,14 @@
 package io.github.joako601.finanzas.ui
 
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.toJavaLocalDate
 import kotlinx.datetime.toKotlinLocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 /*
  * Fechas en la interfaz. Aquí sí se usa java.time: la app es Android (minSdk 26 trae
@@ -21,6 +25,14 @@ private val formatoMes: DateTimeFormatter = DateTimeFormatter.ofPattern("MMMM", 
 
 /** La fecha de hoy según la zona horaria del teléfono. */
 fun hoy(): LocalDate = java.time.LocalDate.now().toKotlinLocalDate()
+
+/** La fecha de hoy, revisada cada minuto: si la app queda abierta pasada la medianoche, emite el día nuevo. */
+fun diasDesde(fechaDeHoy: () -> LocalDate): Flow<LocalDate> = flow {
+    while (true) {
+        emit(fechaDeHoy())
+        delay(60_000)
+    }
+}.distinctUntilChanged()
 
 /** "Noviembre": nombre del mes con inicial mayúscula en español de México. */
 fun LocalDate.formatoMes(): String =

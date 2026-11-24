@@ -16,3 +16,9 @@
 firebase.apiKey=
 firebase.appId=
 firebase.projectId=
+
+# Opcional: URL del backend Spring Boot (separada para debug y release).
+# En debug por defecto usa http://localhost:8090 (teléfono físico con `adb reverse tcp:8090 tcp:8090`).
+# Para emulador Android puedes usar http://10.0.2.2:8090. En release debe ser https://...
+# backend.baseUrl.debug=http://localhost:8090
+# backend.baseUrl.release=https://tu-backend.ejemplo.com

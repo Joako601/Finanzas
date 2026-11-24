@@ -66,6 +66,18 @@ class RepositorioSesionTest {
     }
 
     @Test
+    fun registro_con_demasiados_intentos_no_es_error_inesperado() {
+        assertEquals(
+            ResultadoRegistro.DemasiadosIntentos,
+            mapearErrorRegistro(codigoError = null, esRed = false, demasiadosIntentos = true),
+        )
+        assertEquals(
+            ResultadoRegistro.DemasiadosIntentos,
+            mapearErrorRegistro(codigoError = "ERROR_TOO_MANY_REQUESTS", esRed = false),
+        )
+    }
+
+    @Test
     fun recuperacion_oculta_si_el_correo_no_existe() {
         assertEquals(
             ResultadoRecuperacion.Enviado,

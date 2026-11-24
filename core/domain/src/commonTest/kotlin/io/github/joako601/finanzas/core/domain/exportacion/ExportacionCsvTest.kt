@@ -78,6 +78,7 @@ class ExportacionCsvTest {
                 mov(2, 1, "", nu to -50_000, capital to 50_000),
                 mov(3, 2, "", nu to 20_000, efectivo to -20_000),
                 mov(4, 3, "cajero", efectivo to 50_000, debito to -50_000),
+                mov(5, 4, "ajuste", efectivo to -45_000, capital to 45_000),
             ),
             cuentas,
         )
@@ -87,6 +88,8 @@ class ExportacionCsvTest {
                 "2026-11-01,Deuda inicial,,Nu,,500.00",
                 "2026-11-02,Pago de tarjeta,,Efectivo,Nu,200.00",
                 "2026-11-03,Transferencia,cajero,Débito,Efectivo,500.00",
+                // Bajar el saldo al editar la cuenta resta: sumar la columna debe cuadrar.
+                "2026-11-04,Saldo inicial,ajuste,Efectivo,,-450.00",
             ),
             filas(csv).drop(1),
         )

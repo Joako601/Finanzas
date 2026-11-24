@@ -1,8 +1,10 @@
 package io.github.joako601.finanzas
 
 import android.content.Context
+import android.util.Log
 import io.github.joako601.finanzas.core.data.Datos
 import io.github.joako601.finanzas.core.data.respaldo.Respaldo
+import io.github.joako601.finanzas.core.domain.libro.Movimiento
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
@@ -20,9 +22,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
+
+/** Etiqueta de logcat: `adb logcat -s Finanzas`. */
+internal const val ETIQUETA_LOG = "Finanzas"
 
 /**
  * Contenedor de dependencias escrito a mano: el equivalente a un `@Configuration` de
@@ -35,12 +44,28 @@ import kotlinx.coroutines.launch
 class Contenedor(context: Context) {
     private val datos: Datos = Datos.crear(context)
 
-    private val manejadorErrores = CoroutineExceptionHandler { _, _ -> }
+    private val manejadorErrores = CoroutineExceptionHandler { _, e -> Log.w(ETIQUETA_LOG, "Error en segundo plano", e) }
 
     /** Corrutinas que viven lo que vive el proceso (no una pantalla). */
     val alcance: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default + manejadorErrores)
 
-    val repositorioLibro: RepositorioLibro = datos.repositorioLibro
+    /**
+     * El historial completo se lee UNA vez y lo comparten todas las pantallas y el
+     * programador: antes, cada ViewModel abría su propia consulta en cada cambio.
+     */
+    val repositorioLibro: RepositorioLibro = object : RepositorioLibro by datos.repositorioLibro {
+        private val movimientos = datos.repositorioLibro.observarMovimientos()
+            // Si la consulta falla (disco lleno), se reintenta: sin esto el flujo compartido moría
+            // y todas las pantallas se quedaban con la última lista sin avisar.
+            .retryWhen { e, _ ->
+                Log.w(ETIQUETA_LOG, "Falló la lectura de movimientos; se reintenta", e)
+                delay(1_000)
+                true
+            }
+            .shareIn(alcance, SharingStarted.WhileSubscribed(5_000), replay = 1)
+
+        override fun observarMovimientos(): Flow<List<Movimiento>> = movimientos
+    }
     val servicioLibro: ServicioLibro = ServicioLibro(repositorioLibro)
 
     val repositorioTarjetas: RepositorioTarjetas = datos.repositorioTarjetas
@@ -73,7 +98,8 @@ class Contenedor(context: Context) {
                 respaldo.limpiarTemporales()
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(ETIQUETA_LOG, "No se limpiaron los temporales del respaldo", e)
                 // La limpieza se reintentará al crear o restaurar un respaldo.
             }
         }
@@ -91,7 +117,8 @@ class Contenedor(context: Context) {
                     programador.ejecutar()
                 } catch (e: CancellationException) {
                     throw e
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    Log.w(ETIQUETA_LOG, "Falló el programador de avisos", e)
                     // Un fallo transitorio no debe matar el observador de recordatorios.
                 }
             }

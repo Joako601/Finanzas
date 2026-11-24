@@ -1,7 +1,6 @@
 package io.github.joako601.finanzas.core.domain.disponible
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
-import io.github.joako601.finanzas.core.domain.dinero.sumar
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
@@ -17,6 +16,7 @@ import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.corteCapturado
 import io.github.joako601.finanzas.core.domain.tarjetas.deudaDe
 import io.github.joako601.finanzas.core.domain.tarjetas.situacionTarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.vencidoPendiente
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -179,11 +179,8 @@ public data class LineaDeTiempo(
             when (val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy, deuda)) {
                 is SituacionTarjeta.PagoPendiente -> pago(situacion.estado.fechaLimite, situacion.restante, exacto = true)
                 is SituacionTarjeta.Pagado -> Unit
-                else -> propios.filter { it.fechaLimite < hoy }.maxByOrNull { it.fechaCorte }?.let { vencido ->
-                    // S4: un pago del mismo día del corte ya quedó reflejado en ese estado.
-                    val pagado = pagos.filter { it.tarjeta == tarjeta.id && it.fecha > vencido.fechaCorte }.map { it.monto }.sumar()
-                    val falta = vencido.pagoSinIntereses - pagado
-                    if (falta.esPositivo) pago(vencido.fechaLimite, falta, exacto = true, vencido = true)
+                else -> vencidoPendiente(propios, pagos, hoy, deuda)?.let { vencido ->
+                    pago(vencido.estado.fechaLimite, vencido.restante, exacto = true, vencido = true)
                 }
             }
 

@@ -21,7 +21,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 748L,
                 periodicidad = "Anual",
                 detalleReferencia = "CAT promedio 72.9% · Corte típico día 15",
-                fuenteReferencia = "Referencia pública CONDUSEF / BBVA",
+                fuenteReferencia = "Ejemplo sin verificar · BBVA",
             ),
             ProductoFinanciero(
                 id = 2L,
@@ -31,7 +31,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 0L,
                 periodicidad = "Anual",
                 detalleReferencia = "Sin anualidad · Control de límite y fechas desde la app",
-                fuenteReferencia = "Referencia pública CONDUSEF / Nu México",
+                fuenteReferencia = "Ejemplo sin verificar · Nu México",
             ),
             ProductoFinanciero(
                 id = 3L,
@@ -41,7 +41,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 815L,
                 periodicidad = "Anual",
                 detalleReferencia = "CAT promedio 76.4% · Meses sin intereses y preventas",
-                fuenteReferencia = "Referencia pública CONDUSEF / Banamex",
+                fuenteReferencia = "Ejemplo sin verificar · Banamex",
             ),
             ProductoFinanciero(
                 id = 4L,
@@ -51,7 +51,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 0L,
                 periodicidad = "Anual",
                 detalleReferencia = "Sin anualidad con gasto mensual mínimo · Cashback en comercios",
-                fuenteReferencia = "Referencia pública CONDUSEF / Santander",
+                fuenteReferencia = "Ejemplo sin verificar · Santander",
             ),
             ProductoFinanciero(
                 id = 5L,
@@ -61,7 +61,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 0L,
                 periodicidad = "Sin costo",
                 detalleReferencia = "Sin comisión por manejo de cuenta · Cajitas con rendimiento",
-                fuenteReferencia = "Referencia pública Nu México",
+                fuenteReferencia = "Ejemplo sin verificar · Nu México",
             ),
             ProductoFinanciero(
                 id = 6L,
@@ -71,7 +71,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 0L,
                 periodicidad = "Sin costo",
                 detalleReferencia = "Sin saldo mínimo · Retiros sin tarjeta en cajeros",
-                fuenteReferencia = "Referencia pública CONDUSEF / BBVA",
+                fuenteReferencia = "Ejemplo sin verificar · BBVA",
             ),
             ProductoFinanciero(
                 id = 7L,
@@ -81,7 +81,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 0L,
                 periodicidad = "Sin costo",
                 detalleReferencia = "Sin comisión anual · Transferencias SPEI sin costo",
-                fuenteReferencia = "Referencia pública Mercado Pago",
+                fuenteReferencia = "Ejemplo sin verificar · Mercado Pago",
             ),
             ProductoFinanciero(
                 id = 8L,
@@ -91,7 +91,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 450L,
                 periodicidad = "Bimestral",
                 detalleReferencia = "Recibo bimestral estimado · Tarifa residencial básica",
-                fuenteReferencia = "Referencia pública CFE",
+                fuenteReferencia = "Ejemplo sin verificar · CFE",
             ),
             ProductoFinanciero(
                 id = 9L,
@@ -101,7 +101,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 389L,
                 periodicidad = "Mensual",
                 detalleReferencia = "Internet residencial fibra óptica · Pago mensual",
-                fuenteReferencia = "Referencia pública Telmex",
+                fuenteReferencia = "Ejemplo sin verificar · Telmex",
             ),
             ProductoFinanciero(
                 id = 10L,
@@ -111,7 +111,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 200L,
                 periodicidad = "Mensual",
                 detalleReferencia = "Telefonía móvil prepago · Vigencia típica de 30 días",
-                fuenteReferencia = "Referencia pública Telcel",
+                fuenteReferencia = "Ejemplo sin verificar · Telcel",
             ),
             ProductoFinanciero(
                 id = 11L,
@@ -121,7 +121,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 129L,
                 periodicidad = "Mensual",
                 detalleReferencia = "Música y podcasts sin anuncios · Cobro recurrente",
-                fuenteReferencia = "Referencia pública Spotify México",
+                fuenteReferencia = "Ejemplo sin verificar · Spotify México",
             ),
             ProductoFinanciero(
                 id = 12L,
@@ -131,7 +131,7 @@ class RepositorioCatalogoFalso : RepositorioCatalogo {
                 costoReferenciaPesos = 119L,
                 periodicidad = "Mensual",
                 detalleReferencia = "Streaming Full HD en 2 dispositivos · Cobro recurrente",
-                fuenteReferencia = "Referencia pública Netflix México",
+                fuenteReferencia = "Ejemplo sin verificar · Netflix México",
             ),
         )
     }

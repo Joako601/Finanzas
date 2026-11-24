@@ -2,7 +2,8 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
     <string name="catalogo_sesion_activa">Sesión iniciada como %1$s</string>
     <string name="catalogo_aviso_referencia">Catálogo público de referencia en México. No muestra ni modifica tus datos personales.</string>
-    <string name="catalogo_total_productos">%1$d productos de referencia</string>
+    <string name="catalogo_aviso_ejemplo">Catálogo de ejemplo: las cifras son ilustrativas y no están verificadas con CONDUSEF ni con los bancos. No muestra ni modifica tus datos personales.</string>
+    <string name="catalogo_total_productos">%1$d productos</string>
     <string name="catalogo_cerrando_sesion">Cerrando…</string>
     <string name="catalogo_cargando">Cargando catálogo de productos…</string>
 
@@ -10,8 +11,20 @@
     <string name="catalogo_vacio_texto">Por ahora el catálogo público está vacío. Intenta actualizar más tarde.</string>
 
     <string name="catalogo_error_sin_conexion_titulo">Sin conexión</string>
-    <string name="catalogo_error_sin_conexion_texto">No pudimos cargar el catálogo. Revisa tu conexión e intenta de nuevo.</string>
+    <string name="catalogo_error_sin_conexion_texto">No pudimos conectar con el servidor. Revisa tu conexión o que el backend esté encendido e intenta de nuevo.</string>
+    <string name="catalogo_error_sesion_titulo">Sesión no autorizada</string>
+    <string name="catalogo_error_sesion_texto">El servidor no pudo validar tu sesión de Firebase. Cierra sesión e inicia de nuevo.</string>
     <string name="catalogo_error_servidor_titulo">No pudimos cargar el catálogo</string>
     <string name="catalogo_error_servidor_texto">Ocurrió un problema al consultar los productos de referencia. Intenta de nuevo.</string>
     <string name="catalogo_reintentar">Reintentar</string>
+    <string name="catalogo_actualizar">Actualizar</string>
+    <string name="catalogo_tab_productos">Productos</string>
+    <string name="catalogo_tab_divisas">Divisas</string>
+    <string name="catalogo_origen_servidor">Conectado al servidor</string>
+    <string name="catalogo_origen_conectando">Conectando…</string>
+    <string name="catalogo_origen_sin_conexion">Sin conexión</string>
+    <string name="catalogo_origen_sesion_expirada">Sesión expirada</string>
+    <string name="catalogo_origen_error_servidor">Sin respuesta</string>
+    <string name="catalogo_origen_demo">Modo demostración local</string>
+    <string name="catalogo_tasa_referencia">Tasa de referencia: %1$.2f%% anual</string>
 </resources>

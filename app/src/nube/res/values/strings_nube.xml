@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
-    <string name="bienvenida_nube_etiqueta">FINANZAS</string>
+    <string name="bienvenida_nube_etiqueta">KREN</string>
     <string name="bienvenida_nube_titular">Claridad total desde el primer vistazo.</string>
     <string name="bienvenida_nube_iniciar">Iniciar sesión</string>
     <string name="bienvenida_nube_privado">Entrar en modo privado</string>

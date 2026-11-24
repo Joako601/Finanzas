@@ -12,10 +12,10 @@ import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
-import io.github.joako601.finanzas.core.domain.metas.AnalizadorMetas
-import io.github.joako601.finanzas.core.domain.metas.AnalizadorTopes
 import io.github.joako601.finanzas.core.domain.metas.AnalisisMetaAhorro
 import io.github.joako601.finanzas.core.domain.metas.AnalisisTope
+import io.github.joako601.finanzas.core.domain.metas.AnalizadorMetas
+import io.github.joako601.finanzas.core.domain.metas.AnalizadorTopes
 import io.github.joako601.finanzas.core.domain.metas.ErrorMeta
 import io.github.joako601.finanzas.core.domain.metas.ErrorMovimientoMeta
 import io.github.joako601.finanzas.core.domain.metas.ErrorTope
@@ -30,18 +30,16 @@ import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrente
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
+import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.hoy
 import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -143,12 +141,7 @@ class MetasViewModel(
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
-    private val dias = flow {
-        while (true) {
-            emit(fechaDeHoy())
-            delay(60_000)
-        }
-    }.distinctUntilChanged()
+    private val dias = diasDesde(fechaDeHoy)
 
     val estado: StateFlow<EstadoMetas> = combine(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),

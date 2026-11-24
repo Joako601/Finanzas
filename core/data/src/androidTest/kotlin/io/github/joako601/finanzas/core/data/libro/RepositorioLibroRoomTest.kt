@@ -91,6 +91,22 @@ class RepositorioLibroRoomTest {
     }
 
     @Test
+    fun renombrar_y_ajustar_una_cuenta_conserva_id_y_deja_el_saldo_escrito() = runTest {
+        val servicio = ServicioLibro(repositorio)
+        val hoy = LocalDate(2026, 11, 24)
+        val cuenta = servicio.crearCuentaDeDinero("Nu debito", Dinero.pesos(1_000), hoy)
+        val super_ = repositorio.observarCuentas().first().first { it.tipo == TipoCuenta.GASTO }
+        // Entra un gasto mientras el diálogo de edición sigue mostrando $1,000.
+        repositorio.registrar(Registro.gasto(hoy, Dinero.pesos(100), cuenta, super_))
+
+        servicio.editarCuentaDeDinero(cuenta, "  Nu principal ", Dinero.pesos(1_000), Dinero.pesos(500), hoy)
+
+        val guardada = repositorio.observarCuentas().first().single { it.id == cuenta.id }
+        assertEquals("Nu principal", guardada.nombre)
+        assertEquals(Dinero.pesos(500), repositorio.observarSaldos().first()[cuenta.id])
+    }
+
+    @Test
     fun eliminar_borra_tambien_los_asientos() = runTest {
         val cuentas = repositorio.observarCuentas().first()
         val efectivo = cuentas.first { it.tipo == TipoCuenta.ACTIVO }

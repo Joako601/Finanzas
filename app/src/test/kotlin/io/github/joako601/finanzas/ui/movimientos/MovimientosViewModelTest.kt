@@ -217,7 +217,20 @@ class MovimientosViewModelTest {
     }
 
     @Test
+    fun si_la_base_falla_al_eliminar_queda_el_aviso_y_el_movimiento() = runTest {
+        val id = libro.registrar(Registro.gasto(hoy, Dinero.pesos(100), efectivo, super_))
+        libro.fallarAlEliminar = true
+        val vm = viewModel()
+
+        vm.eliminar(id)
+
+        assertEquals(true, vm.errorAlEliminar.value)
+        assertEquals(1, libro.observarMovimientos().first().size)
+    }
+
+    @Test
     fun editar_cuenta_con_saldo_negativo_conserva_el_signo_y_permite_ajustarlo() = runTest {
+        libro.registrar(Registro.gasto(hoy, Dinero.pesos(50), efectivo, super_))
         val vm = viewModel()
         vm.abrirEditarCuenta(SaldoCuenta(efectivo, -Dinero.pesos(50)))
 
@@ -228,8 +241,8 @@ class MovimientosViewModelTest {
         vm.guardarNuevaCuenta()
 
         assertNull(vm.nuevaCuenta.value)
-        // El ajuste es (-20.50) - (-50.00) = +29.50 en efectivo.
-        assertEquals(Dinero(2_950), saldosPorCuenta(libro.movimientos.value)[efectivo.id])
+        // Queda exactamente lo escrito: un ajuste de +29.50 sobre los -50.00 del libro.
+        assertEquals(Dinero(-2_050), saldosPorCuenta(libro.movimientos.value)[efectivo.id])
     }
 
     @Test
@@ -255,6 +268,7 @@ private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
     private var siguiente = 1L
     private var siguienteCuenta = 100L
     var fallarAlActualizar = false
+    var fallarAlEliminar = false
 
     fun cuentasActuales(): List<Cuenta> = cuentas.value
 
@@ -272,6 +286,7 @@ private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
         movimientos.value = movimientos.value.map { if (it.id == movimiento.id) movimiento else it }
     }
     override suspend fun eliminar(id: MovimientoId) {
+        if (fallarAlEliminar) throw IllegalStateException("base no disponible")
         movimientos.value = movimientos.value.filterNot { it.id == id }
     }
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta {

@@ -256,6 +256,7 @@ private class RecurrentesFalsoMetas : RepositorioRecurrentes {
     val lista = MutableStateFlow<List<Recurrente>>(emptyList())
     override fun observarRecurrentes(): Flow<List<Recurrente>> = lista
     override suspend fun guardar(recurrente: Recurrente): RecurrenteId = error("no se usa")
+    override suspend fun actualizar(recurrente: Recurrente) = error("no se usa")
     override suspend fun cambiarProxima(id: RecurrenteId, proxima: LocalDate) = error("no se usa")
     override suspend fun eliminar(id: RecurrenteId) = error("no se usa")
 }
@@ -274,6 +275,7 @@ private class LibroFalsoMetas(
     override suspend fun actualizar(movimiento: Movimiento) = error("no se usa")
     override suspend fun eliminar(id: MovimientoId) = error("no se usa")
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = error("no se usa")
+    override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) = error("no se usa")
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = error("no se usa")
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()
 }

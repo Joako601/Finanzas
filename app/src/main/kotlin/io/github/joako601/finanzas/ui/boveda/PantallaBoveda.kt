@@ -1,6 +1,5 @@
 package io.github.joako601.finanzas.ui.boveda
 
-import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -41,10 +40,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.recordatorios.abrirAjustesDeAvisos
-import io.github.joako601.finanzas.recordatorios.dispararProgramadorAvisos
-import io.github.joako601.finanzas.recordatorios.marcarPermisoAvisosPedido
-import io.github.joako601.finanzas.recordatorios.notificacionesActivas
-import io.github.joako601.finanzas.recordatorios.puedePedirDialogoPermisoAvisos
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
@@ -54,6 +49,7 @@ import io.github.joako601.finanzas.ui.respaldo.DialogoNuevoRespaldo
 import io.github.joako601.finanzas.ui.respaldo.DialogoRestaurar
 import io.github.joako601.finanzas.ui.respaldo.Progreso
 import io.github.joako601.finanzas.ui.respaldo.RespaldoViewModel
+import io.github.joako601.finanzas.ui.tarjetas.recordarAvisos
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 
 /**
@@ -75,16 +71,11 @@ fun PantallaBoveda(
     var fechaDeHoy by remember { mutableStateOf(hoy()) }
     val libre = estado.tarea == null
 
-    var avisosActivos by remember { mutableStateOf(notificacionesActivas(context)) }
+    val avisos = recordarAvisos()
+    val avisosActivos = avisos.activos
 
     LifecycleResumeEffect(Unit) {
         fechaDeHoy = hoy()
-        val antes = avisosActivos
-        val ahora = notificacionesActivas(context)
-        avisosActivos = ahora
-        if (!antes && ahora) {
-            dispararProgramadorAvisos(context)
-        }
         onPauseOrDispose { }
     }
 
@@ -96,14 +87,6 @@ fun PantallaBoveda(
     }
     val origenRespaldo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
         viewModel.elegirParaRestaurar(it?.toString())
-    }
-    val pedirPermisoAvisos = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
-        marcarPermisoAvisosPedido(context)
-        val ahora = notificacionesActivas(context)
-        avisosActivos = ahora
-        if (ahora) {
-            dispararProgramadorAvisos(context)
-        }
     }
 
     Scaffold(
@@ -237,13 +220,7 @@ fun PantallaBoveda(
                         } else {
                             BotonPrincipal(
                                 texto = stringResource(R.string.activar_avisos_boton),
-                                onClick = {
-                                    if (puedePedirDialogoPermisoAvisos(context)) {
-                                        pedirPermisoAvisos.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                    } else {
-                                        abrirAjustesDeAvisos(context)
-                                    }
-                                },
+                                onClick = avisos.activar,
                             )
                         }
                     }

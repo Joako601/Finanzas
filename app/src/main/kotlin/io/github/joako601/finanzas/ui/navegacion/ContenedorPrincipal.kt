@@ -81,6 +81,7 @@ fun ContenedorPrincipal(
                 when (pestana) {
                     PestanaPrincipal.INICIO -> PantallaMovimientos(
                         onAbrirNube = onAbrirNube,
+                        onIrABoveda = { pestanaActual = PestanaPrincipal.BOVEDA },
                         margenInferiorExtra = AlturaTotalBarraInferior,
                     )
 

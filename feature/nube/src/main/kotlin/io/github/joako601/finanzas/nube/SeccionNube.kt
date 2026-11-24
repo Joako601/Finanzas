@@ -31,8 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -50,8 +52,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.joako601.finanzas.nube.catalogo.PantallaCatalogo
+import io.github.joako601.finanzas.nube.catalogo.RepositorioCatalogo
+import io.github.joako601.finanzas.nube.catalogo.RepositorioCatalogoFalso
 import io.github.joako601.finanzas.nube.componentes.rememberAnimacionesDesactivadasNube
 import io.github.joako601.finanzas.nube.componentes.toqueTactil
+import io.github.joako601.finanzas.nube.divisas.RepositorioDivisas
+import io.github.joako601.finanzas.nube.divisas.RepositorioDivisasFalso
 import io.github.joako601.finanzas.nube.login.PantallaLogin
 import io.github.joako601.finanzas.nube.navegacion.RutaNube
 import io.github.joako601.finanzas.nube.recuperar.DialogoRecuperar
@@ -60,6 +66,12 @@ import io.github.joako601.finanzas.nube.sesion.EstadoSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFalso
 import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
+import java.util.concurrent.atomic.AtomicInteger
+
+private object GeneradorClaveSesion {
+    private val contador = AtomicInteger(0)
+    fun siguiente(): Int = contador.incrementAndGet()
+}
 
 private sealed interface DestinoNube {
     data object Cargando : DestinoNube
@@ -78,6 +90,8 @@ private object DemoSesionHolder {
             cuentasIniciales = mapOf("demo@tecdesoftware.edu.mx" to "Demo1234!"),
         )
     }
+    val repositorioCatalogo: RepositorioCatalogo by lazy { RepositorioCatalogoFalso() }
+    val repositorioDivisas: RepositorioDivisas by lazy { RepositorioDivisasFalso() }
 }
 
 /**
@@ -103,6 +117,9 @@ fun SeccionNube(
                 repositorioSesion = DemoSesionHolder.repositorio,
                 onSalir = onSalir,
                 onIrAFinanzas = onIrAFinanzas,
+                repositorioCatalogo = DemoSesionHolder.repositorioCatalogo,
+                repositorioDivisas = DemoSesionHolder.repositorioDivisas,
+                conectadoAlServidor = false,
             )
         } else {
             PantallaSinConfigurar(
@@ -115,6 +132,9 @@ fun SeccionNube(
             repositorioSesion = repositorio,
             onSalir = onSalir,
             onIrAFinanzas = onIrAFinanzas,
+            repositorioCatalogo = contenedor.repositorioCatalogo,
+            repositorioDivisas = contenedor.repositorioDivisas,
+            conectadoAlServidor = contenedor.backendConfigurado,
         )
     }
 }
@@ -128,10 +148,30 @@ fun SeccionNube(
     repositorioSesion: RepositorioSesion,
     onSalir: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
+    repositorioCatalogo: RepositorioCatalogo = remember { RepositorioCatalogoFalso() },
+    repositorioDivisas: RepositorioDivisas = remember { RepositorioDivisasFalso() },
+    conectadoAlServidor: Boolean = false,
 ) {
     val estadoSesion by repositorioSesion.estado.collectAsStateWithLifecycle()
     var rutaActual by rememberSaveable { mutableStateOf<RutaNube?>(null) }
     var mostrarRecuperar by rememberSaveable { mutableStateOf(false) }
+    // Clave monotónica única por entrada/sesión para no reutilizar ViewModels obsoletos del
+    // ViewModelStore de la Activity tras salir de Nube o cerrar sesión y volver a entrar.
+    var generacionSesion by rememberSaveable { mutableIntStateOf(GeneradorClaveSesion.siguiente()) }
+    var estabaAutenticado by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(estadoSesion) {
+        when (estadoSesion) {
+            is EstadoSesion.Autenticado -> estabaAutenticado = true
+            EstadoSesion.SinSesion -> {
+                if (estabaAutenticado) {
+                    generacionSesion = GeneradorClaveSesion.siguiente()
+                    estabaAutenticado = false
+                }
+            }
+            EstadoSesion.Cargando -> Unit
+        }
+    }
 
     val rutaEfectiva = siguienteRuta(rutaActual, estadoSesion)
     SideEffect {
@@ -190,6 +230,10 @@ fun SeccionNube(
                 repositorioSesion = repositorioSesion,
                 onSalir = onSalir,
                 onIrAFinanzas = onIrAFinanzas,
+                repositorioCatalogo = repositorioCatalogo,
+                repositorioDivisas = repositorioDivisas,
+                conectadoAlServidor = conectadoAlServidor,
+                claveSesion = "${destino.usuario.uid}-$generacionSesion",
             )
 
             DestinoNube.Registro -> PantallaRegistro(

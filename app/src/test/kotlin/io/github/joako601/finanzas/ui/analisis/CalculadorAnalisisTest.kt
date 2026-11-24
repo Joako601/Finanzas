@@ -143,6 +143,28 @@ class CalculadorAnalisisTest {
     }
 
     @Test
+    fun `un gasto con fecha futura no baja el saldo de hoy en la curva`() {
+        // El saldo en cuentas ($8,000) ya incluye un gasto de $1,000 capturado para pasado mañana.
+        val movimientos = listOf(
+            Movimiento(
+                id = MovimientoId(1),
+                fecha = hoy.plus(2, DateTimeUnit.DAY),
+                descripcion = "Colegiatura adelantada",
+                asientos = listOf(
+                    Asiento(catSuper.id, Dinero.pesos(1_000)),
+                    Asiento(cuentaDebito.id, -Dinero.pesos(1_000)),
+                ),
+            ),
+        )
+        val linea = LineaDeTiempo(hoy = hoy, enCuentas = Dinero.pesos(8_000), fin = hoy.plus(30, DateTimeUnit.DAY), eventos = emptyList())
+
+        val corte = CalculadorAnalisis.calcularCorte(PeriodoAnalisis.QUINCE_DIAS, cuentasPorId, movimientos, linea)
+
+        assertEquals(Dinero.pesos(9_000), corte.puntosCurva[corte.indiceHoy].saldo)
+        assertEquals(Dinero.pesos(9_000), corte.puntosCurva[corte.indiceHoy - 15].saldo)
+    }
+
+    @Test
     fun `agrupa mas de 5 categorias en fila sexta Otras categorias`() {
         val categoriasGasto = listOf(
             catRenta to 5_000L,

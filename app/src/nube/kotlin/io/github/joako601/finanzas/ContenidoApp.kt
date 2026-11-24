@@ -44,12 +44,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -65,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
 import io.github.joako601.finanzas.nube.SeccionNube
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
+import io.github.joako601.finanzas.ui.componentes.LogoKrenAnimado
 import io.github.joako601.finanzas.ui.componentes.rememberAnimacionesDesactivadas
 import io.github.joako601.finanzas.ui.componentes.toqueTactil
 import io.github.joako601.finanzas.ui.navegacion.ContenedorPrincipal
@@ -261,7 +257,7 @@ private fun PantallaBienvenidaNube(
                     },
                     verticalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    // Lockup limpio de marca (símbolo geométrico "Flujo" + nombre).
+                    // Lockup limpio de marca (Logo 8 animado de Kren + nombre).
                     Row(
                         modifier = Modifier.graphicsLayer {
                             alpha = marcaProgreso.value
@@ -269,7 +265,11 @@ private fun PantallaBienvenidaNube(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
-                        SimboloFlujoEntrada(modifier = Modifier.size(28.dp))
+                        LogoKrenAnimado(
+                            progresoBarras = { marcaProgreso.value },
+                            progresoPunto = { marcaProgreso.value },
+                            modifier = Modifier.size(28.dp),
+                        )
                         Text(
                             text = stringResource(R.string.app_name),
                             style = MaterialTheme.typography.titleMedium,
@@ -497,47 +497,4 @@ private fun EscenaTarjetasEntrada(modifier: Modifier = Modifier) {
             }
         }
     }
-}
-
-/**
- * Símbolo geométrico "Flujo" (Fase 2 aprobada): dos arcos paralelos desplazados + punto
- * central de balance, cacheado con `drawWithCache` para 0 alocaciones por frame.
- */
-@Composable
-private fun SimboloFlujoEntrada(modifier: Modifier = Modifier) {
-    Spacer(
-        modifier = modifier.drawWithCache {
-            val u = size.minDimension / 48f
-            val trazo = Stroke(width = 4.4f * u, cap = StrokeCap.Round)
-
-            val arcoSuperior = Path().apply {
-                moveTo(9f * u, 25f * u)
-                cubicTo(
-                    9f * u, 16.7f * u,
-                    15.7f * u, 10f * u,
-                    24f * u, 10f * u,
-                )
-                lineTo(38f * u, 10f * u)
-            }
-            val arcoInferior = Path().apply {
-                moveTo(39f * u, 23f * u)
-                cubicTo(
-                    39f * u, 31.3f * u,
-                    32.3f * u, 38f * u,
-                    24f * u, 38f * u,
-                )
-                lineTo(10f * u, 38f * u)
-            }
-
-            onDrawBehind {
-                drawPath(path = arcoSuperior, color = Color.White, style = trazo)
-                drawPath(path = arcoInferior, color = Color.White.copy(alpha = 0.68f), style = trazo)
-                drawCircle(
-                    color = Color.White,
-                    radius = 3.5f * u,
-                    center = Offset(24f * u, 24f * u),
-                )
-            }
-        },
-    )
 }

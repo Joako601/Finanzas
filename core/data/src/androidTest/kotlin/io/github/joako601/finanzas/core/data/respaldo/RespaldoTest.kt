@@ -255,6 +255,32 @@ class RespaldoTest {
     }
 
     @Test
+    fun rechaza_respaldo_con_fila_que_el_dominio_no_puede_leer_sin_tocar_datos_actuales() = runTest {
+        llenar()
+        val bytesBase = CifradoRespaldo.descifrar(respaldo.crear(contrasena), contrasena)
+
+        val alterada = contexto.getDatabasePath("respaldo-alterada-test.db")
+        try {
+            alterada.parentFile!!.mkdirs()
+            alterada.writeBytes(bytesBase)
+            android.database.sqlite.SQLiteDatabase.openDatabase(
+                alterada.path,
+                null,
+                android.database.sqlite.SQLiteDatabase.OPEN_READWRITE,
+            ).use { db ->
+                // Periodo válido para SQL, pero el mapeo exige `cada`: antes pasaba y la app tronaba al arrancar.
+                db.execSQL("UPDATE recurrente SET periodo = 'DIAS', cada = NULL")
+            }
+            val sobreCorrupto = CifradoRespaldo.cifrar(alterada.readBytes(), contrasena, CifradoRespaldo.MINIMO_ITERACIONES)
+            val error = assertFailsWith<ErrorRespaldo> { respaldo.restaurar(sobreCorrupto, contrasena) }
+            assertEquals(ErrorRespaldo.Motivo.BASE_INVALIDA, error.motivo)
+            assertEquals(1, RepositorioRecurrentesRoom(base.recurrentesDao()).observarRecurrentes().first().size)
+        } finally {
+            android.database.sqlite.SQLiteDatabase.deleteDatabase(alterada)
+        }
+    }
+
+    @Test
     fun no_quedan_archivos_temporales_sin_cifrar() = runTest {
         llenar()
         val archivo = respaldo.crear(contrasena)

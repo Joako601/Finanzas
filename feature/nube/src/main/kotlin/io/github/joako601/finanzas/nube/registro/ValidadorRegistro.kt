@@ -82,8 +82,8 @@ object ValidadorRegistro {
     /** Evalúa las 5 reglas de contraseña para mostrar progreso en tiempo real. */
     fun evaluarRequisitosContrasena(contrasena: String): RequisitosContrasena = RequisitosContrasena(
         longitudMinima = contrasena.length >= LONGITUD_MINIMA_CONTRASENA,
-        tieneMayuscula = contrasena.any { it in 'A'..'Z' },
-        tieneMinuscula = contrasena.any { it in 'a'..'z' },
+        tieneMayuscula = contrasena.any { it.isUpperCase() },
+        tieneMinuscula = contrasena.any { it.isLowerCase() },
         tieneNumero = contrasena.any { it in '0'..'9' },
         tieneSimbolo = contrasena.any { esSimboloValido(it) },
     )

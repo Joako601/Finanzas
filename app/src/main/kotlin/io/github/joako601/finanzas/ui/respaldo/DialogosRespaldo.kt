@@ -1,169 +1,33 @@
 package io.github.joako601.finanzas.ui.respaldo
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.data.respaldo.ErrorRespaldo
 import io.github.joako601.finanzas.ui.componentes.AnimacionLottie
-import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
-import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.Campo
 import io.github.joako601.finanzas.ui.componentes.TECLADO_CONTRASENA
-import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
-import io.github.joako601.finanzas.ui.formatoDiaCorto
-import io.github.joako601.finanzas.ui.hoy
-
-/**
- * Hoja "Respaldo y exportar". Los archivos se eligen con el selector de Android, que
- * deja guardar en Descargas, Drive o donde el usuario quiera sin que la app pida permisos.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HojaRespaldo(viewModel: RespaldoViewModel, onCerrar: () -> Unit) {
-    val estado by viewModel.estado.collectAsStateWithLifecycle()
-    val nuevo by viewModel.nuevo.collectAsStateWithLifecycle()
-    val porRestaurar by viewModel.porRestaurar.collectAsStateWithLifecycle()
-    val fechaDeHoy = remember { hoy() }
-
-    val destinoRespaldo = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) {
-        viewModel.guardarRespaldo(it?.toString())
-    }
-    val destinoCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) {
-        viewModel.exportarCsv(it?.toString())
-    }
-    val origenRespaldo = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) {
-        viewModel.elegirParaRestaurar(it?.toString())
-    }
-    val libre = estado.tarea == null
-
-    ModalBottomSheet(
-        onDismissRequest = {
-            viewModel.cerrarHoja()
-            onCerrar()
-        },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.background,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                stringResource(R.string.respaldo_y_exportar),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() },
-            )
-            Progreso(estado)
-
-            TarjetaFinanzas(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        stringResource(R.string.respaldo_cifrado),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    val ultimo = estado.ultimo
-                    if (ultimo != null) {
-                        Text(
-                            stringResource(R.string.ultimo_respaldo, ultimo.formatoDiaCorto(fechaDeHoy)),
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    } else {
-                        Text(
-                            stringResource(R.string.sin_respaldo),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.tertiary,
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.explicacion_respaldo),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    BotonPrincipal(stringResource(R.string.crear_respaldo), viewModel::abrirNuevoRespaldo, habilitado = libre)
-                    BotonSecundario(
-                        stringResource(R.string.restaurar_respaldo),
-                        // Todos los tipos: el proveedor no sabe qué es ".respaldo"; la app lo revisa al leerlo.
-                        { origenRespaldo.launch(arrayOf("*/*")) },
-                        habilitado = libre,
-                    )
-                }
-            }
-
-            TarjetaFinanzas(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        stringResource(R.string.exportar_csv),
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.semantics { heading() },
-                    )
-                    Text(
-                        stringResource(R.string.explicacion_csv),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    BotonSecundario(
-                        stringResource(R.string.exportar_movimientos),
-                        { destinoCsv.launch("finanzas-movimientos-${hoy()}.csv") },
-                        habilitado = libre,
-                    )
-                }
-            }
-        }
-    }
-
-    nuevo?.let { actual ->
-        DialogoNuevoRespaldo(
-            nuevo = actual,
-            onEditar = viewModel::editarNuevo,
-            onContinuar = { if (viewModel.validarNuevo()) destinoRespaldo.launch("finanzas-${hoy()}.respaldo") },
-            onCerrar = viewModel::cerrarNuevo,
-        )
-    }
-
-    porRestaurar?.let { actual ->
-        DialogoRestaurar(
-            porRestaurar = actual,
-            onEditar = viewModel::editarRestaurar,
-            onConfirmar = viewModel::confirmarRestaurar,
-            onCerrar = viewModel::cerrarRestaurar,
-        )
-    }
-}
 
 /** Lo que está pasando o el resultado de lo último que se hizo. TalkBack lo anuncia al cambiar. */
 @Composable

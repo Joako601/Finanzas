@@ -12,8 +12,8 @@ import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
-import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.AnalisisTarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorEstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorTarjeta
@@ -23,18 +23,16 @@ import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.deudaDe
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
+import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.hoy
 import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -122,13 +120,7 @@ class TarjetasViewModel(
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
-    /** La fecha de hoy, revisada cada minuto para recalcular si la app queda abierta tras la medianoche. */
-    private val dias = flow {
-        while (true) {
-            emit(fechaDeHoy())
-            delay(60_000)
-        }
-    }.distinctUntilChanged()
+    private val dias = diasDesde(fechaDeHoy)
 
     val estado: StateFlow<EstadoTarjetas> = combine(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),

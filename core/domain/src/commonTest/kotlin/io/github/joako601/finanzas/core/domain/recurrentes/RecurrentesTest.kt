@@ -180,6 +180,43 @@ class RecurrentesTest {
     }
 
     @Test
+    fun editar_conservando_una_proxima_vencida_no_se_salta_ese_pago() = runTest {
+        val recibo = cfe(inicio = "2026-10-10", hoy = "2026-10-01")
+        val actualizado = servicio.actualizar(
+            id = recibo.id!!,
+            nombre = "CFE",
+            clase = ClaseRegistro.GASTO,
+            montoEstimado = Dinero.pesos(700),
+            categoria = luz,
+            periodicidad = Periodicidad.MENSUAL,
+            // Se cambia el día de pago al 5, pero el pago del 10 de octubre sigue pendiente.
+            inicio = fecha("2026-10-05"),
+            hoy = fecha("2026-11-01"),
+            proximaAnterior = fecha("2026-10-10"),
+            conservarProxima = true,
+        )
+        // Sin conservarla saltaría al 5 de noviembre y ese pago se perdería sin aviso.
+        assertEquals(fecha("2026-10-10"), actualizado.proxima)
+    }
+
+    @Test
+    fun editar_sin_mover_el_inicio_conserva_la_ocurrencia_vencida() = runTest {
+        val recibo = cfe(inicio = "2026-10-10", hoy = "2026-10-01")
+        val actualizado = servicio.actualizar(
+            id = recibo.id!!,
+            nombre = "CFE Hogar",
+            clase = ClaseRegistro.GASTO,
+            montoEstimado = Dinero.pesos(650),
+            categoria = luz,
+            periodicidad = Periodicidad.MENSUAL,
+            inicio = fecha("2026-10-10"),
+            hoy = fecha("2026-11-01"),
+            proximaAnterior = fecha("2026-10-10"),
+        )
+        assertEquals(fecha("2026-10-10"), actualizado.proxima)
+    }
+
+    @Test
     fun omitir_solo_avanza_la_fecha() = runTest {
         servicio.omitir(cfe(inicio = "2026-11-10", hoy = "2026-11-01"))
         assertTrue(libro.observarMovimientos().first().isEmpty())

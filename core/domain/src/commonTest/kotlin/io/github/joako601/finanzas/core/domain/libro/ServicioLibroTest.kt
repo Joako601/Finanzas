@@ -75,4 +75,32 @@ class ServicioLibroTest {
         assertEquals(Dinero.pesos(900), repositorio.observarSaldos().first()[cuenta.id])
         assertEquals(3, repositorio.observarMovimientos().first().size)
     }
+
+    @Test
+    fun editar_saldo_deja_lo_escrito_aunque_entro_un_gasto_con_el_dialogo_abierto() = runTest {
+        val repositorio = RepositorioEnMemoria()
+        val servicio = ServicioLibro(repositorio)
+        val cuenta = servicio.crearCuentaDeDinero("Efectivo", Dinero.pesos(1_000), fecha)
+        val gasto = repositorio.crearCuenta("Súper", TipoCuenta.GASTO)
+        // El diálogo se abrió viendo $1,000; mientras, se registró un gasto de $100.
+        repositorio.registrar(Registro.gasto(fecha, Dinero.pesos(100), cuenta, gasto))
+
+        servicio.editarCuentaDeDinero(cuenta, "Efectivo", Dinero.pesos(1_000), Dinero.pesos(500), fecha)
+
+        assertEquals(Dinero.pesos(500), repositorio.observarSaldos().first()[cuenta.id])
+    }
+
+    @Test
+    fun solo_renombrar_con_el_dialogo_abierto_no_deshace_un_gasto() = runTest {
+        val repositorio = RepositorioEnMemoria()
+        val servicio = ServicioLibro(repositorio)
+        val cuenta = servicio.crearCuentaDeDinero("Efectivo", Dinero.pesos(1_000), fecha)
+        val gasto = repositorio.crearCuenta("Súper", TipoCuenta.GASTO)
+        repositorio.registrar(Registro.gasto(fecha, Dinero.pesos(100), cuenta, gasto))
+
+        // El saldo no se tocó: sigue el que se vio al abrir.
+        servicio.editarCuentaDeDinero(cuenta, "Cartera", Dinero.pesos(1_000), Dinero.pesos(1_000), fecha)
+
+        assertEquals(Dinero.pesos(900), repositorio.observarSaldos().first()[cuenta.id])
+    }
 }

@@ -173,11 +173,6 @@ class RespaldoViewModel(
         }
     }
 
-    /** Al cerrar la hoja: la próxima vez abre sin el resultado de hoy. */
-    fun cerrarHoja() {
-        if (_estado.value.tarea == null) avisar(null)
-    }
-
     /** Lee el archivo elegido y, si parece un respaldo, pide la contraseña. */
     fun elegirParaRestaurar(uri: String?) {
         if (uri == null) return

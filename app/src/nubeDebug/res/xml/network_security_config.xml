@@ -3,7 +3,7 @@
   Política de red de la distribución nube en DEBUG (D-020).
   Bloquea HTTP en general, pero lo permite hacia el backend local:
   - 10.0.2.2: dirección del host desde el emulador de Android.
-  - localhost: útil en teléfono físico con `adb reverse tcp:8080 tcp:8080`.
+  - localhost: útil en teléfono físico con `adb reverse tcp:8090 tcp:8090`.
   Si pruebas en un teléfono físico contra la IP de tu computadora en Wi-Fi (p. ej. 192.168.1.x),
   usa `adb reverse` o agrega esa IP temporalmente aquí sin subirla al repositorio.
   En release rige app/src/nube/res/xml/network_security_config.xml (solo HTTPS).

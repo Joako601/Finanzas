@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Capa frontal del ícono adaptable: símbolo geométrico "Flujo" (Fase 2 aprobada).
-  Dos arcos paralelos desplazados en diagonal + punto central de balance, con separación
-  vertical abierta para que se lea como flujo de entradas/salidas incluso en tamaño pequeño.
-  Coordenadas centradas en el cuadro 30..78 dentro de 108x108 (zona segura 66/108).
+  Capa frontal del ícono adaptable de Kren (Logo 8 aprobado).
+  Dos barras paralelas desplazadas con simetría rotacional exacta 180° (entradas y salidas)
+  + punto central semántico #30D158 (disponible real).
+  Radio máximo 29.86 u desde (54,54) -> 55.3% del lienzo (0% recorte en zona segura 66/108).
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
@@ -11,23 +11,22 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Arco superior de flujo (entrada) -->
+    <!-- Barra superior desplazada a la izquierda -->
     <path
-        android:pathData="M39,55C39,46.7 45.7,40 54,40H68"
+        android:pathData="M34,38 L62,38"
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
-        android:strokeWidth="4.4" />
+        android:strokeWidth="8.5" />
 
-    <!-- Arco inferior de flujo (salida, desplazado para no cerrar como ojo) -->
+    <!-- Barra inferior desplazada a la derecha (espejo rotacional 180°) -->
     <path
-        android:pathData="M69,53C69,61.3 62.3,68 54,68H40"
-        android:strokeAlpha="0.68"
+        android:pathData="M46,70 L74,70"
         android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
-        android:strokeWidth="4.4" />
+        android:strokeWidth="8.5" />
 
-    <!-- Punto central de disponible real -->
+    <!-- Punto central de disponible real (#30D158, contraste 9.34:1 sobre #111111) -->
     <path
-        android:fillColor="#FFFFFFFF"
-        android:pathData="M54,50.5A3.5,3.5 0 1,0 54,57.5A3.5,3.5 0 1,0 54,50.5Z" />
+        android:fillColor="#FF30D158"
+        android:pathData="M54,48.5 A5.5,5.5 0 1,0 54,59.5 A5.5,5.5 0 1,0 54,48.5 Z" />
 </vector>

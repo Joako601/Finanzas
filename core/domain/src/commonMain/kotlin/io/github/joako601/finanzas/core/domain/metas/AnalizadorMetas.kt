@@ -206,7 +206,10 @@ public object AnalizadorMetas {
         )
     }
 
-    /** Suma cantidades no negativas saturando a `Long.MAX_VALUE` para agregaciones informativas sin crash. */
+    /**
+     * Suma cantidades no negativas saturando a `Long.MAX_VALUE` para agregaciones informativas sin crash.
+     * No es `sumar()`: un respaldo alterado puede traer metas enormes y la pantalla no debe tronar.
+     */
     private fun Iterable<Dinero>.sumarSaturado(): Dinero {
         var total = 0L
         for (monto in this) {

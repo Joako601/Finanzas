@@ -4,7 +4,18 @@ import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import kotlinx.datetime.LocalDate
 
 /** Lo que el usuario elige en la pantalla de captura. */
-public enum class ClaseRegistro { GASTO, INGRESO }
+public enum class ClaseRegistro {
+    GASTO,
+    INGRESO,
+    ;
+
+    /** El tipo de cuenta de sus categorías: un gasto va a una categoría GASTO. */
+    public val tipoDeCategoria: TipoCuenta
+        get() = when (this) {
+            GASTO -> TipoCuenta.GASTO
+            INGRESO -> TipoCuenta.INGRESO
+        }
+}
 
 /** Por qué no se pudo armar un movimiento con lo que capturó el usuario. */
 public enum class ErrorRegistro {
@@ -173,13 +184,9 @@ public object Registro {
 
         if (cuenta == null || !cuenta.tipo.esDeDinero) errores += ErrorRegistro.SIN_CUENTA
 
-        val tipoEsperado = when (clase) {
-            ClaseRegistro.GASTO -> TipoCuenta.GASTO
-            ClaseRegistro.INGRESO -> TipoCuenta.INGRESO
-        }
         when {
             categoria == null -> errores += ErrorRegistro.SIN_CATEGORIA
-            categoria.tipo != tipoEsperado -> errores += ErrorRegistro.CATEGORIA_NO_CORRESPONDE
+            categoria.tipo != clase.tipoDeCategoria -> errores += ErrorRegistro.CATEGORIA_NO_CORRESPONDE
         }
 
         if (nota.trim().length > Movimiento.LARGO_MAXIMO_DESCRIPCION) {

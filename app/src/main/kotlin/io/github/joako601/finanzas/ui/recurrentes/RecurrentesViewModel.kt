@@ -23,18 +23,16 @@ import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
+import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.hoy
 import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -129,13 +127,7 @@ class RecurrentesViewModel(
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
-    /** La fecha de hoy, revisada cada minuto para actualizar vencimientos si pasa la medianoche. */
-    private val dias = flow {
-        while (true) {
-            emit(fechaDeHoy())
-            delay(60_000)
-        }
-    }.distinctUntilChanged()
+    private val dias = diasDesde(fechaDeHoy)
 
     val estado: StateFlow<EstadoRecurrentes> = combine(
         libro.observarCuentas(),
@@ -254,7 +246,7 @@ class RecurrentesViewModel(
         val cuentasDisponibles = estado.value.cuentasPara(resumen.recurrente.clase)
         _registro.value = RegistroRecurrente(
             resumen = resumen,
-            monto = resumen.recurrente.montoEstimado.formatear().removePrefix("$").replace(",", ""),
+            monto = resumen.recurrente.montoEstimado.textoEditable(),
             cuentaId = estado.value.cuentasDeDinero.firstOrNull()?.id ?: cuentasDisponibles.firstOrNull()?.id,
             fecha = fechaDeHoy(),
         )

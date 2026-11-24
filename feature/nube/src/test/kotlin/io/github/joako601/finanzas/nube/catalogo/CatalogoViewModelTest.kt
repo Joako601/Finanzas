@@ -127,6 +127,48 @@ class CatalogoViewModelTest {
     }
 
     @Test
+    fun sesion_expirada_pasa_a_error_sesion_expirada() = runTest(despachador) {
+        val repositorio = RepositorioCatalogoProgramable(
+            respuestas = ArrayDeque(listOf(ResultadoCatalogo.SesionExpirada)),
+        )
+        val viewModel = CatalogoViewModel(
+            repositorioCatalogo = repositorio,
+            repositorioSesion = RepositorioSesionFalso(),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(EstadoListaCatalogo.Error(ErrorCatalogo.SESION_EXPIRADA), viewModel.estado.value.lista)
+    }
+
+    @Test
+    fun refrescar_silencioso_detecta_caida_del_servidor_sin_parpadeo_inicial() = runTest(despachador) {
+        val productosEsperados = (RepositorioCatalogoFalso().obtenerProductos() as ResultadoCatalogo.Exito).productos
+        val repositorio = RepositorioCatalogoProgramable(
+            respuestas = ArrayDeque(
+                listOf(
+                    ResultadoCatalogo.Exito(productosEsperados),
+                    ResultadoCatalogo.SinConexion,
+                ),
+            ),
+        )
+        val viewModel = CatalogoViewModel(
+            repositorioCatalogo = repositorio,
+            repositorioSesion = RepositorioSesionFalso(),
+        )
+        advanceUntilIdle()
+        assertTrue(viewModel.estado.value.lista is EstadoListaCatalogo.Contenido)
+
+        viewModel.refrescar()
+        assertTrue(viewModel.estado.value.refrescando)
+        assertTrue(viewModel.estado.value.lista is EstadoListaCatalogo.Contenido)
+
+        advanceUntilIdle()
+        assertFalse(viewModel.estado.value.refrescando)
+        assertEquals(EstadoListaCatalogo.Error(ErrorCatalogo.SIN_CONEXION), viewModel.estado.value.lista)
+    }
+
+    @Test
     fun excepcion_inesperada_en_obtenerProductos_pasa_a_error_servidor() = runTest(despachador) {
         val repositorio = object : RepositorioCatalogo {
             override suspend fun obtenerProductos(): ResultadoCatalogo {

@@ -34,7 +34,7 @@ public interface RepositorioLibro {
     public suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta
 
     /** Actualiza el nombre de una cuenta existente conservando su id y movimientos. */
-    public suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) {}
+    public suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String)
 
     /** La cuenta de capital contra la que se registran los saldos iniciales. */
     public suspend fun cuentaDeSaldosIniciales(): Cuenta

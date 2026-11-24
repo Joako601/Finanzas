@@ -9,6 +9,7 @@ import io.github.joako601.finanzas.FinanzasApp
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.Movimiento
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.metas.AnalizadorMetas
 import io.github.joako601.finanzas.core.domain.metas.DesgloseDisponibleMetas
@@ -17,15 +18,15 @@ import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
+import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.hoy
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.LocalDate
 
@@ -36,6 +37,45 @@ data class EstadoLineaDeTiempo(
     val desgloseMetas: DesgloseDisponibleMetas? = null,
     val proximasRecurrentes: Map<RecurrenteId, LocalDate> = emptyMap(),
 )
+
+/** La línea de tiempo y el historial con el que se calculó; lo comparten Inicio y Análisis. */
+internal class CalculoLinea(
+    val estado: EstadoLineaDeTiempo,
+    val linea: LineaDeTiempo,
+    val cuentas: List<Cuenta>,
+    val movimientos: List<Movimiento>,
+)
+
+/** Se recalcula sola cuando cambia cualquier dato que afecta la línea de tiempo. */
+internal fun calcularLinea(
+    libro: RepositorioLibro,
+    tarjetas: RepositorioTarjetas,
+    recurrentes: RepositorioRecurrentes,
+    metas: RepositorioMetas,
+    dias: Flow<LocalDate>,
+): Flow<CalculoLinea> = combine(
+    combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
+    combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
+    combine(metas.observarMetas(), dias, ::Pair),
+) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (listaMetas, hoy) ->
+    val porId = cuentas.associateBy { it.id }
+    val linea = LineaDeTiempo.calcular(
+        cuentas = cuentas,
+        saldos = saldos,
+        tarjetas = listaTarjetas,
+        estados = estados,
+        pagos = pagosATarjetas(movimientos, porId),
+        recurrentes = listaRecurrentes,
+        hoy = hoy,
+    )
+    val estado = EstadoLineaDeTiempo(
+        linea = linea,
+        categorias = porId,
+        desgloseMetas = AnalizadorMetas.calcularDesgloseDisponible(linea.disponible, listaMetas),
+        proximasRecurrentes = listaRecurrentes.mapNotNull { r -> r.id?.let { it to r.proxima } }.toMap(),
+    )
+    CalculoLinea(estado, linea, cuentas, movimientos)
+}
 
 /**
  * Calcula la línea de tiempo con los datos que ya existen; no guarda nada. Se recalcula
@@ -49,36 +89,10 @@ class LineaDeTiempoViewModel(
     fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
-    /** La fecha de hoy, revisada cada minuto: si la app queda abierta pasada la medianoche, todo se recalcula. */
-    private val dias = flow {
-        while (true) {
-            emit(fechaDeHoy())
-            delay(60_000)
-        }
-    }.distinctUntilChanged()
+    private val dias = diasDesde(fechaDeHoy)
 
-    val estado: StateFlow<EstadoLineaDeTiempo> = combine(
-        combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
-        combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
-        combine(metas.observarMetas(), dias, ::Pair),
-    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (listaMetas, hoy) ->
-        val porId = cuentas.associateBy { it.id }
-        val linea = LineaDeTiempo.calcular(
-            cuentas = cuentas,
-            saldos = saldos,
-            tarjetas = listaTarjetas,
-            estados = estados,
-            pagos = pagosATarjetas(movimientos, porId),
-            recurrentes = listaRecurrentes,
-            hoy = hoy,
-        )
-        EstadoLineaDeTiempo(
-            linea = linea,
-            categorias = porId,
-            desgloseMetas = AnalizadorMetas.calcularDesgloseDisponible(linea.disponible, listaMetas),
-            proximasRecurrentes = listaRecurrentes.mapNotNull { r -> r.id?.let { it to r.proxima } }.toMap(),
-        )
-    }
+    val estado: StateFlow<EstadoLineaDeTiempo> = calcularLinea(libro, tarjetas, recurrentes, metas, dias)
+        .map { it.estado }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EstadoLineaDeTiempo())
 

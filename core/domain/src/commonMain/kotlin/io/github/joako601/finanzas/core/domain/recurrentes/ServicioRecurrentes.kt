@@ -6,7 +6,6 @@ import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ResultadoRegistro
-import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -29,7 +28,7 @@ public class ServicioRecurrentes(
         buildSet {
             if (nombre.isBlank()) add(ErrorRecurrente.NOMBRE_VACIO)
             if (Dinero.parsear(montoTexto)?.esPositivo != true) add(ErrorRecurrente.MONTO_INVALIDO)
-            if (categoria == null || categoria.tipo != tipoDeCategoria(clase)) add(ErrorRecurrente.SIN_CATEGORIA)
+            if (categoria == null || categoria.tipo != clase.tipoDeCategoria) add(ErrorRecurrente.SIN_CATEGORIA)
         }
 
     /**
@@ -45,7 +44,7 @@ public class ServicioRecurrentes(
         inicio: LocalDate,
         hoy: LocalDate,
     ): Recurrente {
-        require(categoria.tipo == tipoDeCategoria(clase)) { "La categoría no corresponde" }
+        require(categoria.tipo == clase.tipoDeCategoria) { "La categoría no corresponde" }
         val primera = periodicidad.primeraDesde(inicio)
         val proxima = if (primera >= hoy) primera else periodicidad.siguienteDespues(inicio, hoy.minus(1, DateTimeUnit.DAY))
         val nuevo = Recurrente(null, nombre.trim(), clase, montoEstimado, categoria.id, periodicidad, inicio, proxima)
@@ -74,7 +73,7 @@ public class ServicioRecurrentes(
         proximaAnterior: LocalDate? = null,
         conservarProxima: Boolean = false,
     ): Recurrente {
-        require(categoria.tipo == tipoDeCategoria(clase)) { "La categoría no corresponde" }
+        require(categoria.tipo == clase.tipoDeCategoria) { "La categoría no corresponde" }
         val primera = periodicidad.primeraDesde(inicio)
         val proxima = when {
             conservarProxima && proximaAnterior != null && proximaAnterior >= primera -> proximaAnterior
@@ -116,10 +115,5 @@ public class ServicioRecurrentes(
 
     public suspend fun eliminar(recurrente: Recurrente) {
         recurrentes.eliminar(requireNotNull(recurrente.id))
-    }
-
-    private fun tipoDeCategoria(clase: ClaseRegistro): TipoCuenta = when (clase) {
-        ClaseRegistro.GASTO -> TipoCuenta.GASTO
-        ClaseRegistro.INGRESO -> TipoCuenta.INGRESO
     }
 }

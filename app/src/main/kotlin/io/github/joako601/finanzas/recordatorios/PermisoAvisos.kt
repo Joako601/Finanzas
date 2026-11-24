@@ -7,6 +7,8 @@ import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
+import io.github.joako601.finanzas.ETIQUETA_LOG
 import io.github.joako601.finanzas.FinanzasApp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -66,7 +68,8 @@ fun dispararProgramadorAvisos(context: Context) {
             contenedor.programador.ejecutar()
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(ETIQUETA_LOG, "Falló el programador de avisos", e)
             // Un fallo transitorio al reactivar notificaciones no debe cerrar la app.
         }
     }

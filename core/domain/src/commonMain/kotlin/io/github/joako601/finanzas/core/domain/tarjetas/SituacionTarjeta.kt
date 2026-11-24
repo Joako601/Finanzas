@@ -45,6 +45,24 @@ internal fun corteCapturado(estados: List<EstadoDeCuenta>, corte: LocalDate): Bo
     estados.any { abs(it.fechaCorte.daysUntil(corte)) <= TOLERANCIA_DIAS_CORTE }
 
 /**
+ * El último estado de cuenta con fecha límite antes de [hoy] que sigue sin cubrirse:
+ * su pago sin intereses menos los pagos hechos DESPUÉS de su corte (S4), sin pasar de
+ * la [deuda] de hoy. `null` si ya se cubrió. Misma regla para la ficha y el disponible.
+ */
+internal fun vencidoPendiente(
+    estados: List<EstadoDeCuenta>,
+    pagos: List<PagoATarjeta>,
+    hoy: LocalDate,
+    deuda: Dinero,
+): PagoVencidoTarjeta? {
+    val vencido = estados.filter { it.fechaLimite < hoy }.maxByOrNull { it.fechaCorte } ?: return null
+    val pagado = pagos.filter { it.tarjeta == vencido.tarjeta && it.fecha > vencido.fechaCorte }.map { it.monto }.sumar()
+    val restante = minOf(vencido.pagoSinIntereses - pagado, maxOf(deuda, Dinero.CERO))
+    if (!restante.esPositivo) return null
+    return PagoVencidoTarjeta(vencido, pagado, restante, vencido.fechaLimite.daysUntil(hoy).coerceAtLeast(1))
+}
+
+/**
  * Calcula la situación de la tarjeta en [hoy].
  *
  * Reglas, en orden:

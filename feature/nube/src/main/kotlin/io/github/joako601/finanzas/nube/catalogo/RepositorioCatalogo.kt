@@ -4,6 +4,7 @@ package io.github.joako601.finanzas.nube.catalogo
 sealed interface ResultadoCatalogo {
     data class Exito(val productos: List<ProductoFinanciero>) : ResultadoCatalogo
     data object SinConexion : ResultadoCatalogo
+    data object SesionExpirada : ResultadoCatalogo
     data object ErrorServidor : ResultadoCatalogo
 }
 

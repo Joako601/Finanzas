@@ -8,7 +8,7 @@ public enum class ClaseMovimiento { GASTO, INGRESO, SALDO_INICIAL, PAGO_TARJETA,
 
 /**
  * Vista de un movimiento en los términos del usuario: "gasté $100 de Efectivo en Súper".
- * [monto] siempre es positivo; el sentido lo da [clase].
+ * [monto] siempre es positivo; el sentido lo da [clase] (y [esAjusteALaBaja] en un saldo inicial).
  * [cuenta] es la cuenta de dinero de la que sale o a la que llega; [categoria] la
  * categoría de gasto o ingreso; [contraparte] la tarjeta en un pago de tarjeta o el
  * destino de una transferencia.
@@ -21,7 +21,12 @@ public data class MovimientoResumido(
     val cuenta: Cuenta?,
     val categoria: Cuenta?,
     val contraparte: Cuenta? = null,
-)
+) {
+    /** Un saldo inicial que bajó una cuenta de dinero (editar Efectivo de $1,350 a $900): resta. */
+    val esAjusteALaBaja: Boolean
+        get() = clase == ClaseMovimiento.SALDO_INICIAL && cuenta?.tipo == TipoCuenta.ACTIVO &&
+            movimiento.asientos.firstOrNull { it.cuenta == cuenta.id }?.monto?.esNegativo == true
+}
 
 /**
  * Interpreta los asientos de un movimiento. Es la operación inversa de [Registro]:

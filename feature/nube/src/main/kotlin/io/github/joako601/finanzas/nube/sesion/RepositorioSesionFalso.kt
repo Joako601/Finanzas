@@ -29,7 +29,16 @@ class RepositorioSesionFalso(
     private val _correosRecuperacion = mutableListOf<String>()
     val correosRecuperacionEnviados: List<String> get() = _correosRecuperacion.toList()
 
+    /** Si no es nulo, [obtenerTokenId] devuelve este resultado sin mirar el estado de sesión. */
+    var resultadoTokenIdForzado: ResultadoTokenId? = null
+
+    /** Si no es nulo, [obtenerTokenId] en refresco forzado devuelve este resultado. */
+    var resultadoTokenIdRefrescoForzado: ResultadoTokenId? = null
+
     var vecesCerrarSesion: Int = 0
+        private set
+
+    var vecesRefrescoForzadoToken: Int = 0
         private set
 
     override suspend fun iniciarSesion(correo: String, contrasena: String): ResultadoLogin {
@@ -64,5 +73,20 @@ class RepositorioSesionFalso(
     override suspend fun cerrarSesion() {
         vecesCerrarSesion += 1
         _estado.value = EstadoSesion.SinSesion
+    }
+
+    override suspend fun obtenerTokenId(forzarRefresco: Boolean): ResultadoTokenId {
+        if (forzarRefresco) {
+            vecesRefrescoForzadoToken += 1
+            resultadoTokenIdRefrescoForzado?.let { return it }
+        }
+        resultadoTokenIdForzado?.let { return it }
+        val actual = _estado.value as? EstadoSesion.Autenticado ?: return ResultadoTokenId.SinSesion
+        val token = if (forzarRefresco) {
+            "token-falso-refrescado-${actual.usuario.uid}"
+        } else {
+            "token-falso-${actual.usuario.uid}"
+        }
+        return ResultadoTokenId.Exito(token)
     }
 }

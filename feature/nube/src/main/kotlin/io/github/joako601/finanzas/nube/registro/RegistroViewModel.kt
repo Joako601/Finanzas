@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 /** Avisos globales no ligados a un campo específico del formulario de registro. */
 enum class ErrorGlobalRegistro {
     SinConexion,
+    DemasiadosIntentos,
     ErrorInesperado,
 }
 
@@ -166,6 +167,11 @@ class RegistroViewModel(
                     ResultadoRegistro.SinConexion -> estadoActual.copy(
                         cargando = false,
                         errorGlobal = ErrorGlobalRegistro.SinConexion,
+                    )
+
+                    ResultadoRegistro.DemasiadosIntentos -> estadoActual.copy(
+                        cargando = false,
+                        errorGlobal = ErrorGlobalRegistro.DemasiadosIntentos,
                     )
 
                     ResultadoRegistro.ErrorInesperado -> estadoActual.copy(

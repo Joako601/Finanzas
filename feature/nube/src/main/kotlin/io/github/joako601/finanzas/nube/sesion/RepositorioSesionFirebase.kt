@@ -48,19 +48,26 @@ internal class RepositorioSesionFirebase(
         )
     }
 
-    override suspend fun registrar(correo: String, contrasena: String): ResultadoRegistro = try {
-        auth.createUserWithEmailAndPassword(correo.trim(), contrasena).esperar()
-        // Firebase inicia sesión automáticamente al crear la cuenta; cerramos sesión para
-        // que el flujo vuelva al Login sin dejar una sesión abierta de forma silenciosa.
-        auth.signOut()
-        ResultadoRegistro.Exito
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        mapearErrorRegistro(
-            codigoError = (e as? FirebaseAuthException)?.errorCode,
-            esRed = e is FirebaseNetworkException,
-        )
+    override suspend fun registrar(correo: String, contrasena: String): ResultadoRegistro {
+        val tarea = auth.createUserWithEmailAndPassword(correo.trim(), contrasena)
+        return try {
+            tarea.esperar()
+            // Firebase inicia sesión automáticamente al crear la cuenta; cerramos sesión para
+            // que el flujo vuelva al Login sin dejar una sesión abierta de forma silenciosa.
+            auth.signOut()
+            ResultadoRegistro.Exito
+        } catch (e: CancellationException) {
+            // Cancelar la espera no cancela la tarea: si la cuenta se crea después, igual se cierra su sesión.
+            // Solo si tuvo éxito: si falló, la sesión abierta (si hay) es de otra cuenta y no se toca.
+            tarea.addOnSuccessListener { auth.signOut() }
+            throw e
+        } catch (e: Exception) {
+            mapearErrorRegistro(
+                codigoError = (e as? FirebaseAuthException)?.errorCode,
+                esRed = e is FirebaseNetworkException,
+                demasiadosIntentos = e is FirebaseTooManyRequestsException,
+            )
+        }
     }
 
     override suspend fun enviarRecuperacion(correo: String): ResultadoRecuperacion = try {
@@ -78,6 +85,18 @@ internal class RepositorioSesionFirebase(
 
     override suspend fun cerrarSesion() {
         auth.signOut()
+    }
+
+    override suspend fun obtenerTokenId(forzarRefresco: Boolean): ResultadoTokenId = try {
+        val usuario = auth.currentUser ?: return ResultadoTokenId.SinSesion
+        val token = usuario.getIdToken(forzarRefresco).esperar().token?.takeIf { it.isNotBlank() }
+        if (token != null) ResultadoTokenId.Exito(token) else ResultadoTokenId.SinSesion
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: FirebaseNetworkException) {
+        ResultadoTokenId.SinConexion
+    } catch (_: Exception) {
+        ResultadoTokenId.SinSesion
     }
 }
 
@@ -119,8 +138,10 @@ internal fun mapearErrorLogin(
 internal fun mapearErrorRegistro(
     codigoError: String?,
     esRed: Boolean,
+    demasiadosIntentos: Boolean = false,
 ): ResultadoRegistro = when {
     esRed -> ResultadoRegistro.SinConexion
+    demasiadosIntentos || codigoError == "ERROR_TOO_MANY_REQUESTS" -> ResultadoRegistro.DemasiadosIntentos
     codigoError == "ERROR_EMAIL_ALREADY_IN_USE" -> ResultadoRegistro.CorreoEnUso
     codigoError == "ERROR_WEAK_PASSWORD" -> ResultadoRegistro.ContrasenaDebil
     codigoError == "ERROR_INVALID_EMAIL" -> ResultadoRegistro.CorreoInvalido

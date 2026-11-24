@@ -24,12 +24,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
@@ -41,6 +41,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -62,7 +63,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import kotlinx.coroutines.delay
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,6 +82,7 @@ import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.TextoMontoAnimado
 import io.github.joako601.finanzas.ui.componentes.iconoDe
 import io.github.joako601.finanzas.ui.componentes.rememberAnimacionesDesactivadas
+import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.disponible.AccionesLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.HojaLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.LineaDeTiempoViewModel
@@ -96,8 +97,6 @@ import io.github.joako601.finanzas.ui.recurrentes.EstadoRecurrentes
 import io.github.joako601.finanzas.ui.recurrentes.RecurrentesViewModel
 import io.github.joako601.finanzas.ui.recurrentes.ResumenRecurrente
 import io.github.joako601.finanzas.ui.recurrentes.SeccionRecurrentes
-import io.github.joako601.finanzas.ui.respaldo.HojaRespaldo
-import io.github.joako601.finanzas.ui.respaldo.RespaldoViewModel
 import io.github.joako601.finanzas.ui.tarjetas.DialogoEditarTarjeta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoEstadoDeCuenta
 import io.github.joako601.finanzas.ui.tarjetas.DialogoNuevaTarjeta
@@ -109,6 +108,7 @@ import io.github.joako601.finanzas.ui.tarjetas.SeccionTarjetas
 import io.github.joako601.finanzas.ui.tarjetas.TarjetaActivarAvisos
 import io.github.joako601.finanzas.ui.tarjetas.TarjetasViewModel
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
+import kotlinx.coroutines.delay
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.minus
 
@@ -138,6 +138,7 @@ fun PantallaMovimientos(
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
     lineaDeTiempoViewModel: LineaDeTiempoViewModel = viewModel(factory = LineaDeTiempoViewModel.Fabrica),
     onAbrirNube: (() -> Unit)? = null,
+    onIrABoveda: () -> Unit = {},
     margenInferiorExtra: Dp = 0.dp,
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
@@ -156,7 +157,6 @@ fun PantallaMovimientos(
     val registroRecurrente by recurrentesViewModel.registro.collectAsStateWithLifecycle()
     val estadoLinea by lineaDeTiempoViewModel.estado.collectAsStateWithLifecycle()
     var verLineaDeTiempo by rememberSaveable { mutableStateOf(false) }
-    var verRespaldo by rememberSaveable { mutableStateOf(false) }
     var porEliminar by remember { mutableStateOf<MovimientoResumido?>(null) }
 
     val haptica = LocalHapticFeedback.current
@@ -195,7 +195,7 @@ fun PantallaMovimientos(
             onTocarMovimiento = {
                 if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
             },
-            onRespaldo = { verRespaldo = true },
+            onRespaldo = onIrABoveda,
             onAbrirNube = onAbrirNube,
             margenInferiorExtra = margenInferiorExtra,
         )
@@ -250,10 +250,6 @@ fun PantallaMovimientos(
                 }
             }
         }
-    }
-
-    if (verRespaldo) {
-        HojaRespaldo(viewModel(factory = RespaldoViewModel.Fabrica), onCerrar = { verRespaldo = false })
     }
 
     if (verLineaDeTiempo) {
@@ -420,6 +416,17 @@ fun PantallaMovimientos(
         )
     }
 
+    val errorAlEliminar by viewModel.errorAlEliminar.collectAsStateWithLifecycle()
+    if (errorAlEliminar) {
+        AlertDialog(
+            onDismissRequest = viewModel::consumirErrorAlEliminar,
+            text = { Text(stringResource(R.string.error_al_eliminar)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::consumirErrorAlEliminar) { Text(stringResource(R.string.aceptar)) }
+            },
+        )
+    }
+
     porEliminar?.let { movimiento ->
         AlertDialog(
             onDismissRequest = { porEliminar = null },
@@ -503,7 +510,8 @@ fun ContenidoMovimientos(
             return@Scaffold
         }
 
-        val fechaDeHoy = remember { hoy() }
+        // Cambia sola a medianoche aunque la app siga abierta: "Hoy" no se queda en ayer.
+        val fechaDeHoy by remember { diasDesde(::hoy) }.collectAsState(hoy())
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -677,8 +685,6 @@ private fun TarjetaSaldos(
 @Composable
 private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) {
     val esDeuda = movimiento.cuenta?.tipo == TipoCuenta.PASIVO
-    val bajaActivo = !esDeuda &&
-        movimiento.movimiento.asientos.firstOrNull { it.cuenta == movimiento.cuenta?.id }?.monto?.esNegativo == true
     val neutro = MaterialTheme.colorScheme.onSurfaceVariant
     val (signo, color) = when (movimiento.clase) {
         ClaseMovimiento.GASTO -> "−" to TemaFinanzas.colores.gasto
@@ -686,7 +692,7 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
         // Una deuda inicial no es dinero que entra: sin signo. Un ajuste negativo en activo lleva "−" neutro.
         ClaseMovimiento.SALDO_INICIAL -> when {
             esDeuda -> "" to neutro
-            bajaActivo -> "−" to neutro
+            movimiento.esAjusteALaBaja -> "−" to neutro
             else -> "+" to TemaFinanzas.colores.ingreso
         }
         // Pagar la tarjeta mueve dinero entre cuentas propias: no es gasto ni ingreso.

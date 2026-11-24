@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 /** Tipo de error recuperable al cargar el catálogo. */
 enum class ErrorCatalogo {
     SIN_CONEXION,
+    SESION_EXPIRADA,
     ERROR_SERVIDOR,
 }
 
@@ -29,6 +30,7 @@ sealed interface EstadoListaCatalogo {
 /** Estado observable de la pantalla de catálogo. */
 data class EstadoUiCatalogo(
     val lista: EstadoListaCatalogo = EstadoListaCatalogo.Cargando,
+    val refrescando: Boolean = false,
     val cerrandoSesion: Boolean = false,
 )
 
@@ -44,18 +46,28 @@ class CatalogoViewModel(
     private var trabajoCarga: Job? = null
 
     init {
-        cargarCatalogo()
+        cargarCatalogo(silencioso = false)
     }
 
-    /** Reintenta la carga del catálogo cuando hubo un error o está vacío. */
+    /** Reintenta la carga del catálogo mostrando el estado de carga. */
     fun reintentar() {
-        cargarCatalogo()
+        cargarCatalogo(silencioso = false)
+    }
+
+    /**
+     * Verifica el catálogo en segundo plano sin borrar el contenido actual mientras responde;
+     * si el servidor cayó o devolvió error, actualiza inmediatamente el estado a [EstadoListaCatalogo.Error].
+     */
+    fun refrescar() {
+        val hayContenido = _estado.value.lista is EstadoListaCatalogo.Contenido
+        cargarCatalogo(silencioso = hayContenido)
     }
 
     /** Cierra la sesión activa evitando pulsaciones duplicadas mientras termina. */
     fun cerrarSesion() {
         if (_estado.value.cerrandoSesion) return
-        _estado.update { it.copy(cerrandoSesion = true) }
+        trabajoCarga?.cancel()
+        _estado.update { it.copy(cerrandoSesion = true, refrescando = false) }
         viewModelScope.launch {
             try {
                 repositorioSesion.cerrarSesion()
@@ -67,9 +79,13 @@ class CatalogoViewModel(
         }
     }
 
-    private fun cargarCatalogo() {
+    private fun cargarCatalogo(silencioso: Boolean) {
         trabajoCarga?.cancel()
-        _estado.update { it.copy(lista = EstadoListaCatalogo.Cargando) }
+        if (silencioso) {
+            _estado.update { it.copy(refrescando = true) }
+        } else {
+            _estado.update { it.copy(lista = EstadoListaCatalogo.Cargando, refrescando = false) }
+        }
         trabajoCarga = viewModelScope.launch {
             val nuevoEstado = try {
                 when (val resultado = repositorioCatalogo.obtenerProductos()) {
@@ -81,6 +97,7 @@ class CatalogoViewModel(
                         }
                     }
                     ResultadoCatalogo.SinConexion -> EstadoListaCatalogo.Error(ErrorCatalogo.SIN_CONEXION)
+                    ResultadoCatalogo.SesionExpirada -> EstadoListaCatalogo.Error(ErrorCatalogo.SESION_EXPIRADA)
                     ResultadoCatalogo.ErrorServidor -> EstadoListaCatalogo.Error(ErrorCatalogo.ERROR_SERVIDOR)
                 }
             } catch (e: CancellationException) {
@@ -88,7 +105,7 @@ class CatalogoViewModel(
             } catch (_: Exception) {
                 EstadoListaCatalogo.Error(ErrorCatalogo.ERROR_SERVIDOR)
             }
-            _estado.update { it.copy(lista = nuevoEstado) }
+            _estado.update { it.copy(lista = nuevoEstado, refrescando = false) }
         }
     }
 

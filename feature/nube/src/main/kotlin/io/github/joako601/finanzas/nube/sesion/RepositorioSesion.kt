@@ -42,6 +42,7 @@ sealed interface ResultadoRegistro {
     data object ContrasenaDebil : ResultadoRegistro
     data object CorreoInvalido : ResultadoRegistro
     data object SinConexion : ResultadoRegistro
+    data object DemasiadosIntentos : ResultadoRegistro
     data object ErrorInesperado : ResultadoRegistro
 }
 
@@ -59,6 +60,15 @@ sealed interface ResultadoRecuperacion {
     data object ErrorInesperado : ResultadoRecuperacion
 }
 
+/** Resultado de obtener el ID Token (JWT) de Firebase para autenticar contra el backend. */
+sealed interface ResultadoTokenId {
+    data class Exito(val token: String) : ResultadoTokenId {
+        override fun toString(): String = "ResultadoTokenId.Exito(len=${token.length})"
+    }
+    data object SinSesion : ResultadoTokenId
+    data object SinConexion : ResultadoTokenId
+}
+
 /** Contrato de autenticación que consumen todas las pantallas de `:feature:nube`. */
 interface RepositorioSesion {
     val estado: StateFlow<EstadoSesion>
@@ -70,4 +80,10 @@ interface RepositorioSesion {
     suspend fun enviarRecuperacion(correo: String): ResultadoRecuperacion
 
     suspend fun cerrarSesion()
+
+    /**
+     * Devuelve el ID Token (JWT) vigente de Firebase para autenticar peticiones hacia el backend,
+     * distinguiendo ausencia de sesión de fallos de red. Nunca debe registrarse en logs.
+     */
+    suspend fun obtenerTokenId(forzarRefresco: Boolean = false): ResultadoTokenId
 }

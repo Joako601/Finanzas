@@ -1,9 +1,7 @@
 package io.github.joako601.finanzas.core.domain.tarjetas
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
-import io.github.joako601.finanzas.core.domain.dinero.sumar
 import kotlinx.datetime.LocalDate
-import kotlinx.datetime.daysUntil
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
@@ -143,33 +141,11 @@ public object AnalizadorTarjeta {
 
         val situacion = situacionTarjeta(tarjeta, estadosPropios, pagosPropios, hoy, deuda)
 
-        // Detectar si el último estado vencido sigue con saldo sin pagar (misma regla S4 que LineaDeTiempo).
         val vencidoPendiente = if (
             situacion !is SituacionTarjeta.PagoPendiente &&
-            situacion !is SituacionTarjeta.Pagado &&
-            deuda.esPositivo
+            situacion !is SituacionTarjeta.Pagado
         ) {
-            estadosPropios
-                .filter { it.fechaLimite < hoy }
-                .maxByOrNull { it.fechaCorte }
-                ?.let { vencido ->
-                    val pagado = pagosPropios
-                        .filter { it.fecha > vencido.fechaCorte }
-                        .map { it.monto }
-                        .sumar()
-                    val sinTope = vencido.pagoSinIntereses - pagado
-                    val restante = minOf(sinTope, maxOf(deuda, Dinero.CERO))
-                    if (restante.esPositivo) {
-                        PagoVencidoTarjeta(
-                            estado = vencido,
-                            pagado = pagado,
-                            restante = restante,
-                            diasVencido = vencido.fechaLimite.daysUntil(hoy).coerceAtLeast(1),
-                        )
-                    } else {
-                        null
-                    }
-                }
+            vencidoPendiente(estadosPropios, pagosPropios, hoy, deuda)
         } else {
             null
         }
@@ -326,7 +302,7 @@ public object AnalizadorTarjeta {
         )
     }
 
-    public fun calcularInteresMensualConIva(
+    private fun calcularInteresMensualConIva(
         base: Dinero,
         tasaAnualPorcentaje: Int,
     ): Dinero {

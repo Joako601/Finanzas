@@ -1,5 +1,6 @@
 package io.github.joako601.finanzas.nube.login
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -99,6 +100,12 @@ fun PantallaLogin(
         factory = fabrica,
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+
+    // Atrás del sistema hace lo mismo que "Volver": sin esto la contraseña quedaba precargada.
+    BackHandler {
+        viewModel.reiniciar()
+        onSalir()
+    }
 
     val onLoginExitosoActual by rememberUpdatedState(onLoginExitoso)
     if (estado.loginCompletado) {

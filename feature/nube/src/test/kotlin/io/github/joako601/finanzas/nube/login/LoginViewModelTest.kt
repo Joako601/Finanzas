@@ -6,6 +6,7 @@ import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFalso
 import io.github.joako601.finanzas.nube.sesion.ResultadoLogin
 import io.github.joako601.finanzas.nube.sesion.ResultadoRecuperacion
 import io.github.joako601.finanzas.nube.sesion.ResultadoRegistro
+import io.github.joako601.finanzas.nube.sesion.ResultadoTokenId
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -284,5 +285,8 @@ class LoginViewModelTest {
             ResultadoRecuperacion.ErrorInesperado
 
         override suspend fun cerrarSesion() = Unit
+
+        override suspend fun obtenerTokenId(forzarRefresco: Boolean): ResultadoTokenId =
+            ResultadoTokenId.SinSesion
     }
 }
