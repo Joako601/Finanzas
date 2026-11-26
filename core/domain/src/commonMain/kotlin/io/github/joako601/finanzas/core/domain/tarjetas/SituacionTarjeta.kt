@@ -84,6 +84,8 @@ public fun situacionTarjeta(
     pagos: List<PagoATarjeta>,
     hoy: LocalDate,
     deuda: Dinero? = null,
+    /** Fecha límite predicha con días inhábiles (S14); sin datos, la de S2. */
+    calendario: CalendarioBancario = CalendarioBancario.NINGUNO,
 ): SituacionTarjeta {
     val propios = estados.filter { it.tarjeta == tarjeta.id }
 
@@ -105,7 +107,7 @@ public fun situacionTarjeta(
     // El estado de cuenta se genera al cierre del día de corte: se pide a partir del día siguiente.
     val ultimoCorte = CalendarioTarjeta.ultimoCorteHasta(tarjeta, hoy.minus(1, DateTimeUnit.DAY))
     val yaCapturado = corteCapturado(propios, ultimoCorte)
-    val limitePredicho = CalendarioTarjeta.limiteParaCorte(tarjeta, ultimoCorte)
+    val limitePredicho = calendario.limite(tarjeta, ultimoCorte)
     if (!yaCapturado && limitePredicho >= hoy) {
         return SituacionTarjeta.CapturaPendiente(ultimoCorte, limitePredicho)
     }

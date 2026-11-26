@@ -16,8 +16,8 @@ import kotlin.math.abs
  *   corte cae el último día del mes.
  * - S2. La fecha límite es la primera fecha posterior al corte cuyo día es [Tarjeta.diaLimite]
  *   (con la misma regla S1 para meses cortos).
- * - S3. No se ajusta por días inhábiles. Si el banco recorre el corte o la fecha límite,
- *   la captura real lo corrige y el error queda medido.
+ * - S3. Aquí no se ajusta por días inhábiles: eso lo hace [CalendarioBancario] (S14) con la
+ *   elección del usuario. La captura real sigue siendo la verdad y mide el error.
  */
 public object CalendarioTarjeta {
 

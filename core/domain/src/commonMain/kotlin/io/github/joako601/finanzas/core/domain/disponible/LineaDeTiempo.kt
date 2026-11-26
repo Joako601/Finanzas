@@ -9,6 +9,7 @@ import io.github.joako601.finanzas.core.domain.libro.totalEnCuentas
 import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
 import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.siguienteDespues
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.CompraAMeses
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
@@ -134,10 +135,11 @@ public data class LineaDeTiempo(
             hoy: LocalDate,
             // Sin valor por omisión: olvidar las MSI exageraría el pago estimado sin avisar.
             compras: List<CompraAMeses>,
+            calendario: CalendarioBancario = CalendarioBancario.NINGUNO,
         ): LineaDeTiempo {
             val fin = hoy.plus(DIAS, DateTimeUnit.DAY)
             val sinSaldo = buildList {
-                tarjetas.filterNot { it.cuenta.archivada }.forEach { addAll(deTarjeta(it, estados, pagos, saldos, compras, hoy, fin)) }
+                tarjetas.filterNot { it.cuenta.archivada }.forEach { addAll(deTarjeta(it, estados, pagos, saldos, compras, hoy, fin, calendario)) }
                 // Una tarjeta archivada no proyecta pagos: lo domiciliado a ella sale como pago fijo normal
                 // (si no, no lo contaría nadie y el disponible se vería más alto de lo real).
                 val idsTarjetas = tarjetas.filterNot { it.cuenta.archivada }.map { it.id }.toSet()
@@ -174,6 +176,7 @@ public data class LineaDeTiempo(
             compras: List<CompraAMeses>,
             hoy: LocalDate,
             fin: LocalDate,
+            calendario: CalendarioBancario,
         ): List<EventoFuturo> = buildList {
             val nombre = tarjeta.cuenta.nombre
             val propios = estados.filter { it.tarjeta == tarjeta.id }
@@ -188,7 +191,7 @@ public data class LineaDeTiempo(
                 }
             }
 
-            when (val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy, deuda)) {
+            when (val situacion = situacionTarjeta(tarjeta, propios, pagos, hoy, deuda, calendario)) {
                 is SituacionTarjeta.PagoPendiente -> pago(situacion.estado.fechaLimite, situacion.restante, exacto = true)
                 is SituacionTarjeta.Pagado -> Unit
                 else -> vencidoPendiente(propios, pagos, hoy, deuda)?.let { vencido ->
@@ -199,7 +202,7 @@ public data class LineaDeTiempo(
             // El estado de cuenta se genera al cierre del corte: se empieza por el último corte antes de hoy.
             var corte = CalendarioTarjeta.ultimoCorteHasta(tarjeta, hoy.minus(1, DateTimeUnit.DAY))
             while (true) {
-                val limite = CalendarioTarjeta.limiteParaCorte(tarjeta, corte)
+                val limite = calendario.limite(tarjeta, corte)
                 if (limite > fin) break
                 if (limite >= hoy && !corteCapturado(propios, corte)) {
                     val porFacturar = compras.filter { it.tarjeta.id == tarjeta.id }.map { it.porFacturarAl(corte) }.sumar()

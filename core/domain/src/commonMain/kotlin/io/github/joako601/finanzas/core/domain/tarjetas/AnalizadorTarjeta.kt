@@ -131,6 +131,7 @@ public object AnalizadorTarjeta {
         estados: List<EstadoDeCuenta>,
         pagos: List<PagoATarjeta>,
         hoy: LocalDate,
+        calendario: CalendarioBancario = CalendarioBancario.NINGUNO,
     ): AnalisisTarjeta {
         val estadosPropios = estados
             .filter { it.tarjeta == tarjeta.id }
@@ -139,7 +140,7 @@ public object AnalizadorTarjeta {
             .filter { it.tarjeta == tarjeta.id }
             .sortedByDescending { it.fecha }
 
-        val situacion = situacionTarjeta(tarjeta, estadosPropios, pagosPropios, hoy, deuda)
+        val situacion = situacionTarjeta(tarjeta, estadosPropios, pagosPropios, hoy, deuda, calendario)
 
         val vencidoPendiente = if (
             situacion !is SituacionTarjeta.PagoPendiente &&
