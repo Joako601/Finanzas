@@ -1,5 +1,9 @@
 package io.github.joako601.finanzas.ui.tarjetas
 
+import kotlinx.coroutines.flow.flowOf
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
+import io.github.joako601.finanzas.core.domain.tarjetas.AjusteInhabil
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.Asiento
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
@@ -68,10 +72,13 @@ class TarjetasViewModelTest {
         hoy: LocalDate,
         movimientos: List<Movimiento>,
         cuentas: List<Cuenta> = listOf(debito, efectivo, capital, nu.cuenta),
+        tarjeta: Tarjeta = nu,
+        calendario: Flow<CalendarioBancario> = flowOf(CalendarioBancario.NINGUNO),
+        cetes: Double? = null,
     ): TarjetasViewModel {
         libro = LibroFalsoTarjetas(cuentas, movimientos)
-        tarjetas = TarjetasFalso(listOf(nu), listOf(estadoOctubre))
-        val vm = TarjetasViewModel(libro, tarjetas, ServicioTarjetas(libro, tarjetas)) { hoy }
+        tarjetas = TarjetasFalso(listOf(tarjeta), listOf(estadoOctubre))
+        val vm = TarjetasViewModel(libro, tarjetas, ServicioTarjetas(libro, tarjetas), { hoy }, calendario, flowOf(cetes))
         backgroundScope.launch { vm.estado.collect {} }
         vm.estado.first { it.tarjetas.isNotEmpty() }
         return vm
@@ -91,6 +98,40 @@ class TarjetasViewModelTest {
         assertEquals(LocalDate(2026, 11, 15), captura.fechaCorte)
         assertNull(captura.fechaCorteOriginal)
         assertEquals("", captura.pagoSinIntereses)
+    }
+
+    @Test
+    fun limite_predicho_en_dia_inhabil_pide_elegir_y_luego_muestra_la_fecha_ajustada() = runTest {
+        // 17 de noviembre: el corte del 15 no se ha capturado.
+        val nominal = CalendarioTarjeta.limiteParaCorte(nu, LocalDate(2026, 11, 15))
+        val calendario = MutableStateFlow(CalendarioBancario(setOf(nominal)))
+        val vm = viewModel(LocalDate(2026, 11, 17), listOf(saldo(nu.cuenta, -250_000)), calendario = calendario)
+        assertEquals(FechaInhabil(nominal, null), vm.estado.value.tarjetas.single().fechaInhabil)
+
+        calendario.value = calendario.value.copy(ajustes = mapOf(nu.id to AjusteInhabil.ANTERIOR))
+
+        val ajustada = vm.estado.first { it.tarjetas.single().fechaInhabil?.ajustada != null }.tarjetas.single().fechaInhabil!!
+        assertTrue(ajustada.ajustada!! < nominal)
+        assertTrue(!calendario.value.esInhabil(ajustada.ajustada!!))
+    }
+
+    @Test
+    fun sin_datos_de_mercado_no_hay_fecha_inhabil_ni_comparacion() = runTest {
+        val vm = viewModel(LocalDate(2026, 11, 17), listOf(saldo(nu.cuenta, -250_000)), tarjeta = nu.copy(tasaAnual = 60))
+        val resumen = vm.estado.value.tarjetas.single()
+        assertNull(resumen.fechaInhabil)
+        assertNull(resumen.contraCetes)
+    }
+
+    @Test
+    fun con_tasa_y_cetes_compara_la_deuda() = runTest {
+        val vm = viewModel(
+            LocalDate(2026, 11, 17), listOf(saldo(nu.cuenta, -250_000)), tarjeta = nu.copy(tasaAnual = 60), cetes = 7.25,
+        )
+        val comparacion = vm.estado.value.tarjetas.single().contraCetes!!
+        // $2,500 de deuda: 60 % + IVA = $1,740 al año; en CETES al 7.25 % rendiría $181.25.
+        assertEquals(Dinero.pesos(1_740), comparacion.costoAnualDeuda)
+        assertEquals(Dinero(18_125), comparacion.rendimientoAnualReferencia)
     }
 
     @Test

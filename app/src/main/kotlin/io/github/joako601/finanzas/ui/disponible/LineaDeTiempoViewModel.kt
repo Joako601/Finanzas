@@ -1,5 +1,7 @@
 package io.github.joako601.finanzas.ui.disponible
 
+import kotlinx.coroutines.flow.flowOf
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -54,11 +56,12 @@ internal fun calcularLinea(
     recurrentes: RepositorioRecurrentes,
     metas: RepositorioMetas,
     dias: Flow<LocalDate>,
+    calendario: Flow<CalendarioBancario> = flowOf(CalendarioBancario.NINGUNO),
 ): Flow<CalculoLinea> = combine(
     combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
     combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
-    combine(metas.observarMetas(), dias, ::Pair),
-) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (listaMetas, hoy) ->
+    combine(metas.observarMetas(), dias, calendario, ::Triple),
+) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (listaMetas, hoy, calendarioBancario) ->
     val porId = cuentas.associateBy { it.id }
     val linea = LineaDeTiempo.calcular(
         cuentas = cuentas,
@@ -69,6 +72,7 @@ internal fun calcularLinea(
         recurrentes = listaRecurrentes,
         hoy = hoy,
         compras = comprasAMeses(movimientos, porId, listaTarjetas),
+        calendario = calendarioBancario,
     )
     val estado = EstadoLineaDeTiempo(
         linea = linea,
@@ -89,11 +93,12 @@ class LineaDeTiempoViewModel(
     recurrentes: RepositorioRecurrentes,
     metas: RepositorioMetas,
     fechaDeHoy: () -> LocalDate,
+    private val calendario: Flow<CalendarioBancario> = flowOf(CalendarioBancario.NINGUNO),
 ) : ViewModel() {
 
     private val dias = diasDesde(fechaDeHoy)
 
-    val estado: StateFlow<EstadoLineaDeTiempo> = calcularLinea(libro, tarjetas, recurrentes, metas, dias)
+    val estado: StateFlow<EstadoLineaDeTiempo> = calcularLinea(libro, tarjetas, recurrentes, metas, dias, calendario)
         .map { it.estado }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EstadoLineaDeTiempo())
@@ -108,6 +113,7 @@ class LineaDeTiempoViewModel(
                     recurrentes = contenedor.repositorioRecurrentes,
                     metas = contenedor.repositorioMetas,
                     fechaDeHoy = ::hoy,
+                    calendario = contenedor.calendarioBancario,
                 )
             }
         }

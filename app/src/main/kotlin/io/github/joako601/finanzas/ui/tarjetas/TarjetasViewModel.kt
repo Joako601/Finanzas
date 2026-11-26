@@ -1,5 +1,12 @@
 package io.github.joako601.finanzas.ui.tarjetas
 
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.Flow
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
+import io.github.joako601.finanzas.core.domain.tarjetas.AjusteInhabil
+import io.github.joako601.finanzas.core.domain.mercado.compararDeudaContraReferencia
+import io.github.joako601.finanzas.core.domain.mercado.ComparacionDeuda
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -54,7 +61,14 @@ data class ResumenTarjeta(
     val analisis: AnalisisTarjeta,
     /** Compras a meses con mensualidades por facturar (D-022). */
     val compras: List<CompraAMeses> = emptyList(),
+    /** La fecha límite predicha cae en día inhábil (S14); solo con datos de Mercado. */
+    val fechaInhabil: FechaInhabil? = null,
+    /** Costo de la deuda contra CETES 28; solo con tasa de la tarjeta y CETES guardado. */
+    val contraCetes: ComparacionDeuda? = null,
 )
+
+/** [ajustada] `null` = el usuario todavía no elige día hábil anterior o siguiente. */
+data class FechaInhabil(val nominal: LocalDate, val ajustada: LocalDate?)
 
 data class EstadoTarjetas(
     val tarjetas: List<ResumenTarjeta> = emptyList(),
@@ -136,14 +150,21 @@ class TarjetasViewModel(
     private val repositorioTarjetas: RepositorioTarjetas,
     private val servicio: ServicioTarjetas,
     private val fechaDeHoy: () -> LocalDate,
+    calendario: Flow<CalendarioBancario> = flowOf(CalendarioBancario.NINGUNO),
+    cetes28: Flow<Double?> = flowOf(null),
+    private val elegirAjusteGuardado: (CuentaId, AjusteInhabil) -> Unit = { _, _ -> },
 ) : ViewModel() {
 
     private val dias = diasDesde(fechaDeHoy)
 
+    /** CETES 28 guardado de Mercado, para estimar compras a MSI en la captura. */
+    val tasaCetes: StateFlow<Double?> = cetes28.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     val estado: StateFlow<EstadoTarjetas> = combine(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
         combine(repositorioTarjetas.observarTarjetas(), repositorioTarjetas.observarEstadosDeCuenta(), dias, ::Triple),
-    ) { (cuentas, saldos, movimientos), (tarjetas, estadosDeCuenta, hoy) ->
+        combine(calendario, cetes28, ::Pair),
+    ) { (cuentas, saldos, movimientos), (tarjetas, estadosDeCuenta, hoy), (calendarioBancario, cetes) ->
         val porId = cuentas.associateBy { it.id }
         val pagos = pagosATarjetas(movimientos, porId)
         val compras = comprasAMeses(movimientos, porId, tarjetas).filter { it.activaAl(hoy) }
@@ -159,6 +180,7 @@ class TarjetasViewModel(
                     estados = estadosDeCuenta,
                     pagos = pagos,
                     hoy = hoy,
+                    calendario = calendarioBancario,
                 )
                 ResumenTarjeta(
                     tarjeta = tarjeta,
@@ -167,6 +189,10 @@ class TarjetasViewModel(
                     situacion = analisis.situacion,
                     analisis = analisis,
                     compras = compras.filter { it.tarjeta.id == tarjeta.id },
+                    fechaInhabil = fechaInhabil(tarjeta, analisis.situacion, calendarioBancario),
+                    contraCetes = cetes?.let { c ->
+                        tarjeta.tasaAnual?.let { compararDeudaContraReferencia(it, c, deuda) }
+                    },
                 )
             },
             cuentasParaPagar = cuentasActivas,
@@ -192,6 +218,9 @@ class TarjetasViewModel(
     val captura: StateFlow<CapturaEstadoDeCuenta?> = _captura.asStateFlow()
 
     // ---- Detalle y Edición ----
+
+    /** El usuario elige mover la fecha límite predicha al día hábil anterior o al siguiente (S14). */
+    fun elegirAjusteInhabil(tarjeta: CuentaId, ajuste: AjusteInhabil) = elegirAjusteGuardado(tarjeta, ajuste)
 
     fun abrirDetalle(resumen: ResumenTarjeta) {
         _detalleTarjetaId.value = resumen.tarjeta.id
@@ -523,8 +552,18 @@ class TarjetasViewModel(
                     repositorioTarjetas = contenedor.repositorioTarjetas,
                     servicio = contenedor.servicioTarjetas,
                     fechaDeHoy = ::hoy,
+                    calendario = contenedor.calendarioBancario,
+                    cetes28 = contenedor.datosPublicos.map { it.cetes28 },
+                    elegirAjusteGuardado = contenedor.ajustesInhabiles::elegir,
                 )
             }
         }
     }
+}
+
+private fun fechaInhabil(tarjeta: Tarjeta, situacion: SituacionTarjeta, calendario: CalendarioBancario): FechaInhabil? {
+    if (calendario === CalendarioBancario.NINGUNO || situacion !is SituacionTarjeta.CapturaPendiente) return null
+    val nominal = CalendarioTarjeta.limiteParaCorte(tarjeta, situacion.cortePredicho)
+    if (!calendario.esInhabil(nominal)) return null
+    return FechaInhabil(nominal, situacion.limitePredicho.takeUnless { calendario.requiereEleccion(tarjeta, situacion.cortePredicho) })
 }

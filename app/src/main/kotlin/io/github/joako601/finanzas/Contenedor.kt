@@ -13,7 +13,10 @@ import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordat
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.recurrentes.ServicioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import io.github.joako601.finanzas.core.domain.tarjetas.ServicioTarjetas
+import io.github.joako601.finanzas.mercado.AjustesInhabiles
+import io.github.joako601.finanzas.mercado.DatosPublicos
 import io.github.joako601.finanzas.recordatorios.Avisos
 import io.github.joako601.finanzas.recordatorios.Programador
 import kotlinx.coroutines.CancellationException
@@ -27,7 +30,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** Etiqueta de logcat: `adb logcat -s Finanzas`. */
@@ -81,6 +86,14 @@ class Contenedor(context: Context) {
 
     val repositorioRecordatorios: RepositorioRecordatorios = datos.repositorioRecordatorios
     val avisos: Avisos = Avisos(context.applicationContext)
+
+    /** Días inhábiles y CETES desde Mercado (solo nube); vacíos en la privada. */
+    val datosPublicos: StateFlow<DatosPublicos> = fuenteDatosPublicos(context.applicationContext, alcance)
+    val ajustesInhabiles: AjustesInhabiles = AjustesInhabiles(context.applicationContext)
+    val calendarioBancario: StateFlow<CalendarioBancario> =
+        combine(datosPublicos, ajustesInhabiles.ajustes) { d, a -> d.calendario(a) }
+            .stateIn(alcance, SharingStarted.Eagerly, CalendarioBancario.NINGUNO)
+
     val programador: Programador = Programador(
         context.applicationContext,
         repositorioLibro,
@@ -88,6 +101,7 @@ class Contenedor(context: Context) {
         repositorioRecurrentes,
         repositorioRecordatorios,
         avisos,
+        calendario = { calendarioBancario.value },
     )
 
     init {
@@ -103,7 +117,7 @@ class Contenedor(context: Context) {
                 // La limpieza se reintentará al crear o restaurar un respaldo.
             }
         }
-        // Cada vez que cambian tarjetas, estados de cuenta, movimientos o pagos fijos, se reprograma.
+        // Cada vez que cambian tarjetas, estados de cuenta, movimientos, pagos fijos o días inhábiles, se reprograma.
         // collectLatest + espera de 1 s: una ráfaga de cambios produce una sola ejecución.
         alcance.launch {
             combine(
@@ -111,7 +125,8 @@ class Contenedor(context: Context) {
                 repositorioTarjetas.observarEstadosDeCuenta(),
                 repositorioLibro.observarMovimientos(),
                 repositorioRecurrentes.observarRecurrentes(),
-            ) { _, _, _, _ -> }.collectLatest {
+                calendarioBancario,
+            ) { _, _, _, _, _ -> }.collectLatest {
                 delay(1_000)
                 try {
                     programador.ejecutar()

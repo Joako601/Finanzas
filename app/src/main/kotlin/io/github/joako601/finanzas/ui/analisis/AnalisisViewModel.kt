@@ -1,5 +1,8 @@
 package io.github.joako601.finanzas.ui.analisis
 
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.Flow
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -46,6 +49,7 @@ class AnalisisViewModel(
     recurrentes: RepositorioRecurrentes,
     metas: RepositorioMetas,
     fechaDeHoy: () -> LocalDate,
+    private val calendario: Flow<CalendarioBancario> = flowOf(CalendarioBancario.NINGUNO),
 ) : ViewModel() {
 
     private val dias = diasDesde(fechaDeHoy)
@@ -55,7 +59,7 @@ class AnalisisViewModel(
     /** −1 = mes anterior; nunca pasa del mes actual. */
     fun moverMes(delta: Int) = mesDesplazamiento.update { (it + delta).coerceAtMost(0) }
 
-    val estado: StateFlow<EstadoAnalisis> = calcularLinea(libro, tarjetas, recurrentes, metas, dias)
+    val estado: StateFlow<EstadoAnalisis> = calcularLinea(libro, tarjetas, recurrentes, metas, dias, calendario)
         .combine(mesDesplazamiento) { calculo, desplazamiento ->
             EstadoAnalisis(
                 cargando = false,
@@ -86,6 +90,7 @@ class AnalisisViewModel(
                     recurrentes = contenedor.repositorioRecurrentes,
                     metas = contenedor.repositorioMetas,
                     fechaDeHoy = ::hoy,
+                    calendario = contenedor.calendarioBancario,
                 )
             }
         }

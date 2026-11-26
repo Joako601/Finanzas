@@ -190,6 +190,7 @@ fun PantallaMovimientos(
     val nuevaTarjeta by tarjetasViewModel.nuevaTarjeta.collectAsStateWithLifecycle()
     val edicionTarjeta by tarjetasViewModel.edicionTarjeta.collectAsStateWithLifecycle()
     val detalleTarjetaId by tarjetasViewModel.detalleTarjetaId.collectAsStateWithLifecycle()
+    val tasaCetes by tarjetasViewModel.tasaCetes.collectAsStateWithLifecycle()
     val pago by tarjetasViewModel.pago.collectAsStateWithLifecycle()
     val capturaEstado by tarjetasViewModel.captura.collectAsStateWithLifecycle()
     val estadoRecurrentes by recurrentesViewModel.estado.collectAsStateWithLifecycle()
@@ -364,6 +365,7 @@ fun PantallaMovimientos(
         HojaCaptura(
             captura = actual,
             avisoTope = avisoTope,
+            tasaReferencia = tasaCetes,
             // Al editar, la categoría o cuenta archivada del movimiento sigue disponible.
             categorias = when (actual.clase) {
                 ClaseRegistro.GASTO -> estado.categoriasDeGasto + actual.archivadas.filter { it.tipo == TipoCuenta.GASTO }
@@ -434,6 +436,7 @@ fun PantallaMovimientos(
                 onPagar = { tarjetasViewModel.abrirPago(resumen) },
                 onCerrar = tarjetasViewModel::cerrarDetalle,
                 onEditarEstado = { tarjetasViewModel.abrirEdicionEstado(resumen.tarjeta, it) },
+                onElegirAjuste = { tarjetasViewModel.elegirAjusteInhabil(resumen.tarjeta.id, it) },
             )
         }
     }

@@ -50,6 +50,7 @@ class PreferenciasPrivacidad(context: Context) {
     suspend fun borrarDatosLocales(app: FinanzasApp) {
         app.contenedor.respaldo.borrarTodo()
         AL_BORRAR.forEach { app.getSharedPreferences(it, Context.MODE_PRIVATE).edit(commit = true) { clear() } }
+        app.contenedor.ajustesInhabiles.recargar()
         app.getSystemService(NotificationManager::class.java).cancelAll()
         // Sin datos no queda nada por avisar: cancela la alarma pendiente.
         app.contenedor.programador.ejecutar()
