@@ -1,9 +1,13 @@
 package io.github.joako601.finanzas.core.domain.recordatorios
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.recurrentes.Periodicidad
+import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
+import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
@@ -13,6 +17,7 @@ import io.kotest.property.checkAll
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -52,9 +57,24 @@ class PlanRecordatoriosTest {
     }
 
     @Test
+    fun las_horas_elegidas_reemplazan_las_de_omision() {
+        val horas = HorasAviso(dia = LocalTime(7, 30), noche = LocalTime(21, 0))
+        val avisos = PlanRecordatorios.calcular(
+            listOf(nu), emptyList(), emptyList(), fecha("2026-11-19"), horas = horas,
+        )
+        assertEquals(momento("2026-12-14T07:30"), avisos.single { it.tipo == TipoRecordatorio.ANTES_DEL_CORTE }.momento)
+        // Pedir la captura del estado (2 días después del corte) es el aviso de la noche.
+        val captura = PlanRecordatorios.calcular(listOf(nu), emptyList(), emptyList(), fecha("2026-11-16"), horas = horas)
+            .filter { it.tipo == TipoRecordatorio.CAPTURAR_ESTADO }
+        assertTrue(captura.isNotEmpty())
+        assertTrue(captura.all { it.momento.time == LocalTime(21, 0) })
+    }
+
+    @Test
     fun el_dia_del_corte_avisa_del_siguiente() {
-        val corte = plan("2026-11-15").single { it.tipo == TipoRecordatorio.ANTES_DEL_CORTE }
-        assertEquals(fecha("2026-12-15"), corte.fechaReferencia)
+        // El de hoy se conserva solo para recuperarlo si no se entregó ayer.
+        val cortes = plan("2026-11-15").filter { it.tipo == TipoRecordatorio.ANTES_DEL_CORTE }
+        assertEquals(listOf(fecha("2026-11-15"), fecha("2026-12-15")), cortes.map { it.fechaReferencia })
     }
 
     @Test
@@ -95,8 +115,8 @@ class PlanRecordatoriosTest {
 
     @Test
     fun captura_tardia_omite_avisos_de_dias_pasados() {
-        // Capturado el 3 dic: el aviso de 3 días antes (2 dic) ya pasó; queda el de 1 día.
-        val pagos = plan("2026-12-03", listOf(estado("2026-11-15", "2026-12-05", 4_000)))
+        // Capturado el 4 dic: el aviso de 3 días antes (2 dic) ya pasó hace más de un día; queda el de 1 día.
+        val pagos = plan("2026-12-04", listOf(estado("2026-11-15", "2026-12-05", 4_000)))
             .filter { it.tipo == TipoRecordatorio.PAGO_PROXIMO }
         assertEquals(listOf(momento("2026-12-04T09:00")), pagos.map { it.momento })
     }
@@ -156,5 +176,56 @@ class PlanRecordatoriosTest {
             assertTrue(plan.zipWithNext().all { (a, b) -> a.momento <= b.momento }, "plan desordenado")
             assertEquals(plan.size, plan.map { it.clave }.toSet().size, "claves repetidas")
         }
+    }
+
+    // ---- Recuperación de avisos con el teléfono apagado ----
+
+    /** Lo que muestra el programador al encender el teléfono en [ahora], sin nada entregado. */
+    private fun alEncender(ahora: String, tarjetas: List<Tarjeta> = listOf(nu), estados: List<EstadoDeCuenta> = emptyList(), recurrentes: List<Recurrente> = emptyList()): List<Recordatorio> {
+        val momentoAhora = momento(ahora)
+        val plan = PlanRecordatorios.calcular(tarjetas, estados, emptyList(), momentoAhora.date, recurrentes)
+        return PlanRecordatorios.seleccionar(plan, momentoAhora, entregados = emptySet()).mostrarAhora
+    }
+
+    @Test
+    fun apagado_la_noche_anterior_recupera_el_aviso_de_corte_el_dia_del_corte() {
+        // Aviso del 14 a las 9:00; el teléfono se prende el 15 (día del corte) a las 8:00.
+        val corte = alEncender("2026-11-15T08:00").single { it.tipo == TipoRecordatorio.ANTES_DEL_CORTE }
+        assertEquals(fecha("2026-11-15"), corte.fechaReferencia)
+        // Y el siguiente corte sigue programado.
+        val siguiente = PlanRecordatorios.calcular(listOf(nu), emptyList(), emptyList(), fecha("2026-11-15"))
+        assertTrue(siguiente.any { it.clave == "corte:4:2026-12-15" })
+    }
+
+    @Test
+    fun apagado_recupera_el_aviso_de_pago_del_dia_anterior() {
+        // Límite el 5 de dic.: el aviso de "1 día antes" (4 de dic.) se recupera el 5.
+        val pago = alEncender("2026-12-05T08:00", estados = listOf(estado("2026-11-15", "2026-12-05", 1_000)))
+            .single { it.tipo == TipoRecordatorio.PAGO_PROXIMO }
+        assertEquals("pago:4:2026-12-05:1", pago.clave)
+    }
+
+    @Test
+    fun apagado_recupera_el_aviso_de_pago_fijo_del_dia_anterior() {
+        val internet = Recurrente(
+            RecurrenteId(7), "Internet", ClaseRegistro.GASTO, Dinero.pesos(399), nu.id,
+            Periodicidad.MENSUAL, fecha("2026-11-20"), fecha("2026-11-20"),
+        )
+        val aviso = alEncender("2026-11-20T08:00", tarjetas = emptyList(), recurrentes = listOf(internet)).single()
+        assertEquals("recurrente:7:2026-11-20", aviso.clave)
+    }
+
+    @Test
+    fun apagado_dos_dias_no_rescata_avisos_mas_viejos() {
+        // Aviso del corte el 14; el teléfono se prende el 16: ya no aplica.
+        assertTrue(alEncender("2026-11-16T08:00").none { it.tipo == TipoRecordatorio.ANTES_DEL_CORTE })
+    }
+
+    @Test
+    fun una_tarjeta_archivada_no_avisa_ni_recupera_avisos() {
+        val archivada = nu.copy(cuenta = nu.cuenta.copy(archivada = true))
+        val estados = listOf(estado("2026-11-15", "2026-12-05", 1_000))
+        assertTrue(PlanRecordatorios.calcular(listOf(archivada), estados, emptyList(), fecha("2026-12-05")).isEmpty())
+        assertTrue(alEncender("2026-12-05T08:00", tarjetas = listOf(archivada), estados = estados).isEmpty())
     }
 }

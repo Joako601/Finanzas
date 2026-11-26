@@ -151,6 +151,7 @@ public object Registro {
         cuenta: Cuenta,
         saldo: Dinero,
         contrapartida: Cuenta,
+        descripcion: String = "Saldo inicial",
     ): Movimiento {
         require(!saldo.esCero) { "Un saldo inicial en cero no se registra" }
         require(cuenta.tipo.esDeDinero) { "Solo las cuentas de dinero tienen saldo inicial" }
@@ -158,7 +159,7 @@ public object Registro {
         return Movimiento(
             id = null,
             fecha = fecha,
-            descripcion = "Saldo inicial",
+            descripcion = descripcion,
             asientos = listOf(
                 Asiento(cuenta.id, saldo),
                 Asiento(contrapartida.id, -saldo),
@@ -178,6 +179,7 @@ public object Registro {
         categoria: Cuenta?,
         fecha: LocalDate,
         nota: String,
+        meses: Int? = null,
     ): ResultadoRegistro {
         val errores = mutableSetOf<ErrorRegistro>()
         val monto = montoCapturado(montoTexto, errores)
@@ -197,7 +199,9 @@ public object Registro {
 
         // Aquí ninguno es null: cualquier null habría agregado un error arriba.
         val movimiento = when (clase) {
+            // Meses sin intereses solo existe en un gasto con tarjeta; en lo demás se ignora.
             ClaseRegistro.GASTO -> gasto(fecha, monto!!, cuenta!!, categoria!!, nota)
+                .copy(meses = meses.takeIf { cuenta.tipo == TipoCuenta.PASIVO })
             ClaseRegistro.INGRESO -> ingreso(fecha, monto!!, cuenta!!, categoria!!, nota)
         }
         return ResultadoRegistro.Valido(movimiento)

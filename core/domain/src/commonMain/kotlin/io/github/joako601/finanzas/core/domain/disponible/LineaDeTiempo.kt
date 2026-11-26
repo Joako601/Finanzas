@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.core.domain.disponible
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.dinero.sumar
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
@@ -9,6 +10,7 @@ import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
 import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.siguienteDespues
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.CompraAMeses
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
@@ -47,7 +49,8 @@ public data class EventoFuturo(
     val tarjeta: CuentaId? = null,
     val saldoDespues: Dinero = Dinero.CERO,
 ) {
-    val esSalida: Boolean get() = tipo == TipoEvento.PAGO_TARJETA || tipo == TipoEvento.PAGO_FIJO
+    /** Un pago fijo con [tarjeta] es un cargo domiciliado: se paga después, con la tarjeta (D-023). */
+    val esSalida: Boolean get() = tipo == TipoEvento.PAGO_TARJETA || (tipo == TipoEvento.PAGO_FIJO && tarjeta == null)
 }
 
 /** El primer día en que el saldo proyectado queda en negativo, y por cuánto. */
@@ -62,10 +65,13 @@ public data class Faltante(val fecha: LocalDate, val falta: Dinero)
  *
  * SUPUESTOS (D-017):
  * - S9. Sin estado de cuenta capturado, el pago de la tarjeta se estima con la deuda que
- *   no cubren ya los estados vencidos o vigente. Exagera si hay compras a MSI; puede quedarse
- *   corto por las compras que todavía no se hacen.
+ *   no cubren ya los estados vencidos o vigente, menos las mensualidades MSI que ese corte
+ *   todavía no factura (D-022); puede quedarse corto por las compras que todavía no se hacen.
  * - S10. Los pagos fijos cuentan por su monto aproximado; los vencidos siguen pendientes.
  * - S11. Un ingreso cuya fecha ya pasó sin registrarse no se cuenta: no se sabe si llegó.
+ * - S14. Un pago fijo domiciliado a una tarjeta no sale del efectivo en su fecha; se paga
+ *   con la tarjeta. Si su corte aún no se captura, el pago estimado de la tarjeta puede
+ *   quedarse corto por ese cargo, igual que en S9 (D-023).
  * - S12. Los ingresos esperados llegan en su fecha. Si se retrasan, el disponible sale
  *   más alto de lo que conviene hasta registrarlos u omitirlos.
  */
@@ -126,11 +132,14 @@ public data class LineaDeTiempo(
             pagos: List<PagoATarjeta>,
             recurrentes: List<Recurrente>,
             hoy: LocalDate,
+            // Sin valor por omisión: olvidar las MSI exageraría el pago estimado sin avisar.
+            compras: List<CompraAMeses>,
         ): LineaDeTiempo {
             val fin = hoy.plus(DIAS, DateTimeUnit.DAY)
             val sinSaldo = buildList {
-                tarjetas.filterNot { it.cuenta.archivada }.forEach { addAll(deTarjeta(it, estados, pagos, saldos, hoy, fin)) }
-                recurrentes.forEach { addAll(deRecurrente(it, hoy, fin)) }
+                tarjetas.filterNot { it.cuenta.archivada }.forEach { addAll(deTarjeta(it, estados, pagos, saldos, compras, hoy, fin)) }
+                val idsTarjetas = tarjetas.map { it.id }.toSet()
+                recurrentes.forEach { addAll(deRecurrente(it, hoy, fin, it.cuenta?.takeIf { c -> c in idsTarjetas })) }
             }.sortedWith(compareBy({ it.fecha }, { it.tipo.ordinal }))
 
             val enCuentas = totalEnCuentas(cuentas, saldos)
@@ -160,6 +169,7 @@ public data class LineaDeTiempo(
             estados: List<EstadoDeCuenta>,
             pagos: List<PagoATarjeta>,
             saldos: Map<CuentaId, Dinero>,
+            compras: List<CompraAMeses>,
             hoy: LocalDate,
             fin: LocalDate,
         ): List<EventoFuturo> = buildList {
@@ -190,7 +200,8 @@ public data class LineaDeTiempo(
                 val limite = CalendarioTarjeta.limiteParaCorte(tarjeta, corte)
                 if (limite > fin) break
                 if (limite >= hoy && !corteCapturado(propios, corte)) {
-                    pago(limite, porCubrir, exacto = false)
+                    val porFacturar = compras.filter { it.tarjeta.id == tarjeta.id }.map { it.porFacturarAl(corte) }.sumar()
+                    pago(limite, maxOf(porCubrir - porFacturar, Dinero.CERO), exacto = false)
                     break
                 }
                 corte = CalendarioTarjeta.siguienteCorteDesde(tarjeta, corte.plus(1, DateTimeUnit.DAY))
@@ -204,7 +215,7 @@ public data class LineaDeTiempo(
         }
 
         /** Cada fecha de la serie desde la pendiente hasta [fin]. Los ingresos vencidos se omiten (S11). */
-        private fun deRecurrente(recurrente: Recurrente, hoy: LocalDate, fin: LocalDate): List<EventoFuturo> = buildList {
+        private fun deRecurrente(recurrente: Recurrente, hoy: LocalDate, fin: LocalDate, tarjeta: CuentaId?): List<EventoFuturo> = buildList {
             val esIngreso = recurrente.clase == ClaseRegistro.INGRESO
             val tipo = if (esIngreso) TipoEvento.INGRESO_ESPERADO else TipoEvento.PAGO_FIJO
             var fecha = recurrente.proxima
@@ -214,7 +225,7 @@ public data class LineaDeTiempo(
                     add(
                         EventoFuturo(
                             fecha, tipo, recurrente.nombre, recurrente.montoEstimado, exacto = false,
-                            vencido = vencido, categoria = recurrente.categoria, recurrente = recurrente.id,
+                            vencido = vencido, categoria = recurrente.categoria, recurrente = recurrente.id, tarjeta = tarjeta,
                         ),
                     )
                 }

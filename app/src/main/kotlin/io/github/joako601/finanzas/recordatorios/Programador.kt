@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.recordatorios.PlanRecordatorios
+import io.github.joako601.finanzas.ui.perfil.PreferenciasApp
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
@@ -60,6 +61,7 @@ class Programador(
             hoy = ahora.date,
             recurrentes = recurrentes.observarRecurrentes().first(),
             saldos = libro.observarSaldos().first(),
+            horas = PreferenciasApp(context).horasAviso(),
         )
         val seleccion = PlanRecordatorios.seleccionar(plan, ahora, recordatorios.clavesEntregadas())
 

@@ -23,6 +23,8 @@ internal data class CuentaEntity(
     val archivada: Boolean = false,
     /** Orden de presentación en la interfaz. */
     val orden: Int,
+    /** v7: ícono local elegido para una categoría propia; nulo = se deduce del nombre. */
+    val icono: String? = null,
 )
 
 @Entity(
@@ -37,6 +39,8 @@ internal data class MovimientoEntity(
     val descripcion: String,
     /** Momento de captura en milisegundos UTC; desempata movimientos del mismo día. */
     @ColumnInfo(name = "creado_en") val creadoEnMillis: Long,
+    /** Plazo de una compra a meses sin intereses; `null` = de contado (D-022). */
+    val meses: Int? = null,
 )
 
 @Entity(

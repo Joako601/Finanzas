@@ -23,6 +23,12 @@ enum class EstadoMascotaLogin {
     Error,
 }
 
+/** El login va en dos pasos: primero el correo y luego la contraseña. */
+enum class PasoLogin {
+    Correo,
+    Contrasena,
+}
+
 /**
  * Avisos globales del inicio de sesión.
  *
@@ -30,15 +36,18 @@ enum class EstadoMascotaLogin {
  * el correo existe o si solo falló la contraseña.
  */
 enum class AvisoLogin {
-    CamposVacios,
+    CorreoVacio,
+    ContrasenaVacia,
     CredencialesInvalidas,
     SinConexion,
     DemasiadosIntentos,
     ErrorInesperado,
+    GoogleNoDisponible,
 }
 
 /** Estado inmutable de la pantalla de inicio de sesión. */
 data class EstadoUiLogin(
+    val paso: PasoLogin = PasoLogin.Correo,
     val correo: String = "",
     val contrasena: String = "",
     val contrasenaVisible: Boolean = false,
@@ -50,7 +59,7 @@ data class EstadoUiLogin(
 ) {
     /** Redacta la contraseña para impedir filtraciones accidentales en logs o volcados. */
     override fun toString(): String =
-        "EstadoUiLogin(correoLen=${correo.length}, contrasena=[REDACTADA], " +
+        "EstadoUiLogin(paso=$paso, correoLen=${correo.length}, contrasena=[REDACTADA], " +
             "contrasenaVisible=$contrasenaVisible, cargando=$cargando, " +
             "avisoGlobal=$avisoGlobal, estadoMascota=$estadoMascota, " +
             "loginCompletado=$loginCompletado, intentoError=$intentoError)"
@@ -124,6 +133,54 @@ class LoginViewModel(
         }
     }
 
+    /**
+     * Pasa a la contraseña con cualquier correo no vacío. No consulta a Firebase: si el primer
+     * paso dijera "ese correo no tiene cuenta", revelaría qué correos existen (WSTG-IDNT-04).
+     */
+    fun continuar() {
+        _estado.update { actual ->
+            if (actual.cargando || actual.estadoMascota == EstadoMascotaLogin.Exito) return@update actual
+            if (actual.correo.isBlank()) {
+                actual.copy(
+                    avisoGlobal = AvisoLogin.CorreoVacio,
+                    estadoMascota = EstadoMascotaLogin.Error,
+                    intentoError = actual.intentoError + 1,
+                )
+            } else {
+                actual.copy(paso = PasoLogin.Contrasena, avisoGlobal = null, estadoMascota = EstadoMascotaLogin.Reposo)
+            }
+        }
+    }
+
+    /** Regresa al correo; la contraseña escrita se borra para no dejarla en memoria. */
+    fun cambiarCorreo() {
+        _estado.update { actual ->
+            if (actual.cargando || actual.estadoMascota == EstadoMascotaLogin.Exito) return@update actual
+            actual.copy(
+                paso = PasoLogin.Correo,
+                contrasena = "",
+                contrasenaVisible = false,
+                avisoGlobal = null,
+                estadoMascota = EstadoMascotaLogin.Reposo,
+            )
+        }
+    }
+
+    /** El teléfono no tiene cuentas de Google o Google no respondió al pedir la cuenta. */
+    fun googleNoDisponible() {
+        registrarError(AvisoLogin.GoogleNoDisponible)
+    }
+
+    /** Entra con el ID token que entregó Google en el teléfono; Firebase lo verifica. */
+    fun iniciarSesionConGoogle(idToken: String) {
+        val actual = _estado.value
+        if (actual.cargando || actual.loginCompletado || actual.estadoMascota == EstadoMascotaLogin.Exito) return
+        empezarCarga()
+        jobInicioSesion = viewModelScope.launch {
+            procesarResultado(repositorioSesion.iniciarSesionConGoogle(idToken))
+        }
+    }
+
     fun iniciarSesion() {
         val actual = _estado.value
         if (actual.cargando || actual.loginCompletado || actual.estadoMascota == EstadoMascotaLogin.Exito) {
@@ -131,9 +188,11 @@ class LoginViewModel(
         }
 
         if (actual.correo.isBlank() || actual.contrasena.isBlank()) {
+            // Validación local: decir cuál campo falta no revela nada de las cuentas (OWASP).
+            val aviso = if (actual.correo.isBlank()) AvisoLogin.CorreoVacio else AvisoLogin.ContrasenaVacia
             _estado.update {
                 it.copy(
-                    avisoGlobal = AvisoLogin.CamposVacios,
+                    avisoGlobal = aviso,
                     estadoMascota = EstadoMascotaLogin.Error,
                     intentoError = it.intentoError + 1,
                 )
@@ -144,6 +203,13 @@ class LoginViewModel(
         val correoNormalizado = actual.correo.trim()
         val contrasenaIngresada = actual.contrasena
 
+        empezarCarga()
+        jobInicioSesion = viewModelScope.launch {
+            procesarResultado(repositorioSesion.iniciarSesion(correo = correoNormalizado, contrasena = contrasenaIngresada))
+        }
+    }
+
+    private fun empezarCarga() {
         _estado.update {
             it.copy(
                 cargando = true,
@@ -151,9 +217,10 @@ class LoginViewModel(
                 estadoMascota = EstadoMascotaLogin.Cargando,
             )
         }
+    }
 
-        jobInicioSesion = viewModelScope.launch {
-            when (repositorioSesion.iniciarSesion(correo = correoNormalizado, contrasena = contrasenaIngresada)) {
+    private suspend fun procesarResultado(resultado: ResultadoLogin) {
+            when (resultado) {
                 ResultadoLogin.Exito -> {
                     _estado.update {
                         it.copy(
@@ -176,7 +243,6 @@ class LoginViewModel(
                 ResultadoLogin.DemasiadosIntentos -> registrarError(AvisoLogin.DemasiadosIntentos)
                 ResultadoLogin.ErrorInesperado -> registrarError(AvisoLogin.ErrorInesperado)
             }
-        }
     }
 
     /**

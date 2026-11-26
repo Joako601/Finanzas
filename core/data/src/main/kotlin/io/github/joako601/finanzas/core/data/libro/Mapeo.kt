@@ -20,6 +20,7 @@ internal fun CuentaEntity.aDominio(): Cuenta = Cuenta(
     nombre = nombre,
     tipo = TipoCuenta.valueOf(tipo),
     archivada = archivada,
+    icono = icono,
 )
 
 internal fun MovimientoConAsientos.aDominio(): Movimiento = Movimiento(
@@ -27,6 +28,7 @@ internal fun MovimientoConAsientos.aDominio(): Movimiento = Movimiento(
     fecha = LocalDate.fromEpochDays(movimiento.fechaDiaEpoca),
     descripcion = movimiento.descripcion,
     asientos = asientos.sortedBy { it.id }.map { Asiento(CuentaId(it.cuentaId), Dinero(it.centavos)) },
+    meses = movimiento.meses,
 )
 
 internal fun Movimiento.aEntidad(creadoEnMillis: Long): MovimientoEntity = MovimientoEntity(
@@ -34,6 +36,7 @@ internal fun Movimiento.aEntidad(creadoEnMillis: Long): MovimientoEntity = Movim
     fechaDiaEpoca = fecha.toEpochDays(),
     descripcion = descripcion,
     creadoEnMillis = creadoEnMillis,
+    meses = meses,
 )
 
 /** El id del movimiento se completa dentro de la transacción de inserción. */

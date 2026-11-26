@@ -103,6 +103,20 @@ class RespaldoViewModelTest {
     }
 
     @Test
+    fun limpiar_aviso_quita_el_resultado_anterior_y_conserva_la_fecha() = runTest {
+        val vm = viewModel()
+        vm.abrirNuevoRespaldo()
+        vm.editarNuevo { copy(contrasena = "quincena del 15", confirmacion = "quincena del 15") }
+        vm.guardarRespaldo("content://drive/respaldo")
+        assertEquals(Aviso.RESPALDO_GUARDADO, vm.estado.value.aviso)
+
+        vm.limpiarAviso()
+
+        assertNull(vm.estado.value.aviso)
+        assertEquals(hoy, vm.estado.value.ultimo)
+    }
+
+    @Test
     fun guardar_escribe_el_archivo_cifrado_y_anota_la_fecha() = runTest {
         val vm = viewModel()
         vm.abrirNuevoRespaldo()

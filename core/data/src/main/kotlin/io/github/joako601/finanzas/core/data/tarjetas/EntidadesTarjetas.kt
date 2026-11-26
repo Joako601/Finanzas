@@ -27,6 +27,8 @@ internal data class TarjetaEntity(
     @ColumnInfo(name = "linea_centavos") val lineaCentavos: Long,
     @ColumnInfo(name = "dia_corte") val diaCorte: Int,
     @ColumnInfo(name = "dia_limite") val diaLimite: Int,
+    /** v7: nula en las tarjetas anteriores = tasa de referencia. */
+    @ColumnInfo(name = "tasa_anual") val tasaAnual: Int? = null,
 )
 
 /**
@@ -68,4 +70,5 @@ internal data class TarjetaConCuenta(
     @ColumnInfo(name = "linea_centavos") val lineaCentavos: Long,
     @ColumnInfo(name = "dia_corte") val diaCorte: Int,
     @ColumnInfo(name = "dia_limite") val diaLimite: Int,
+    @ColumnInfo(name = "tasa_anual") val tasaAnual: Int?,
 )

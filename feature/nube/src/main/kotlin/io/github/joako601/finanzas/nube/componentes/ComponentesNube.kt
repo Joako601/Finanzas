@@ -59,10 +59,6 @@ internal val TransformacionContrasena = PasswordVisualTransformation()
 internal object ColoresSemanticosNube {
     private val ExitoClaro = Color(0xFF16803C)
     private val ExitoOscuro = Color(0xFF30D158)
-    private val SobreExitoClaro = Color.White
-    private val SobreExitoOscuro = Color.Black
-    private val HocicoClaro = Color(0xFFE8E8ED)
-    private val HocicoOscuro = Color(0xFF2C2C2E)
 
     @Composable
     @ReadOnlyComposable
@@ -72,13 +68,7 @@ internal object ColoresSemanticosNube {
     @ReadOnlyComposable
     fun exito(): Color = if (esTemaOscuro()) ExitoOscuro else ExitoClaro
 
-    @Composable
-    @ReadOnlyComposable
-    fun sobreExito(): Color = if (esTemaOscuro()) SobreExitoOscuro else SobreExitoClaro
 
-    @Composable
-    @ReadOnlyComposable
-    fun hocicoMascota(): Color = if (esTemaOscuro()) HocicoOscuro else HocicoClaro
 }
 
 /**

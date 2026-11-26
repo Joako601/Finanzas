@@ -43,7 +43,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun campos_vacios_no_llaman_al_repositorio_y_muestran_aviso_global() = runTest {
+    fun campos_vacios_no_llaman_al_repositorio_y_dicen_cual_falta() = runTest {
         val repo = RepositorioEspia()
         val vm = LoginViewModel(repo)
 
@@ -51,7 +51,7 @@ class LoginViewModelTest {
         vm.iniciarSesion()
         advanceUntilIdle()
         assertEquals(0, repo.llamadasIniciarSesion)
-        assertEquals(AvisoLogin.CamposVacios, vm.estado.value.avisoGlobal)
+        assertEquals(AvisoLogin.CorreoVacio, vm.estado.value.avisoGlobal)
         assertEquals(EstadoMascotaLogin.Error, vm.estado.value.estadoMascota)
 
         // Solo correo lleno
@@ -59,7 +59,7 @@ class LoginViewModelTest {
         vm.iniciarSesion()
         advanceUntilIdle()
         assertEquals(0, repo.llamadasIniciarSesion)
-        assertEquals(AvisoLogin.CamposVacios, vm.estado.value.avisoGlobal)
+        assertEquals(AvisoLogin.ContrasenaVacia, vm.estado.value.avisoGlobal)
         assertEquals(EstadoMascotaLogin.Error, vm.estado.value.estadoMascota)
 
         // Solo contraseña llena (correo con espacios)
@@ -68,7 +68,7 @@ class LoginViewModelTest {
         vm.iniciarSesion()
         advanceUntilIdle()
         assertEquals(0, repo.llamadasIniciarSesion)
-        assertEquals(AvisoLogin.CamposVacios, vm.estado.value.avisoGlobal)
+        assertEquals(AvisoLogin.CorreoVacio, vm.estado.value.avisoGlobal)
         assertEquals(EstadoMascotaLogin.Error, vm.estado.value.estadoMascota)
     }
 
@@ -206,7 +206,7 @@ class LoginViewModelTest {
 
         // Un error previo se limpia al editar cualquier campo
         vm.iniciarSesion()
-        assertEquals(AvisoLogin.CamposVacios, vm.estado.value.avisoGlobal)
+        assertEquals(AvisoLogin.CorreoVacio, vm.estado.value.avisoGlobal)
         vm.onCorreoCambio("a")
         assertNull(vm.estado.value.avisoGlobal)
         assertEquals(EstadoMascotaLogin.EscribiendoCorreo, vm.estado.value.estadoMascota)
@@ -266,9 +266,98 @@ class LoginViewModelTest {
         assertFalse(viewModel.estado.value.loginCompletado)
     }
 
+    @Test
+    fun continuar_sin_correo_muestra_aviso_y_se_queda_en_el_primer_paso() = runTest {
+        val repo = RepositorioEspia()
+        val vm = LoginViewModel(repo)
+
+        vm.onCorreoCambio("   ")
+        vm.continuar()
+
+        assertEquals(PasoLogin.Correo, vm.estado.value.paso)
+        assertEquals(AvisoLogin.CorreoVacio, vm.estado.value.avisoGlobal)
+        assertEquals(0, repo.llamadasIniciarSesion)
+    }
+
+    @Test
+    fun continuar_con_correo_pasa_a_la_contrasena_sin_revelar_si_la_cuenta_existe() = runTest {
+        val repo = RepositorioEspia()
+        val vm = LoginViewModel(repo)
+
+        vm.onCorreoCambio("no.existe@ejemplo.com")
+        vm.continuar()
+        advanceUntilIdle()
+
+        // OWASP: el primer paso no consulta a Firebase; cualquier correo avanza igual.
+        assertEquals(PasoLogin.Contrasena, vm.estado.value.paso)
+        assertNull(vm.estado.value.avisoGlobal)
+        assertEquals(0, repo.llamadasIniciarSesion)
+    }
+
+    @Test
+    fun cambiar_correo_regresa_al_primer_paso_conserva_el_correo_y_borra_la_contrasena() = runTest {
+        val vm = LoginViewModel(RepositorioEspia())
+        vm.onCorreoCambio("ana@ejemplo.com")
+        vm.continuar()
+        vm.onContrasenaCambio("Secreta123!")
+        vm.onAlternarVisibilidadContrasena()
+
+        vm.cambiarCorreo()
+
+        assertEquals(PasoLogin.Correo, vm.estado.value.paso)
+        assertEquals("ana@ejemplo.com", vm.estado.value.correo)
+        assertEquals("", vm.estado.value.contrasena)
+        assertFalse(vm.estado.value.contrasenaVisible)
+    }
+
+    @Test
+    fun entrar_con_google_celebra_y_completa_el_login() = runTest {
+        val repo = RepositorioEspia(resultadoGoogle = ResultadoLogin.Exito)
+        val vm = LoginViewModel(repo)
+
+        vm.iniciarSesionConGoogle("token-de-google")
+        runCurrent()
+        assertEquals(EstadoMascotaLogin.Exito, vm.estado.value.estadoMascota)
+        advanceUntilIdle()
+
+        assertEquals(listOf("token-de-google"), repo.tokensGoogle)
+        assertTrue(vm.estado.value.loginCompletado)
+    }
+
+    @Test
+    fun si_google_falla_muestra_un_aviso_global() = runTest {
+        val vm = LoginViewModel(RepositorioEspia(resultadoGoogle = ResultadoLogin.SinConexion))
+
+        vm.iniciarSesionConGoogle("token-de-google")
+        advanceUntilIdle()
+
+        assertEquals(AvisoLogin.SinConexion, vm.estado.value.avisoGlobal)
+        assertEquals(EstadoMascotaLogin.Error, vm.estado.value.estadoMascota)
+        assertFalse(vm.estado.value.loginCompletado)
+    }
+
+    @Test
+    fun sin_cuentas_de_google_en_el_telefono_lo_dice_sin_llamar_a_firebase() = runTest {
+        val repo = RepositorioEspia()
+        val vm = LoginViewModel(repo)
+
+        vm.googleNoDisponible()
+
+        assertEquals(AvisoLogin.GoogleNoDisponible, vm.estado.value.avisoGlobal)
+        assertTrue(repo.tokensGoogle.isEmpty())
+    }
+
     private class RepositorioEspia(
         private val respuestaDiferida: CompletableDeferred<ResultadoLogin>? = null,
+        private val resultadoGoogle: ResultadoLogin = ResultadoLogin.ErrorInesperado,
     ) : RepositorioSesion {
+        val tokensGoogle = mutableListOf<String>()
+
+        override suspend fun iniciarSesionConGoogle(idToken: String): ResultadoLogin {
+            tokensGoogle += idToken
+            return resultadoGoogle
+        }
+
         override val estado: StateFlow<EstadoSesion> = MutableStateFlow(EstadoSesion.SinSesion)
         var llamadasIniciarSesion: Int = 0
             private set

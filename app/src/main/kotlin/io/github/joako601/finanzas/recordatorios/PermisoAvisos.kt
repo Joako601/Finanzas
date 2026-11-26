@@ -16,12 +16,26 @@ import kotlinx.coroutines.launch
 private const val PREFS_AVISOS = "finanzas_avisos"
 private const val CLAVE_PERMISO_AVISOS_PEDIDO = "permiso_notificaciones_pedido"
 
+private const val CLAVE_INVITACION_DESCARTADA = "invitacion_avisos_descartada"
+
+/** Si el usuario tocó "Ahora no" en la invitación de Inicio; desde Perfil puede activarlos igual. */
+fun invitacionAvisosDescartada(context: Context): Boolean =
+    context.getSharedPreferences(PREFS_AVISOS, Context.MODE_PRIVATE)
+        .getBoolean(CLAVE_INVITACION_DESCARTADA, false)
+
+fun descartarInvitacionAvisos(context: Context) {
+    context.getSharedPreferences(PREFS_AVISOS, Context.MODE_PRIVATE)
+        .edit()
+        .putBoolean(CLAVE_INVITACION_DESCARTADA, true)
+        .apply()
+}
+
 /** Si ya se mostró al menos una vez el diálogo de permiso `POST_NOTIFICATIONS` en esta instalación. */
 fun yaSePidioPermisoAvisos(context: Context): Boolean =
     context.getSharedPreferences(PREFS_AVISOS, Context.MODE_PRIVATE)
         .getBoolean(CLAVE_PERMISO_AVISOS_PEDIDO, false)
 
-/** Marca de forma persistente y compartida (Inicio y Bóveda) que ya se pidió el permiso. */
+/** Marca de forma persistente y compartida (Inicio y Perfil) que ya se pidió el permiso. */
 fun marcarPermisoAvisosPedido(context: Context) {
     context.getSharedPreferences(PREFS_AVISOS, Context.MODE_PRIVATE)
         .edit()

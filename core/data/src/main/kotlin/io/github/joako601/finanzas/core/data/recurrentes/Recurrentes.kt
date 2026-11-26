@@ -31,8 +31,10 @@ import kotlinx.datetime.LocalDate
     foreignKeys = [
         // Las categorías no se borran (se archivan); RESTRICT lo garantiza.
         ForeignKey(entity = CuentaEntity::class, parentColumns = ["id"], childColumns = ["categoria_id"], onDelete = ForeignKey.RESTRICT),
+        // v7. Las cuentas tampoco se borran (se archivan).
+        ForeignKey(entity = CuentaEntity::class, parentColumns = ["id"], childColumns = ["cuenta_id"], onDelete = ForeignKey.RESTRICT),
     ],
-    indices = [Index("categoria_id")],
+    indices = [Index("categoria_id"), Index("cuenta_id")],
 )
 internal data class RecurrenteEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -47,6 +49,8 @@ internal data class RecurrenteEntity(
     @ColumnInfo(name = "segundo_dia") val segundoDia: Int?,
     val inicio: Long,
     val proxima: Long,
+    /** v7: nula en los anteriores = la cuenta se elige al registrar. */
+    @ColumnInfo(name = "cuenta_id") val cuentaId: Long? = null,
 )
 
 @Dao
@@ -69,7 +73,8 @@ internal interface RecurrentesDao {
             primer_dia = :primerDia,
             segundo_dia = :segundoDia,
             inicio = :inicio,
-            proxima = :proxima
+            proxima = :proxima,
+            cuenta_id = :cuentaId
         WHERE id = :id
         """,
     )
@@ -85,6 +90,7 @@ internal interface RecurrentesDao {
         segundoDia: Int?,
         inicio: Long,
         proxima: Long,
+        cuentaId: Long?,
     )
 
     @Query("UPDATE recurrente SET proxima = :proxima WHERE id = :id")
@@ -115,6 +121,7 @@ internal class RepositorioRecurrentesRoom(private val dao: RecurrentesDao) : Rep
             segundoDia = entidad.segundoDia,
             inicio = entidad.inicio,
             proxima = entidad.proxima,
+            cuentaId = entidad.cuentaId,
         )
     }
 
@@ -145,6 +152,7 @@ private fun RecurrenteEntity.aDominio(): Recurrente = Recurrente(
     },
     inicio = LocalDate.fromEpochDays(inicio),
     proxima = LocalDate.fromEpochDays(proxima),
+    cuenta = cuentaId?.let(::CuentaId),
 )
 
 private fun Recurrente.aEntidad(): RecurrenteEntity {
@@ -168,5 +176,6 @@ private fun Recurrente.aEntidad(): RecurrenteEntity {
         segundoDia = (p as? Periodicidad.DosVecesAlMes)?.segundoDia,
         inicio = inicio.toEpochDays(),
         proxima = proxima.toEpochDays(),
+        cuentaId = cuenta?.valor,
     )
 }

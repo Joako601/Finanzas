@@ -19,6 +19,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 fun DialogoRecuperar(
     repositorioSesion: RepositorioSesion,
     onCerrar: () -> Unit,
+    correoInicial: String = "",
 ) {
     val factory = remember(repositorioSesion) {
         RecuperarViewModel.factory(repositorioSesion)
@@ -58,6 +60,11 @@ fun DialogoRecuperar(
     )
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
+
+    // El enlace vive en el paso de contraseña: el correo ya está escrito, no hace falta repetirlo.
+    LaunchedEffect(Unit) {
+        if (estado.correo.isEmpty() && correoInicial.isNotBlank()) viewModel.alCambiarCorreo(correoInicial.trim())
+    }
 
     val cerrar = {
         if (!estado.enviando) {

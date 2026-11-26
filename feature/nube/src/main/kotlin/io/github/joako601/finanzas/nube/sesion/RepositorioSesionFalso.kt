@@ -50,6 +50,14 @@ class RepositorioSesionFalso(
         return ResultadoLogin.Exito
     }
 
+    /** Cualquier token no vacío entra como una cuenta de Google de prueba. */
+    override suspend fun iniciarSesionConGoogle(idToken: String): ResultadoLogin {
+        resultadoLoginForzado?.let { return it }
+        if (idToken.isBlank()) return ResultadoLogin.CredencialesInvalidas
+        _estado.value = EstadoSesion.Autenticado(UsuarioSesion(uid = "falso-google", correo = "demo@gmail.com", nombre = "Demo"))
+        return ResultadoLogin.Exito
+    }
+
     override suspend fun registrar(correo: String, contrasena: String): ResultadoRegistro {
         resultadoRegistroForzado?.let { return it }
         val normalizado = correo.trim()

@@ -39,9 +39,17 @@ public data class AnalisisTope(
     val ritmo: EstadoRitmoTope,
     /** Movimientos de gasto del mes actual pertenecientes a esta categoría (más recientes primero). */
     val movimientosMesActual: List<MovimientoResumido>,
+    /** Los [AnalizadorTopes.MESES_HISTORIAL] meses anteriores, del más reciente al más antiguo. */
+    val historial: List<MesTope> = emptyList(),
 )
 
 /** Resumen consolidado de todos los topes activos del mes calendario actual. */
+/**
+ * Lo gastado en un mes anterior. [cumplido] compara contra el tope de HOY: el límite de
+ * meses pasados no se guarda, así que un tope cambiado después se juzga con el nuevo.
+ */
+public data class MesTope(val mes: LocalDate, val gastado: Dinero, val cumplido: Boolean)
+
 public data class ResumenTopesMes(
     val hoy: LocalDate,
     val diaDelMes: Int,
@@ -58,6 +66,8 @@ public data class ResumenTopesMes(
     val cantidadRitmoAlto: Int,
     val cantidadEnRitmo: Int,
     val topes: List<AnalisisTope>,
+    /** Gastos de este mes en categorías sin tope: lo que ningún tope está vigilando. */
+    val gastadoSinTope: Dinero = Dinero.CERO,
 )
 
 /** Sugerencia transparente basada en el gasto histórico real de una categoría. */
@@ -86,6 +96,8 @@ public object AnalizadorTopes {
     /** Colchón sobre la fracción del mes transcurrido antes de marcar "Ritmo alto". */
     private const val MARGEN_RITMO_TOLERANCIA: Double = 0.08
 
+    public const val MESES_HISTORIAL: Int = 3
+
     public fun analizar(
         topes: List<TopeCategoria>,
         cuentas: List<Cuenta>,
@@ -94,7 +106,7 @@ public object AnalizadorTopes {
     ): ResumenTopesMes {
         val inicioMes = LocalDate(hoy.year, hoy.month, 1)
         val inicioMesSiguiente = inicioMes.plus(1, DateTimeUnit.MONTH)
-        val inicioMesAnterior = inicioMes.minus(1, DateTimeUnit.MONTH)
+        val inicioHistorial = inicioMes.minus(MESES_HISTORIAL, DateTimeUnit.MONTH)
         val diasDelMes = inicioMesSiguiente.minus(1, DateTimeUnit.DAY).day
         val diaDelMes = hoy.day.coerceIn(1, diasDelMes)
         val diasRestantes = (diasDelMes - diaDelMes).coerceAtLeast(0)
@@ -104,12 +116,13 @@ public object AnalizadorTopes {
 
         val porId = cuentas.associateBy { it.id }
 
-        // Clasificar solo gastos del mes actual y del mes anterior (sin pagos de tarjeta ni transferencias).
+        // Clasificar solo gastos del mes actual y de los meses del historial (sin pagos de tarjeta ni transferencias).
         val gastosMesActual = mutableMapOf<CuentaId, MutableList<MovimientoResumido>>()
-        val sumaMesAnterior = mutableMapOf<CuentaId, Dinero>()
+        // Por categoría y por día 1 del mes.
+        val sumaPorMes = mutableMapOf<Pair<CuentaId, LocalDate>, Dinero>()
 
         for (mov in movimientos) {
-            if (mov.fecha < inicioMesAnterior || mov.fecha >= inicioMesSiguiente) continue
+            if (mov.fecha < inicioHistorial || mov.fecha >= inicioMesSiguiente) continue
             val resumido = mov.resumir(porId)
             if (resumido.clase != ClaseMovimiento.GASTO) continue
             val catId = resumido.categoria?.id ?: continue
@@ -117,7 +130,8 @@ public object AnalizadorTopes {
             if (mov.fecha >= inicioMes) {
                 gastosMesActual.getOrPut(catId) { mutableListOf() }.add(resumido)
             } else {
-                sumaMesAnterior[catId] = (sumaMesAnterior[catId] ?: Dinero.CERO) + resumido.monto
+                val clave = catId to LocalDate(mov.fecha.year, mov.fecha.month, 1)
+                sumaPorMes[clave] = (sumaPorMes[clave] ?: Dinero.CERO) + resumido.monto
             }
         }
 
@@ -126,7 +140,12 @@ public object AnalizadorTopes {
             val listaMovs = gastosMesActual[tope.categoriaId].orEmpty()
                 .sortedByDescending { it.movimiento.fecha }
             val gastado = listaMovs.map { it.monto }.sumar()
-            val gastadoAnterior = sumaMesAnterior[tope.categoriaId] ?: Dinero.CERO
+            val historial = (1..MESES_HISTORIAL).map { atras ->
+                val mes = inicioMes.minus(atras, DateTimeUnit.MONTH)
+                val gastadoMes = sumaPorMes[tope.categoriaId to mes] ?: Dinero.CERO
+                MesTope(mes, gastadoMes, cumplido = gastadoMes <= tope.limiteMensual)
+            }
+            val gastadoAnterior = historial.first().gastado
             val restante = if (gastado < tope.limiteMensual) tope.limiteMensual - gastado else Dinero.CERO
             val excedente = if (gastado > tope.limiteMensual) gastado - tope.limiteMensual else Dinero.CERO
             val disponiblePorDia = if (restante.esPositivo) {
@@ -138,9 +157,9 @@ public object AnalizadorTopes {
             val fraccionDouble = (gastado.centavos.toDouble() / tope.limiteMensual.centavos.toDouble())
                 .coerceAtLeast(0.0)
             val fraccion = fraccionDouble.toFloat()
-            val porcentaje = ((gastado.centavos.toDouble() * 100.0) / tope.limiteMensual.centavos.toDouble() + 0.5)
-                .toInt()
-                .coerceAtLeast(0)
+            val porcentajeBruto = (fraccionDouble * 100.0 + 0.5).coerceIn(0.0, Int.MAX_VALUE.toDouble()).toInt()
+            // Si todavía queda dinero, nunca redondear a 100% para no contradecir "Te quedan $X" (igual que en metas).
+            val porcentaje = if (restante.esPositivo) porcentajeBruto.coerceAtMost(99) else porcentajeBruto
             val ritmo = evaluarRitmo(
                 gastado = gastado,
                 limite = tope.limiteMensual,
@@ -161,6 +180,7 @@ public object AnalizadorTopes {
                 porcentajeEntero = porcentaje,
                 ritmo = ritmo,
                 movimientosMesActual = listaMovs,
+                historial = historial,
             )
         }.sortedWith(
             compareBy<AnalisisTope> { it.ritmo.ordinal }
@@ -206,6 +226,9 @@ public object AnalizadorTopes {
             cantidadRitmoAlto = analisisLista.count { it.ritmo == EstadoRitmoTope.RITMO_ALTO },
             cantidadEnRitmo = analisisLista.count { it.ritmo == EstadoRitmoTope.EN_RITMO },
             topes = analisisLista,
+            gastadoSinTope = gastosMesActual
+                .filterKeys { id -> topes.none { it.categoriaId == id } }
+                .values.flatten().map { it.monto }.sumar(),
         )
     }
 

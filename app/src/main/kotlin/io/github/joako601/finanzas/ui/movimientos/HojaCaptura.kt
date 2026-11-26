@@ -42,7 +42,12 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.ui.tema.TemaFinanzas
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
+import io.github.joako601.finanzas.core.domain.libro.Movimiento
+import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.ErrorRegistro
@@ -69,6 +74,8 @@ class AccionesCaptura(
     val agregarCuenta: (() -> Unit)? = null,
     /** Solo al editar un movimiento guardado: pide confirmación antes de borrarlo. */
     val eliminar: (() -> Unit)? = null,
+    /** Plazo a meses sin intereses; `null` = de contado (D-022). */
+    val elegirMeses: (Int?) -> Unit = {},
 )
 
 /**
@@ -86,6 +93,7 @@ fun HojaCaptura(
     categorias: List<Cuenta>,
     cuentas: List<Cuenta>,
     acciones: AccionesCaptura,
+    avisoTope: AvisoTope? = null,
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val foco = remember { FocusRequester() }
@@ -144,6 +152,19 @@ fun HojaCaptura(
                     supportingText = errorMonto?.let { { Text(textoError(it)) } },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                 )
+                // Aviso discreto del tope: solo cerca del límite o al pasarlo; TalkBack lo lee al cambiar.
+                avisoTope?.let { aviso ->
+                    Text(
+                        text = if (aviso.excedente != null) {
+                            stringResource(R.string.captura_tope_excede, aviso.excedente.formatear(), aviso.categoria)
+                        } else {
+                            stringResource(R.string.captura_tope_restante, aviso.restante?.formatear().orEmpty(), aviso.categoria)
+                        },
+                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                        color = if (aviso.excedente != null) MaterialTheme.colorScheme.error else TemaFinanzas.colores.aviso,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
+                }
 
                 val hayMasCategorias = categorias.size > CATEGORIAS_VISIBLES_INICIALES
                 val categoriasVisibles = remember(categorias, mostrarTodasCategorias, captura.categoriaId) {
@@ -179,7 +200,7 @@ fun HojaCaptura(
                             onClick = { acciones.elegirCategoria(categoria.id) },
                             leadingIcon = {
                                 Icon(
-                                    painter = painterResource(iconoDeCategoria(categoria.nombre)),
+                                    painter = painterResource(iconoDeCategoria(categoria)),
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )
@@ -221,6 +242,19 @@ fun HojaCaptura(
                             onClick = acciones.agregarCuenta,
                             label = { Text(stringResource(R.string.chip_agregar_cuenta)) },
                         )
+                    }
+                }
+
+                // Meses sin intereses: solo en un gasto con tarjeta (D-022).
+                if (captura.clase == ClaseRegistro.GASTO && cuentas.any { it.id == captura.cuentaId && it.tipo == TipoCuenta.PASIVO }) {
+                    Seccion(titulo = stringResource(R.string.msi_plazo), error = null) {
+                        (listOf(null) + Movimiento.PLAZOS_MSI).forEach { meses ->
+                            FilterChip(
+                                selected = captura.meses == meses,
+                                onClick = { acciones.elegirMeses(meses) },
+                                label = { Text(if (meses == null) stringResource(R.string.msi_contado) else stringResource(R.string.msi_n, meses)) },
+                            )
+                        }
                     }
                 }
 

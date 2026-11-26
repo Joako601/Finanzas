@@ -41,6 +41,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -73,6 +75,21 @@ private object GeneradorClaveSesion {
     fun siguiente(): Int = contador.incrementAndGet()
 }
 
+/**
+ * Cuando la nube es la primera pantalla de la app (sin sesión iniciada), el login es la
+ * entrada: no tiene "Volver", ofrece usar la app sin cuenta y recibe el logo del splash.
+ *
+ * @param onUsarSinCuenta entra a finanzas en modo privado, solo en este teléfono.
+ * @param splashTerminado se lee al dibujar: hasta que es `true` el login espera al logo.
+ * @param onDestinoLogo publica dónde aterriza el logo del splash (caja del logo de 66
+ *   unidades, en coordenadas de la raíz) y con qué colores debe llegar.
+ */
+class EntradaNube(
+    val onUsarSinCuenta: () -> Unit,
+    val splashTerminado: () -> Boolean,
+    val onDestinoLogo: (caja: Rect, colorBarras: Color, colorPunto: Color) -> Unit,
+)
+
 private sealed interface DestinoNube {
     data object Cargando : DestinoNube
     data object Login : DestinoNube
@@ -104,6 +121,7 @@ private object DemoSesionHolder {
 fun SeccionNube(
     onSalir: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
+    entrada: EntradaNube? = null,
 ) {
     val context = LocalContext.current
     val contenedor = remember(context) { ContenedorNube.obtener(context) }
@@ -117,6 +135,7 @@ fun SeccionNube(
                 repositorioSesion = DemoSesionHolder.repositorio,
                 onSalir = onSalir,
                 onIrAFinanzas = onIrAFinanzas,
+                entrada = entrada,
                 repositorioCatalogo = DemoSesionHolder.repositorioCatalogo,
                 repositorioDivisas = DemoSesionHolder.repositorioDivisas,
                 conectadoAlServidor = false,
@@ -124,7 +143,8 @@ fun SeccionNube(
         } else {
             PantallaSinConfigurar(
                 onExplorarDemo = if (BuildConfig.DEBUG) ({ usarDemo = true }) else null,
-                onSalir = onSalir,
+                // Si es la entrada de la app, "Volver" lleva a usarla sin cuenta.
+                onSalir = entrada?.onUsarSinCuenta ?: onSalir,
             )
         }
     } else {
@@ -132,6 +152,7 @@ fun SeccionNube(
             repositorioSesion = repositorio,
             onSalir = onSalir,
             onIrAFinanzas = onIrAFinanzas,
+            entrada = entrada,
             repositorioCatalogo = contenedor.repositorioCatalogo,
             repositorioDivisas = contenedor.repositorioDivisas,
             conectadoAlServidor = contenedor.backendConfigurado,
@@ -148,6 +169,7 @@ fun SeccionNube(
     repositorioSesion: RepositorioSesion,
     onSalir: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
+    entrada: EntradaNube? = null,
     repositorioCatalogo: RepositorioCatalogo = remember { RepositorioCatalogoFalso() },
     repositorioDivisas: RepositorioDivisas = remember { RepositorioDivisasFalso() },
     conectadoAlServidor: Boolean = false,
@@ -155,6 +177,7 @@ fun SeccionNube(
     val estadoSesion by repositorioSesion.estado.collectAsStateWithLifecycle()
     var rutaActual by rememberSaveable { mutableStateOf<RutaNube?>(null) }
     var mostrarRecuperar by rememberSaveable { mutableStateOf(false) }
+    var correoParaRecuperar by rememberSaveable { mutableStateOf("") }
     // Clave monotónica única por entrada/sesión para no reutilizar ViewModels obsoletos del
     // ViewModelStore de la Activity tras salir de Nube o cerrar sesión y volver a entrar.
     var generacionSesion by rememberSaveable { mutableIntStateOf(GeneradorClaveSesion.siguiente()) }
@@ -246,11 +269,16 @@ fun SeccionNube(
                     repositorioSesion = repositorioSesion,
                     onLoginExitoso = {
                         mostrarRecuperar = false
-                        rutaActual = RutaNube.CATALOGO
+                        // Desde la entrada, iniciar sesión es entrar a la app: directo a finanzas.
+                        if (entrada != null && onIrAFinanzas != null) onIrAFinanzas() else rutaActual = RutaNube.CATALOGO
                     },
                     onIrARegistro = { rutaActual = RutaNube.REGISTRO },
-                    onAbrirRecuperar = { mostrarRecuperar = true },
+                    onAbrirRecuperar = { correo ->
+                        correoParaRecuperar = correo
+                        mostrarRecuperar = true
+                    },
                     onSalir = onSalir,
+                    entrada = entrada,
                 )
             }
         }
@@ -259,6 +287,7 @@ fun SeccionNube(
     if (rutaEfectiva == RutaNube.LOGIN && mostrarRecuperar) {
         DialogoRecuperar(
             repositorioSesion = repositorioSesion,
+            correoInicial = correoParaRecuperar,
             onCerrar = { mostrarRecuperar = false },
         )
     }

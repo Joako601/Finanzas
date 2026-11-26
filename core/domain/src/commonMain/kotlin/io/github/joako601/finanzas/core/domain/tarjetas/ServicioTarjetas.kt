@@ -3,6 +3,7 @@ package io.github.joako601.finanzas.core.domain.tarjetas
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
+import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import kotlinx.datetime.LocalDate
 
@@ -43,7 +44,7 @@ public class ServicioTarjetas(
         diaLimiteTexto: String,
         deudaTexto: String,
     ): Set<ErrorTarjeta> = buildSet {
-        if (nombre.isBlank()) add(ErrorTarjeta.NOMBRE_VACIO)
+        if (nombre.isBlank() || nombre.trim().length > Cuenta.LARGO_MAXIMO_NOMBRE) add(ErrorTarjeta.NOMBRE_VACIO)
         if (Dinero.parsear(lineaTexto)?.esPositivo != true) add(ErrorTarjeta.LINEA_INVALIDA)
         if (diaDeCorteTexto.trim().toIntOrNull() !in 1..31) add(ErrorTarjeta.DIA_DE_CORTE_INVALIDO)
         if (diaLimiteTexto.trim().toIntOrNull() !in 1..31) add(ErrorTarjeta.DIA_LIMITE_INVALIDO)

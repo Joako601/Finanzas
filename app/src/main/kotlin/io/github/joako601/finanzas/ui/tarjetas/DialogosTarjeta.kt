@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -23,6 +24,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -44,6 +48,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.dinero.sumar
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
@@ -51,6 +56,7 @@ import io.github.joako601.finanzas.core.domain.tarjetas.CategoriaSimulacionPago
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorEstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.SimulacionPagoTarjeta
+import io.github.joako601.finanzas.ui.componentes.enPantalla
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.Campo
@@ -60,6 +66,7 @@ import io.github.joako601.finanzas.ui.componentes.TECLADO_MONTO
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 import io.github.joako601.finanzas.ui.formatoCorto
+import io.github.joako601.finanzas.ui.movimientos.ConfirmarArchivar
 import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 import kotlinx.coroutines.launch
@@ -138,7 +145,21 @@ fun DialogoEditarTarjeta(
     onEditar: (EdicionTarjeta.() -> EdicionTarjeta) -> Unit,
     onGuardar: () -> Unit,
     onCerrar: () -> Unit,
+    onPedirArchivar: () -> Unit = {},
+    onCancelarArchivar: () -> Unit = {},
+    onArchivar: () -> Unit = {},
 ) {
+    if (edicion.confirmandoArchivar) {
+        ConfirmarArchivar(
+            nombre = edicion.actual.cuenta.nombre,
+            ayuda = stringResource(R.string.archivar_tarjeta_ayuda),
+            trabajando = edicion.guardando,
+            error = edicion.errorAlGuardar,
+            onArchivar = onArchivar,
+            onCancelar = onCancelarArchivar,
+        )
+        return
+    }
     AlertDialog(
         onDismissRequest = onCerrar,
         title = { Text(stringResource(R.string.editar_tarjeta)) },
@@ -177,6 +198,11 @@ fun DialogoEditarTarjeta(
                     teclado = TECLADO_DIA.copy(imeAction = ImeAction.Done),
                 )
                 Text(stringResource(R.string.ayuda_dias_tarjeta), style = MaterialTheme.typography.bodySmall)
+                TextButton(
+                    onClick = onPedirArchivar,
+                    enabled = !edicion.guardando,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.archivar_tarjeta)) }
                 ErrorAlGuardar(edicion.errorAlGuardar)
             }
         },
@@ -202,6 +228,7 @@ fun DialogoPagoTarjeta(
     onCerrar: () -> Unit,
     saldosCuentas: Map<CuentaId, Dinero> = emptyMap(),
     onAgregarCuenta: (() -> Unit)? = null,
+    onEliminar: (() -> Unit)? = null,
 ) {
     val analisis = pago.analisis
     val montoActual = remember(pago.montoTexto) { Dinero.parsear(pago.montoTexto) }
@@ -219,7 +246,14 @@ fun DialogoPagoTarjeta(
 
     AlertDialog(
         onDismissRequest = onCerrar,
-        title = { Text(stringResource(R.string.pagar_tarjeta, pago.tarjeta.cuenta.nombre)) },
+        title = {
+            Text(
+                stringResource(
+                    if (pago.editando != null) R.string.editar_pago_tarjeta else R.string.pagar_tarjeta,
+                    pago.tarjeta.cuenta.nombre,
+                ),
+            )
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -346,6 +380,13 @@ fun DialogoPagoTarjeta(
                     Text(stringResource(R.string.error_sin_cuenta_pago), color = MaterialTheme.colorScheme.error)
                 }
                 SelectorFecha(fecha = pago.fecha, onCambiar = { f -> onEditar { copy(fecha = f) } })
+                if (onEliminar != null) {
+                    TextButton(
+                        onClick = onEliminar,
+                        enabled = !pago.guardando,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text(stringResource(R.string.eliminar), color = MaterialTheme.colorScheme.error) }
+                }
                 ErrorAlGuardar(pago.errorAlGuardar)
             }
         },
@@ -498,7 +539,32 @@ fun DialogoEstadoDeCuenta(
     onEditar: (CapturaEstadoDeCuenta.() -> CapturaEstadoDeCuenta) -> Unit,
     onGuardar: () -> Unit,
     onCerrar: () -> Unit,
+    onPedirEliminar: () -> Unit = {},
+    onCancelarEliminar: () -> Unit = {},
+    onEliminar: () -> Unit = {},
 ) {
+    val corteOriginal = captura.fechaCorteOriginal
+    if (corteOriginal != null && captura.confirmandoEliminar) {
+        AlertDialog(
+            onDismissRequest = { if (!captura.guardando) onCancelarEliminar() },
+            title = { Text(stringResource(R.string.eliminar_estado_pregunta, corteOriginal.formatoCorto())) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.eliminar_estado_ayuda), style = MaterialTheme.typography.bodyMedium)
+                    ErrorAlGuardar(captura.errorAlGuardar)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = onEliminar, enabled = !captura.guardando) {
+                    Text(stringResource(R.string.eliminar), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onCancelarEliminar, enabled = !captura.guardando) { Text(stringResource(R.string.cancelar)) }
+            },
+        )
+        return
+    }
     AlertDialog(
         onDismissRequest = onCerrar,
         title = { Text(stringResource(R.string.capturar_estado_titulo, captura.tarjeta.cuenta.nombre)) },
@@ -549,6 +615,13 @@ fun DialogoEstadoDeCuenta(
                     },
                     teclado = TECLADO_MONTO.copy(imeAction = ImeAction.Done),
                 )
+                if (corteOriginal != null) {
+                    TextButton(
+                        onClick = onPedirEliminar,
+                        enabled = !captura.guardando,
+                        modifier = Modifier.heightIn(min = 48.dp),
+                    ) { Text(stringResource(R.string.eliminar_estado), color = MaterialTheme.colorScheme.error) }
+                }
                 ErrorAlGuardar(captura.errorAlGuardar)
             }
         },
@@ -572,6 +645,7 @@ fun HojaDetalleTarjeta(
     onCapturarEstado: () -> Unit,
     onPagar: () -> Unit,
     onCerrar: () -> Unit,
+    onEditarEstado: (EstadoDeCuenta) -> Unit = {},
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val alcance = rememberCoroutineScope()
@@ -650,12 +724,12 @@ fun HojaDetalleTarjeta(
 
                     FilaDatoDetalle(
                         etiqueta = stringResource(R.string.detalle_tarjeta_exigible_corte),
-                        valor = desglose.exigibleCorteActual.formatear(),
+                        valor = desglose.exigibleCorteActual.enPantalla(),
                         resaltar = desglose.exigibleCorteActual.esPositivo,
                     )
                     FilaDatoDetalle(
                         etiqueta = stringResource(R.string.detalle_tarjeta_compras_nuevas),
-                        valor = desglose.comprasNuevoCiclo.formatear(),
+                        valor = desglose.comprasNuevoCiclo.enPantalla(),
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     FilaDatoDetalle(
@@ -665,6 +739,32 @@ fun HojaDetalleTarjeta(
                     FilaDatoDetalle(
                         etiqueta = stringResource(R.string.detalle_tarjeta_proximo_corte),
                         valor = analisis.proximoCorte.formatoCorto(),
+                    )
+                }
+            }
+
+            // Compras a meses activas (D-022): mensualidades facturadas y cuota.
+            if (resumen.compras.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.msi_activas),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.semantics { heading() },
+                    )
+                    resumen.compras.forEach { compra ->
+                        FilaDatoDetalle(
+                            etiqueta = stringResource(
+                                R.string.msi_fila,
+                                compra.movimiento.descripcion.ifBlank { compra.total.enPantalla() },
+                                compra.facturadasAl(analisis.ultimoCorte),
+                                compra.meses,
+                            ),
+                            valor = stringResource(R.string.msi_cuota, compra.cuota.enPantalla()),
+                        )
+                    }
+                    FilaDatoDetalle(
+                        etiqueta = stringResource(R.string.msi_por_facturar),
+                        valor = resumen.compras.map { it.porFacturarAl(analisis.ultimoCorte) }.sumar().enPantalla(),
                     )
                 }
             }
@@ -697,11 +797,16 @@ fun HojaDetalleTarjeta(
                     )
                 } else {
                     analisis.estadosPropios.take(4).forEach { est ->
+                        // Tocar un estado abre su captura para corregirlo o eliminarlo.
+                        val etiquetaCorregir = stringResource(R.string.corregir_estado)
                         Surface(
                             shape = MaterialTheme.shapes.small,
                             color = MaterialTheme.colorScheme.surfaceContainerLowest,
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable(onClickLabel = etiquetaCorregir) { cerrarYEjecutar { onEditarEstado(est) } },
                         ) {
                             Column(
                                 modifier = Modifier.padding(12.dp),
@@ -718,8 +823,8 @@ fun HojaDetalleTarjeta(
                                 Text(
                                     text = stringResource(
                                         R.string.detalle_tarjeta_item_estado_montos,
-                                        est.pagoSinIntereses.formatear(),
-                                        est.pagoMinimo.formatear(),
+                                        est.pagoSinIntereses.enPantalla(),
+                                        est.pagoMinimo.enPantalla(),
                                     ),
                                     style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -746,7 +851,7 @@ fun HojaDetalleTarjeta(
                     analisis.pagosPropios.take(5).forEach { pagoItem ->
                         FilaDatoDetalle(
                             etiqueta = pagoItem.fecha.formatoCorto(),
-                            valor = pagoItem.monto.formatear(),
+                            valor = pagoItem.monto.enPantalla(),
                         )
                     }
                 }

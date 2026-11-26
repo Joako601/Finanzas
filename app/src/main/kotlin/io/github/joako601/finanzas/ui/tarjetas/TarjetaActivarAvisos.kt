@@ -21,11 +21,14 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.recordatorios.abrirAjustesDeAvisos
+import io.github.joako601.finanzas.recordatorios.descartarInvitacionAvisos
 import io.github.joako601.finanzas.recordatorios.dispararProgramadorAvisos
+import io.github.joako601.finanzas.recordatorios.invitacionAvisosDescartada
 import io.github.joako601.finanzas.recordatorios.marcarPermisoAvisosPedido
 import io.github.joako601.finanzas.recordatorios.notificacionesActivas
 import io.github.joako601.finanzas.recordatorios.puedePedirDialogoPermisoAvisos
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
+import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 
 /** Si los avisos están activos y cómo activarlos. */
@@ -73,8 +76,10 @@ fun recordarAvisos(): EstadoAvisos {
 /** Invita a activar las notificaciones si están apagadas o su canal está silenciado. */
 @Composable
 fun TarjetaActivarAvisos(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val avisos = recordarAvisos()
-    if (avisos.activos) return
+    var descartada by remember { mutableStateOf(invitacionAvisosDescartada(context)) }
+    if (avisos.activos || descartada) return
 
     TarjetaFinanzas(modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -87,6 +92,18 @@ fun TarjetaActivarAvisos(modifier: Modifier = Modifier) {
             BotonPrincipal(
                 texto = stringResource(R.string.activar_avisos_boton),
                 onClick = avisos.activar,
+            )
+            BotonSecundario(
+                texto = stringResource(R.string.activar_avisos_ahora_no),
+                onClick = {
+                    descartarInvitacionAvisos(context)
+                    descartada = true
+                },
+            )
+            Text(
+                stringResource(R.string.activar_avisos_desde_perfil),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

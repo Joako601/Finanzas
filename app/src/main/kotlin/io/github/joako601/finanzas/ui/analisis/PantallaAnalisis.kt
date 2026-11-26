@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -50,16 +53,32 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.R
+import kotlinx.datetime.LocalDate
+import io.github.joako601.finanzas.ui.movimientos.FilaMovimiento
+import io.github.joako601.finanzas.ui.formatoMesEnFrase
+import io.github.joako601.finanzas.ui.formatoMes
+import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.disponible.EventoFuturo
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.disponible.TipoEvento
+import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
 import io.github.joako601.finanzas.ui.componentes.SelectorSegmentadoSeda
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
 import io.github.joako601.finanzas.ui.componentes.TextoMontoAnimado
 import io.github.joako601.finanzas.ui.componentes.iconoDeCategoria
 import io.github.joako601.finanzas.ui.componentes.rememberAnimacionesDesactivadas
+import io.github.joako601.finanzas.ui.componentes.toqueTactil
 import io.github.joako601.finanzas.ui.disponible.AccionesLineaDeTiempo
 import io.github.joako601.finanzas.ui.disponible.HojaLineaDeTiempo
 import io.github.joako601.finanzas.ui.formatoDiaCorto
@@ -82,6 +101,7 @@ fun PantallaAnalisis(
     tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
     margenInferiorExtra: Dp = 0.dp,
+    onTocarCategoria: (CuentaId) -> Unit = {},
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val estadoTarjetas by tarjetasViewModel.estado.collectAsStateWithLifecycle()
@@ -96,6 +116,8 @@ fun PantallaAnalisis(
         estado = estado,
         onVerLineaDeTiempo = { verLineaDeTiempo = true },
         margenInferiorExtra = margenInferiorExtra,
+        onTocarCategoria = onTocarCategoria,
+        onMoverMes = viewModel::moverMes,
     )
 
     if (verLineaDeTiempo) {
@@ -127,6 +149,7 @@ fun PantallaAnalisis(
         DialogoNuevoRecurrente(
             nuevo = actual,
             categorias = estadoRecurrentes.categoriasDe(actual.clase),
+            cuentas = estadoRecurrentes.cuentasPara(actual.clase),
             onEditar = recurrentesViewModel::editarNuevo,
             onGuardar = recurrentesViewModel::guardarNuevo,
             onCerrar = recurrentesViewModel::cerrarNuevo,
@@ -168,8 +191,12 @@ fun ContenidoAnalisis(
     estado: EstadoAnalisis,
     onVerLineaDeTiempo: () -> Unit,
     margenInferiorExtra: Dp = 0.dp,
+    onTocarCategoria: (CuentaId) -> Unit = {},
+    onMoverMes: (Int) -> Unit = {},
 ) {
-    var periodoSeleccionado by rememberSaveable { mutableStateOf(PeriodoAnalisis.QUINCE_DIAS) }
+    var periodoSeleccionado by rememberSaveable { mutableStateOf(PeriodoAnalisis.MES) }
+    // Categoría cuyos movimientos se ven en la hoja; null = cerrada.
+    var categoriaAbierta by remember { mutableStateOf<GastoCategoria?>(null) }
     var indiceInspeccionado by remember(periodoSeleccionado) { mutableStateOf<Int?>(null) }
 
     val linea = estado.estadoLinea.linea
@@ -229,6 +256,14 @@ fun ContenidoAnalisis(
                         },
                     )
 
+                    if (periodoSeleccionado == PeriodoAnalisis.MES) {
+                        SelectorMes(
+                            mes = corte.desde,
+                            puedeAvanzar = estado.mesDesplazamiento < 0,
+                            onMover = onMoverMes,
+                        )
+                    }
+
                     TarjetaPulsoLiquidez(
                         corte = corte,
                         linea = linea,
@@ -239,21 +274,85 @@ fun ContenidoAnalisis(
 
                     TarjetaFlujoPeriodo(
                         periodo = periodoSeleccionado,
+                        mes = corte.desde,
                         flujo = corte.flujo,
                     )
 
                     TarjetaGastosPorCategoria(
-                        periodo = periodoSeleccionado,
                         categorias = corte.categorias,
+                        todas = corte.todasLasCategorias,
+                        onVerCategoria = { categoriaAbierta = it },
                     )
+
+                    TarjetaPatrimonio(corte.patrimonio)
                 }
+            }
+        }
+    }
+
+    val abierta = categoriaAbierta
+    if (abierta != null && corte != null) {
+        HojaMovimientosCategoria(
+            categoria = abierta,
+            gastos = corte.gastos,
+            onVerTope = { id ->
+                categoriaAbierta = null
+                onTocarCategoria(id)
+            },
+            onCerrar = { categoriaAbierta = null },
+        )
+    }
+}
+
+/**
+ * Movimientos de una categoría en la ventana del periodo. Desde aquí se va a su tope en
+ * Metas (lo que antes hacía tocar la categoría).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HojaMovimientosCategoria(
+    categoria: GastoCategoria,
+    gastos: List<MovimientoResumido>,
+    onVerTope: ((CuentaId) -> Unit),
+    onCerrar: () -> Unit,
+) {
+    val propios = remember(categoria, gastos) {
+        gastos.filter { it.categoria?.id == categoria.categoriaId }.sortedByDescending { it.movimiento.fecha }
+    }
+    ModalBottomSheet(onDismissRequest = onCerrar, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = categoria.nombre.ifEmpty { stringResource(R.string.analisis_otros_gastos) },
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+                Text(categoria.monto.formatear(), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"))
+            }
+            TarjetaFinanzas(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                propios.forEachIndexed { indice, movimiento ->
+                    if (indice > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    FilaMovimiento(movimiento, onClick = null)
+                }
+            }
+            categoria.categoriaId?.let { id ->
+                TextButton(
+                    onClick = { onVerTope(id) },
+                    modifier = Modifier.padding(horizontal = 12.dp).heightIn(min = 48.dp),
+                ) { Text(stringResource(R.string.analisis_ver_tope)) }
             }
         }
     }
 }
 
 /**
- * Control segmentado global de 2 opciones ("15 días" | "30 días") con área táctil >= 48 dp.
+ * Control segmentado global de 3 opciones ("Mes" | "30 días" | "3 meses") con área táctil >= 48 dp.
  */
 @Composable
 private fun SelectorPeriodoAnalisis(
@@ -266,13 +365,59 @@ private fun SelectorPeriodoAnalisis(
         etiqueta = { opcion ->
             stringResource(
                 when (opcion) {
-                    PeriodoAnalisis.QUINCE_DIAS -> R.string.analisis_periodo_15_dias
+                    PeriodoAnalisis.MES -> R.string.analisis_periodo_mes
                     PeriodoAnalisis.TREINTA_DIAS -> R.string.analisis_periodo_30_dias
+                    PeriodoAnalisis.TRES_MESES -> R.string.analisis_periodo_3_meses
                 },
             )
         },
         onSeleccionar = onSeleccionar,
     )
+}
+
+/** "‹ Noviembre 2026 ›": cambia el mes de flujo y categorías; no pasa del mes actual. */
+@Composable
+private fun SelectorMes(mes: LocalDate, puedeAvanzar: Boolean, onMover: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { onMover(-1) }) {
+            Icon(painterResource(R.drawable.ic_volver), contentDescription = stringResource(R.string.analisis_mes_anterior))
+        }
+        Text(
+            text = "${mes.formatoMes()} ${mes.year}",
+            style = MaterialTheme.typography.titleSmall,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+        )
+        IconButton(onClick = { onMover(1) }, enabled = puedeAvanzar) {
+            Icon(painterResource(R.drawable.ic_flecha_derecha), contentDescription = stringResource(R.string.analisis_mes_siguiente))
+        }
+    }
+}
+
+/** Lo que tienes menos lo que debes en tarjetas, hoy. */
+@Composable
+private fun TarjetaPatrimonio(patrimonio: Patrimonio) {
+    TarjetaFinanzas(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(20.dp).semantics(mergeDescendants = true) {},
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(stringResource(R.string.analisis_patrimonio_titulo), style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = if (patrimonio.neto.esNegativo) "−" + patrimonio.neto.absoluto().formatear() else patrimonio.neto.formatear(),
+                style = MaterialTheme.typography.headlineSmall.copy(fontFeatureSettings = "tnum"),
+            )
+            Text(
+                text = stringResource(
+                    R.string.analisis_patrimonio_detalle,
+                    patrimonio.enCuentas.formatear(),
+                    patrimonio.deudaTarjetas.formatear(),
+                ),
+                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
 
 /**
@@ -555,15 +700,15 @@ private fun formatearConSigno(dinero: Dinero): String = when {
 @Composable
 private fun TarjetaFlujoPeriodo(
     periodo: PeriodoAnalisis,
+    mes: LocalDate,
     flujo: FlujoPeriodo,
 ) {
     val sinAnimaciones = rememberAnimacionesDesactivadas()
-    val titulo = stringResource(
-        when (periodo) {
-            PeriodoAnalisis.QUINCE_DIAS -> R.string.analisis_flujo_titulo_15
-            PeriodoAnalisis.TREINTA_DIAS -> R.string.analisis_flujo_titulo_30
-        },
-    )
+    val titulo = when (periodo) {
+        PeriodoAnalisis.MES -> stringResource(R.string.analisis_flujo_titulo_mes, mes.formatoMesEnFrase())
+        PeriodoAnalisis.TREINTA_DIAS -> stringResource(R.string.analisis_flujo_titulo_30)
+        PeriodoAnalisis.TRES_MESES -> stringResource(R.string.analisis_flujo_titulo_3_meses)
+    }
     val subtitulo = if (flujo.salidas.esPositivo) {
         stringResource(R.string.analisis_flujo_subtitulo, flujo.ritmoDiarioSalidas.formatear())
     } else {
@@ -633,6 +778,55 @@ private fun TarjetaFlujoPeriodo(
                     esIndicadorSolido = false,
                 )
             }
+
+            if (flujo.tieneDatos) {
+                ResumenNetoFlujo(flujo)
+            }
+        }
+    }
+}
+
+/** Neto, cuánto se guardó, comparación con el periodo anterior y con qué se pagó. */
+@Composable
+private fun ResumenNetoFlujo(flujo: FlujoPeriodo) {
+    val secundario = MaterialTheme.colorScheme.onSurfaceVariant
+    val estiloDetalle = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum")
+    Column(
+        modifier = Modifier.semantics(mergeDescendants = true) {},
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.analisis_neto), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+            Text(formatearConSigno(flujo.neto), style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"))
+        }
+        flujo.tasaAhorro?.let { tasa ->
+            Text(
+                text = if (tasa >= 0) {
+                    stringResource(R.string.analisis_tasa_ahorro, tasa)
+                } else {
+                    stringResource(R.string.analisis_tasa_ahorro_negativa, -tasa)
+                },
+                style = estiloDetalle,
+                color = secundario,
+            )
+        }
+        flujo.variacionSalidas?.let { variacion ->
+            Text(
+                text = when {
+                    variacion > 0 -> stringResource(R.string.analisis_variacion_mas, variacion)
+                    variacion < 0 -> stringResource(R.string.analisis_variacion_menos, -variacion)
+                    else -> stringResource(R.string.analisis_variacion_igual)
+                },
+                style = estiloDetalle,
+                color = secundario,
+            )
+        }
+        if (flujo.salidas.esPositivo) {
+            Text(
+                text = stringResource(R.string.analisis_metodo_pago, flujo.salidasConCredito.formatear(), flujo.salidasConDinero.formatear()),
+                style = estiloDetalle,
+                color = secundario,
+            )
         }
     }
 }
@@ -757,10 +951,14 @@ private fun BloqueMontoFlujo(
  */
 @Composable
 private fun TarjetaGastosPorCategoria(
-    periodo: PeriodoAnalisis,
     categorias: List<GastoCategoria>,
+    todas: List<GastoCategoria>,
+    onVerCategoria: (GastoCategoria) -> Unit,
 ) {
     val sinAnimaciones = rememberAnimacionesDesactivadas()
+    // "Otras categorías" se despliega en su lugar en vez de llevar a otra pantalla.
+    var expandida by rememberSaveable { mutableStateOf(false) }
+    val visibles = if (expandida) todas else categorias
 
     TarjetaFinanzas(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -782,17 +980,22 @@ private fun TarjetaGastosPorCategoria(
 
             if (categorias.isEmpty()) {
                 Text(
-                    text = stringResource(R.string.analisis_categorias_vacio, periodo.diasHistoricos),
+                    text = stringResource(R.string.analisis_categorias_vacio),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    categorias.forEachIndexed { indice, item ->
+                    visibles.forEachIndexed { indice, item ->
                         FilaGastoCategoria(
                             item = item,
                             esPrincipal = indice == 0,
                             sinAnimaciones = sinAnimaciones,
+                            onTocar = if (item.esAgrupacionOtras) {
+                                { expandida = true }
+                            } else {
+                                { onVerCategoria(item) }
+                            },
                         )
                     }
                 }
@@ -806,7 +1009,10 @@ private fun FilaGastoCategoria(
     item: GastoCategoria,
     esPrincipal: Boolean,
     sinAnimaciones: Boolean,
+    onTocar: (() -> Unit)? = null,
 ) {
+    val interaccion = remember { MutableInteractionSource() }
+    val etiquetaTocar = stringResource(if (item.esAgrupacionOtras) R.string.analisis_ver_todas else R.string.analisis_ver_movimientos)
     val nombreVisible = if (item.esAgrupacionOtras) {
         stringResource(R.string.analisis_otras_categorias, item.cantidadAgrupadas)
     } else {
@@ -815,7 +1021,7 @@ private fun FilaGastoCategoria(
     val iconoRes = if (item.esAgrupacionOtras) {
         R.drawable.ic_cat_otros
     } else {
-        iconoDeCategoria(item.nombre)
+        iconoDeCategoria(item.nombre, item.icono)
     }
 
     val proporcionAnimada by animateFloatAsState(
@@ -837,6 +1043,23 @@ private fun FilaGastoCategoria(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (onTocar != null) {
+                    // Abre sus movimientos del periodo; "Otras" se despliega.
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .toqueTactil(interaccion)
+                        .clickable(
+                            interactionSource = interaccion,
+                            indication = null,
+                            role = Role.Button,
+                            onClickLabel = etiquetaTocar,
+                            onClick = onTocar,
+                        )
+                } else {
+                    Modifier
+                },
+            )
             .semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

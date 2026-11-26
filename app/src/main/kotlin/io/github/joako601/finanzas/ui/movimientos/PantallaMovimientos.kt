@@ -1,5 +1,18 @@
 package io.github.joako601.finanzas.ui.movimientos
 
+import io.github.joako601.finanzas.ui.perfil.PreferenciasPrivacidad
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.platform.LocalContext
+import io.github.joako601.finanzas.ui.formatoMes
+import kotlinx.datetime.LocalDate
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -25,13 +38,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -69,7 +79,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.airbnb.lottie.compose.LottieConstants
+import io.github.joako601.finanzas.ui.componentes.LocalMontosOcultos
+import io.github.joako601.finanzas.ui.componentes.enPantalla
+import io.github.joako601.finanzas.ui.componentes.fundidoAlOcultar
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.libro.MovimientoId
+import io.github.joako601.finanzas.ui.metas.GastoDesdeRetiro
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
@@ -137,11 +152,35 @@ fun PantallaMovimientos(
     tarjetasViewModel: TarjetasViewModel = viewModel(factory = TarjetasViewModel.Fabrica),
     recurrentesViewModel: RecurrentesViewModel = viewModel(factory = RecurrentesViewModel.Fabrica),
     lineaDeTiempoViewModel: LineaDeTiempoViewModel = viewModel(factory = LineaDeTiempoViewModel.Fabrica),
-    onAbrirNube: (() -> Unit)? = null,
-    onIrABoveda: () -> Unit = {},
     margenInferiorExtra: Dp = 0.dp,
+    onAlternarMontos: () -> Unit = {},
+    gastoPedido: GastoDesdeRetiro? = null,
+    onGastoAtendido: () -> Unit = {},
+    movimientoPedido: MovimientoId? = null,
+    onMovimientoAtendido: () -> Unit = {},
 ) {
     val estado by viewModel.estado.collectAsStateWithLifecycle()
+    val avisoTope by viewModel.avisoTope.collectAsStateWithLifecycle()
+    // Llegada desde "Retirar y registrar gasto" en Metas: abre la captura ya con monto y nota.
+    LaunchedEffect(gastoPedido, estado.cargando) {
+        if (gastoPedido != null && !estado.cargando) {
+            viewModel.abrirCaptura(gastoPedido.monto, gastoPedido.nota)
+            onGastoAtendido()
+        }
+    }
+    // Llegada desde el detalle de un tope en Metas: abre ese movimiento para editarlo.
+    LaunchedEffect(movimientoPedido, estado.cargando) {
+        if (movimientoPedido != null && !estado.cargando) {
+            estado.dias.asSequence().flatMap { it.movimientos }
+                .firstOrNull { it.movimiento.id == movimientoPedido }
+                ?.let(viewModel::abrirEdicion)
+            onMovimientoAtendido()
+        }
+    }
+    val filtro by viewModel.filtro.collectAsStateWithLifecycle()
+    val resultado by viewModel.resultado.collectAsStateWithLifecycle()
+    // Atrás cierra primero la búsqueda.
+    BackHandler(enabled = filtro != null, onBack = viewModel::cerrarBusqueda)
     val captura by viewModel.captura.collectAsStateWithLifecycle()
     val nuevaCuenta by viewModel.nuevaCuenta.collectAsStateWithLifecycle()
     val transferencia by viewModel.transferencia.collectAsStateWithLifecycle()
@@ -193,11 +232,24 @@ fun PantallaMovimientos(
             ),
             // Gastos, ingresos y transferencias se editan; lo demás solo se puede eliminar.
             onTocarMovimiento = {
-                if (viewModel.esEditable(it)) viewModel.abrirEdicion(it) else porEliminar = it
+                when {
+                    viewModel.esEditable(it) -> viewModel.abrirEdicion(it)
+                    // Un pago a tarjeta se corrige en su propio diálogo (si la tarjeta sigue activa).
+                    it.clase == ClaseMovimiento.PAGO_TARJETA &&
+                        estadoTarjetas.tarjetas.any { t -> t.tarjeta.cuenta.id == it.contraparte?.id } ->
+                        tarjetasViewModel.abrirEdicionPago(it)
+                    else -> porEliminar = it
+                }
             },
-            onRespaldo = onIrABoveda,
-            onAbrirNube = onAbrirNube,
             margenInferiorExtra = margenInferiorExtra,
+            busqueda = Busqueda(
+                filtro = filtro,
+                resultado = resultado,
+                abrir = viewModel::abrirBusqueda,
+                cambiar = viewModel::cambiarFiltro,
+                cerrar = viewModel::cerrarBusqueda,
+            ),
+            onAlternarMontos = onAlternarMontos,
         )
 
         val sinAnimaciones = rememberAnimacionesDesactivadas()
@@ -282,6 +334,7 @@ fun PantallaMovimientos(
         DialogoNuevoRecurrente(
             nuevo = actual,
             categorias = estadoRecurrentes.categoriasDe(actual.clase),
+            cuentas = estadoRecurrentes.cuentasPara(actual.clase),
             onEditar = recurrentesViewModel::editarNuevo,
             onGuardar = recurrentesViewModel::guardarNuevo,
             onCerrar = recurrentesViewModel::cerrarNuevo,
@@ -309,6 +362,7 @@ fun PantallaMovimientos(
     captura?.let { actual ->
         HojaCaptura(
             captura = actual,
+            avisoTope = avisoTope,
             // Al editar, la categoría o cuenta archivada del movimiento sigue disponible.
             categorias = when (actual.clase) {
                 ClaseRegistro.GASTO -> estado.categoriasDeGasto + actual.archivadas.filter { it.tipo == TipoCuenta.GASTO }
@@ -327,6 +381,7 @@ fun PantallaMovimientos(
                 elegirCuenta = viewModel::elegirCuenta,
                 cambiarFecha = viewModel::cambiarFecha,
                 cambiarNota = viewModel::cambiarNota,
+                elegirMeses = viewModel::elegirMeses,
                 guardar = viewModel::guardarCaptura,
                 cerrar = viewModel::cerrarCaptura,
                 agregarCuenta = viewModel::abrirNuevaCuenta,
@@ -363,6 +418,9 @@ fun PantallaMovimientos(
             onEditar = tarjetasViewModel::editarTarjetaExistente,
             onGuardar = tarjetasViewModel::guardarEdicionTarjeta,
             onCerrar = tarjetasViewModel::cerrarEdicionTarjeta,
+            onPedirArchivar = tarjetasViewModel::pedirArchivarTarjeta,
+            onCancelarArchivar = tarjetasViewModel::cancelarArchivarTarjeta,
+            onArchivar = tarjetasViewModel::archivarTarjeta,
         )
     }
 
@@ -374,6 +432,7 @@ fun PantallaMovimientos(
                 onCapturarEstado = { tarjetasViewModel.abrirCaptura(resumen) },
                 onPagar = { tarjetasViewModel.abrirPago(resumen) },
                 onCerrar = tarjetasViewModel::cerrarDetalle,
+                onEditarEstado = { tarjetasViewModel.abrirEdicionEstado(resumen.tarjeta, it) },
             )
         }
     }
@@ -387,6 +446,7 @@ fun PantallaMovimientos(
             onGuardar = tarjetasViewModel::guardarPago,
             onCerrar = tarjetasViewModel::cerrarPago,
             onAgregarCuenta = viewModel::abrirNuevaCuenta,
+            onEliminar = actual.editando?.let { id -> { pedirEliminar(id, estado, tarjetasViewModel::cerrarPago) { porEliminar = it } } },
         )
     }
 
@@ -396,6 +456,9 @@ fun PantallaMovimientos(
             onEditar = tarjetasViewModel::editarCaptura,
             onGuardar = tarjetasViewModel::guardarCaptura,
             onCerrar = tarjetasViewModel::cerrarCaptura,
+            onPedirEliminar = tarjetasViewModel::pedirEliminarEstado,
+            onCancelarEliminar = tarjetasViewModel::cancelarEliminarEstado,
+            onEliminar = tarjetasViewModel::eliminarEstado,
         )
     }
 
@@ -406,6 +469,11 @@ fun PantallaMovimientos(
             nuevaCuenta = actual,
             onCambiarNombre = viewModel::cambiarNombreCuenta,
             onCambiarSaldo = viewModel::cambiarSaldoCuenta,
+            onPedirArchivar = viewModel::pedirArchivarCuenta,
+            onCancelarArchivar = viewModel::cancelarArchivarCuenta,
+            onArchivar = viewModel::archivarCuenta,
+            puedeArchivar = actual.editando?.let { viewModel.puedeArchivar(it.cuenta) } ?: true,
+            onVerMovimientos = actual.editando?.let { { viewModel.verMovimientosDe(it.cuenta.id) } },
             onGuardar = {
                 viewModel.guardarNuevaCuenta { cuentaId ->
                     tarjetasViewModel.seleccionarCuentaPago(cuentaId)
@@ -413,6 +481,35 @@ fun PantallaMovimientos(
                 }
             },
             onCerrar = viewModel::cerrarNuevaCuenta,
+        )
+    }
+
+    // Bienvenida del Día 1: una sola vez y solo con el historial vacío (quien actualiza no la ve).
+    val contexto = LocalContext.current
+    val privacidad = remember { PreferenciasPrivacidad(contexto) }
+    var pasoBienvenida by remember { mutableIntStateOf(0) }
+    LaunchedEffect(estado.cargando) {
+        if (!estado.cargando && pasoBienvenida == 0) {
+            pasoBienvenida = if (!privacidad.bienvenidaVista && estado.dias.isEmpty()) 1 else -1
+        }
+    }
+    val terminarBienvenida = {
+        privacidad.bienvenidaVista = true
+        pasoBienvenida = -1
+    }
+    // Mientras el diálogo de un paso está abierto, la bienvenida espera debajo.
+    if (pasoBienvenida in 1..3 && nuevaCuenta == null && nuevoRecurrente == null && nuevaTarjeta == null) {
+        DialogoBienvenida(
+            paso = pasoBienvenida,
+            cuentas = estado.cuentasDeDinero,
+            acciones = AccionesBienvenida(
+                saldoEfectivo = estado.cuentasDeDinero.firstOrNull()?.let { { viewModel.abrirEditarCuenta(it) } },
+                agregarDebito = viewModel::abrirNuevaCuenta,
+                agregarIngresoFijo = { recurrentesViewModel.abrirNuevo(ClaseRegistro.INGRESO) },
+                agregarTarjeta = tarjetasViewModel::abrirNuevaTarjeta,
+                siguiente = { if (pasoBienvenida < 3) pasoBienvenida++ else terminarBienvenida() },
+                saltar = terminarBienvenida,
+            ),
         )
     }
 
@@ -468,17 +565,31 @@ fun ContenidoMovimientos(
     estadoRecurrentes: EstadoRecurrentes,
     accionesRecurrentes: AccionesRecurrentes,
     onTocarMovimiento: (MovimientoResumido) -> Unit,
-    onRespaldo: () -> Unit,
-    onAbrirNube: (() -> Unit)? = null,
     margenInferiorExtra: Dp = 0.dp,
     onEditarCuenta: (SaldoCuenta) -> Unit = {},
     desgloseMetas: DesgloseDisponibleMetas? = null,
+    busqueda: Busqueda = Busqueda(),
+    onAlternarMontos: () -> Unit = {},
 ) {
+    val montosOcultos = LocalMontosOcultos.current
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name), style = MaterialTheme.typography.headlineSmall) },
-                actions = { MenuPrincipal(onRespaldo = onRespaldo, onAbrirNube = onAbrirNube) },
+                actions = {
+                    // Modo discreto para usar la app en público: "$ ••••" en lugar de montos.
+                    IconButton(onClick = onAlternarMontos) {
+                        Icon(
+                            painterResource(if (montosOcultos) R.drawable.ic_ojo_tachado else R.drawable.ic_ojo),
+                            contentDescription = stringResource(if (montosOcultos) R.string.mostrar_montos else R.string.ocultar_montos),
+                        )
+                    }
+                    if (busqueda.filtro == null) {
+                        IconButton(onClick = busqueda.abrir) {
+                            Icon(painterResource(R.drawable.ic_buscar), contentDescription = stringResource(R.string.buscar_movimientos))
+                        }
+                    }
+                },
             )
         },
         floatingActionButton = {
@@ -522,70 +633,79 @@ fun ContenidoMovimientos(
                 bottom = margenes.calculateBottomPadding() + 88.dp + margenInferiorExtra,
             ),
         ) {
-            item(key = "saldos", contentType = "saldos") {
-                TarjetaSaldos(
-                    estado = estado,
-                    linea = lineaDeTiempo,
-                    desgloseMetas = desgloseMetas,
-                    onAgregarCuenta = onAgregarCuenta,
-                    onEditarCuenta = onEditarCuenta,
-                    onTransferir = onTransferir,
-                    onVerLineaDeTiempo = onVerLineaDeTiempo,
-                )
-            }
-
-            val tieneRecordatoriosProgramables = estadoTarjetas.tarjetas.isNotEmpty() ||
-                estadoRecurrentes.recurrentes.any { it.recurrente.clase == ClaseRegistro.GASTO }
-            if (tieneRecordatoriosProgramables) {
-                item(key = "avisos", contentType = "avisos") {
-                    TarjetaActivarAvisos(Modifier.padding(bottom = 16.dp))
+            val filtro = busqueda.filtro
+            if (filtro != null) {
+                item(key = "busqueda", contentType = "busqueda") {
+                    PanelBusqueda(filtro, busqueda.resultado, estado, busqueda.cambiar, busqueda.cerrar)
                 }
-            }
+            } else {
+                item(key = "saldos", contentType = "saldos") {
+                    TarjetaSaldos(
+                        estado = estado,
+                        linea = lineaDeTiempo,
+                        desgloseMetas = desgloseMetas,
+                        onAgregarCuenta = onAgregarCuenta,
+                        onEditarCuenta = onEditarCuenta,
+                        onTransferir = onTransferir,
+                        onVerLineaDeTiempo = onVerLineaDeTiempo,
+                    )
+                }
 
-            item(key = "tarjetas", contentType = "tarjetas") {
-                SeccionTarjetas(
-                    estado = estadoTarjetas,
-                    onAgregar = accionesTarjetas.agregar,
-                    onPagar = accionesTarjetas.pagar,
-                    onCapturar = accionesTarjetas.capturar,
-                    onVerDetalle = accionesTarjetas.verDetalle,
-                )
-            }
-
-            item(key = "recurrentes", contentType = "recurrentes") {
-                SeccionRecurrentes(
-                    estado = estadoRecurrentes,
-                    onAgregar = accionesRecurrentes.agregar,
-                    onTocar = accionesRecurrentes.tocar,
-                )
-            }
-
-            if (estado.dias.isEmpty()) {
-                item(key = "vacio", contentType = "vacio") {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        AnimacionLottie(
-                            resId = R.raw.anim_finanzas_vacio,
-                            modifier = Modifier.size(112.dp),
-                            iteraciones = LottieConstants.IterateForever,
-                        )
-                        Text(
-                            text = stringResource(R.string.sin_movimientos),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                val tieneRecordatoriosProgramables = estadoTarjetas.tarjetas.isNotEmpty() ||
+                    estadoRecurrentes.recurrentes.any { it.recurrente.clase == ClaseRegistro.GASTO }
+                if (tieneRecordatoriosProgramables) {
+                    item(key = "avisos", contentType = "avisos") {
+                        TarjetaActivarAvisos(Modifier.padding(bottom = 16.dp))
                     }
                 }
+
+                item(key = "tarjetas", contentType = "tarjetas") {
+                    SeccionTarjetas(
+                        estado = estadoTarjetas,
+                        onAgregar = accionesTarjetas.agregar,
+                        onPagar = accionesTarjetas.pagar,
+                        onCapturar = accionesTarjetas.capturar,
+                        onVerDetalle = accionesTarjetas.verDetalle,
+                    )
+                }
+
+                item(key = "recurrentes", contentType = "recurrentes") {
+                    SeccionRecurrentes(
+                        estado = estadoRecurrentes,
+                        onAgregar = accionesRecurrentes.agregar,
+                        onTocar = accionesRecurrentes.tocar,
+                    )
+                }
+
+                if (estado.dias.isEmpty()) {
+                    item(key = "vacio", contentType = "vacio") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            AnimacionLottie(
+                                resId = R.raw.anim_finanzas_vacio,
+                                modifier = Modifier.size(112.dp),
+                                iteraciones = LottieConstants.IterateForever,
+                            )
+                            Text(
+                                text = stringResource(R.string.sin_movimientos),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
             }
 
             // Cada día es una tarjeta con sus movimientos. Un día rara vez tiene más de unas
             // decenas de movimientos, así que agruparlos en un solo elemento de la lista no
             // afecta el rendimiento.
-            items(estado.dias, key = { "dia-${it.fecha}" }, contentType = { "dia" }) { dia ->
+            val dias = if (filtro != null) busqueda.resultado?.dias.orEmpty() else estado.dias
+            items(dias, key = { "dia-${it.fecha}" }, contentType = { "dia" }) { dia ->
                 Column(Modifier.padding(horizontal = 16.dp)) {
                     Text(
                         text = when (dia.fecha) {
@@ -601,6 +721,28 @@ fun ContenidoMovimientos(
                         dia.movimientos.forEachIndexed { indice, movimiento ->
                             if (indice > 0) HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
                             FilaMovimiento(movimiento, onClick = { onTocarMovimiento(movimiento) })
+                        }
+                        // Con un solo movimiento el total repetiría su monto; se muestra desde dos.
+                        // Misma regla que la búsqueda: neto, o la suma del tipo filtrado.
+                        val total = totalDe(dia.movimientos, filtro?.clase)
+                        if (dia.movimientos.size > 1 && !total.esCero) {
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    stringResource(R.string.total_del_dia),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    text = if (total.esNegativo) "−" + (-total).enPantalla() else "+" + total.enPantalla(),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                                    modifier = Modifier.fundidoAlOcultar(),
+                                )
+                            }
                         }
                     }
                 }
@@ -683,7 +825,7 @@ private fun TarjetaSaldos(
 }
 
 @Composable
-private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) {
+internal fun FilaMovimiento(movimiento: MovimientoResumido, onClick: (() -> Unit)?) {
     val esDeuda = movimiento.cuenta?.tipo == TipoCuenta.PASIVO
     val neutro = MaterialTheme.colorScheme.onSurfaceVariant
     val (signo, color) = when (movimiento.clase) {
@@ -718,7 +860,8 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
     ).joinToString(" · ")
 
     ListItem(
-        modifier = Modifier.clickable(onClick = onClick),
+        // Sin acción (p. ej. en Análisis) se une como un solo elemento para TalkBack.
+        modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier.semantics(mergeDescendants = true) {},
         colors = ListItemDefaults.colors(containerColor = Color.Transparent),
         leadingContent = { IconoEnCirculo(iconoDe(movimiento)) },
         headlineContent = { Text(etiqueta(movimiento), style = MaterialTheme.typography.titleSmall) },
@@ -733,7 +876,7 @@ private fun FilaMovimiento(movimiento: MovimientoResumido, onClick: () -> Unit) 
             null
         },
         trailingContent = {
-            Text(signo + movimiento.monto.formatear(), color = color, style = MaterialTheme.typography.titleMedium)
+            Text(signo + movimiento.monto.enPantalla(), color = color, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fundidoAlOcultar())
         },
     )
 }
@@ -750,38 +893,6 @@ private fun etiqueta(movimiento: MovimientoResumido): String = when (movimiento.
     ClaseMovimiento.OTRO -> stringResource(R.string.movimiento)
 }
 
-/** Menú de tres puntos de la barra superior: lo que no es del día a día. */
-@Composable
-private fun MenuPrincipal(
-    onRespaldo: () -> Unit,
-    onAbrirNube: (() -> Unit)? = null,
-) {
-    var abierto by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { abierto = true }) {
-            Icon(painterResource(R.drawable.ic_mas), contentDescription = stringResource(R.string.mas_opciones))
-        }
-        DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.respaldo_y_exportar)) },
-                onClick = {
-                    abierto = false
-                    onRespaldo()
-                },
-            )
-            if (onAbrirNube != null) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.cuenta_y_catalogo)) },
-                    onClick = {
-                        abierto = false
-                        onAbrirNube()
-                    },
-                )
-            }
-        }
-    }
-}
-
 /** Cierra el formulario de edición y abre la confirmación de borrado del mismo movimiento. */
 private fun pedirEliminar(
     id: io.github.joako601.finanzas.core.domain.libro.MovimientoId,
@@ -792,4 +903,120 @@ private fun pedirEliminar(
     val resumen = estado.dias.firstNotNullOfOrNull { dia -> dia.movimientos.firstOrNull { it.movimiento.id == id } } ?: return
     cerrar()
     confirmar(resumen)
+}
+
+/** Estado y acciones de la búsqueda de Inicio. Con [filtro] `null` está cerrada. */
+class Busqueda(
+    val filtro: Filtro? = null,
+    val resultado: ResultadoFiltro? = null,
+    val abrir: () -> Unit = {},
+    val cambiar: (Filtro.() -> Filtro) -> Unit = {},
+    val cerrar: () -> Unit = {},
+)
+
+/** Texto, tipo, mes y cuenta; debajo, cuántos movimientos quedan y cuánto suman. */
+@Composable
+private fun PanelBusqueda(
+    filtro: Filtro,
+    resultado: ResultadoFiltro?,
+    estado: EstadoMovimientos,
+    cambiar: (Filtro.() -> Filtro) -> Unit,
+    cerrar: () -> Unit,
+) {
+    val meses = remember(estado.dias) { estado.dias.map { LocalDate(it.fecha.year, it.fecha.month, 1) }.distinct() }
+    val cuentas = estado.cuentasDeDinero.map { it.cuenta } + estado.tarjetas + estado.archivadas.map { it.cuenta }
+    // Solo las que aparecen en el historial (incluidas archivadas), del tipo elegido si hay uno.
+    val categorias = remember(estado.dias, filtro.clase) {
+        estado.dias.asSequence().flatMap { it.movimientos }
+            .filter { filtro.clase == null || it.clase == filtro.clase }
+            .mapNotNull { it.categoria }.distinctBy { it.id }.sortedBy { it.nombre }.toList()
+    }
+    TarjetaFinanzas(Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(
+                value = filtro.texto,
+                onValueChange = { texto -> cambiar { copy(texto = texto) } },
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(stringResource(R.string.buscar_nota_categoria)) },
+                leadingIcon = { Icon(painterResource(R.drawable.ic_buscar), contentDescription = null) },
+                singleLine = true,
+            )
+            FilaFiltro(stringResource(R.string.filtro_tipo)) {
+                FilterChip(selected = filtro.clase == null, onClick = { cambiar { copy(clase = null, categoriaId = null) } }, label = { Text(stringResource(R.string.filtro_todos)) })
+                CLASES_FILTRO.forEach { clase ->
+                    FilterChip(
+                        selected = filtro.clase == clase,
+                        // La categoría elegida puede no existir en el tipo nuevo: se limpia para no quedar oculta.
+                        onClick = { cambiar { copy(clase = clase, categoriaId = null) } },
+                        label = {
+                            Text(
+                                stringResource(
+                                    when (clase) {
+                                        ClaseMovimiento.GASTO -> R.string.gasto
+                                        ClaseMovimiento.INGRESO -> R.string.ingreso
+                                        else -> R.string.transferencia
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+            FilaFiltro(stringResource(R.string.filtro_mes)) {
+                FilterChip(selected = filtro.mes == null, onClick = { cambiar { copy(mes = null) } }, label = { Text(stringResource(R.string.filtro_todos)) })
+                meses.forEach { mes ->
+                    FilterChip(
+                        selected = filtro.mes == mes,
+                        onClick = { cambiar { copy(mes = mes) } },
+                        label = { Text("${mes.formatoMes()} ${mes.year}") },
+                    )
+                }
+            }
+            if (categorias.isNotEmpty()) {
+                FilaFiltro(stringResource(R.string.categoria)) {
+                    FilterChip(selected = filtro.categoriaId == null, onClick = { cambiar { copy(categoriaId = null) } }, label = { Text(stringResource(R.string.filtro_todas)) })
+                    categorias.forEach { categoria ->
+                        FilterChip(
+                            selected = filtro.categoriaId == categoria.id,
+                            onClick = { cambiar { copy(categoriaId = categoria.id) } },
+                            label = { Text(categoria.nombre) },
+                        )
+                    }
+                }
+            }
+            FilaFiltro(stringResource(R.string.cuenta)) {
+                FilterChip(selected = filtro.cuentaId == null, onClick = { cambiar { copy(cuentaId = null) } }, label = { Text(stringResource(R.string.filtro_todas)) })
+                cuentas.forEach { cuenta ->
+                    FilterChip(
+                        selected = filtro.cuentaId == cuenta.id,
+                        onClick = { cambiar { copy(cuentaId = cuenta.id) } },
+                        label = { Text(cuenta.nombre) },
+                    )
+                }
+            }
+            if (resultado != null) {
+                Text(
+                    text = stringResource(
+                        if (filtro.clase == null) R.string.filtro_resultado_neto else R.string.filtro_resultado_total,
+                        pluralStringResource(R.plurals.filtro_conteo, resultado.conteo, resultado.conteo),
+                        if (resultado.total.esNegativo) "−" + (-resultado.total).enPantalla() else resultado.total.enPantalla(),
+                    ),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
+                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }.fundidoAlOcultar(),
+                )
+            }
+            TextButton(onClick = cerrar, contentPadding = PaddingValues(0.dp)) {
+                Text(stringResource(R.string.cerrar_busqueda))
+            }
+        }
+    }
+}
+
+/** Una fila de chips con desplazamiento horizontal: los meses y las cuentas pueden ser muchos. */
+@Composable
+private fun FilaFiltro(titulo: String, chips: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(titulo, style = MaterialTheme.typography.labelLarge)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) { chips() }
+    }
 }

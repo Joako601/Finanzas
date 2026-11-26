@@ -4,13 +4,16 @@ import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import io.github.joako601.finanzas.core.data.libro.CuentaEntity
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.metas.AporteMeta
 import io.github.joako601.finanzas.core.domain.metas.MetaAhorro
 import io.github.joako601.finanzas.core.domain.metas.MetaAhorroId
 import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
@@ -54,23 +57,44 @@ internal data class MetaAhorroEntity(
     val archivada: Boolean,
 )
 
+/**
+ * v7: cada aporte (positivo) o retiro (negativo) a un apartado, para su historial. Solo
+ * existe desde la v7: lo apartado antes ya está sumado en `meta_ahorro.apartado_centavos` y
+ * no se reconstruye. Al borrar la meta se borra su historial.
+ */
+@Entity(
+    tableName = "aporte_meta",
+    foreignKeys = [
+        ForeignKey(entity = MetaAhorroEntity::class, parentColumns = ["id"], childColumns = ["meta_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("meta_id")],
+)
+internal data class AporteMetaEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(name = "meta_id") val metaId: Long,
+    /** Días desde 1970-01-01. */
+    val fecha: Long,
+    val centavos: Long,
+)
+
 @Dao
-internal interface MetasDao {
+/** Clase abstracta y no interfaz para tener un método `@Transaction` con cuerpo (como LibroDao). */
+internal abstract class MetasDao {
 
     @Query("SELECT * FROM tope_categoria ORDER BY categoria_id")
-    fun observarTopes(): Flow<List<TopeCategoriaEntity>>
+    abstract fun observarTopes(): Flow<List<TopeCategoriaEntity>>
 
     @Upsert
-    suspend fun guardarTope(tope: TopeCategoriaEntity)
+    abstract suspend fun guardarTope(tope: TopeCategoriaEntity)
 
     @Query("DELETE FROM tope_categoria WHERE categoria_id = :categoriaId")
-    suspend fun eliminarTope(categoriaId: Long)
+    abstract suspend fun eliminarTope(categoriaId: Long)
 
     @Query("SELECT * FROM meta_ahorro ORDER BY archivada ASC, id ASC")
-    fun observarMetas(): Flow<List<MetaAhorroEntity>>
+    abstract fun observarMetas(): Flow<List<MetaAhorroEntity>>
 
     @Insert
-    suspend fun insertarMeta(meta: MetaAhorroEntity): Long
+    abstract suspend fun insertarMeta(meta: MetaAhorroEntity): Long
 
     @Query(
         """
@@ -84,7 +108,7 @@ internal interface MetasDao {
         WHERE id = :id
         """,
     )
-    suspend fun actualizarMeta(
+    abstract suspend fun actualizarMeta(
         id: Long,
         nombre: String,
         objetivoCentavos: Long,
@@ -95,7 +119,19 @@ internal interface MetasDao {
     )
 
     @Query("DELETE FROM meta_ahorro WHERE id = :id")
-    suspend fun eliminarMeta(id: Long)
+    abstract suspend fun eliminarMeta(id: Long)
+    @Insert
+    abstract suspend fun insertarAporte(aporte: AporteMetaEntity)
+
+    @Query("SELECT * FROM aporte_meta WHERE meta_id = :metaId ORDER BY fecha DESC, id DESC")
+    abstract fun observarAportes(metaId: Long): Flow<List<AporteMetaEntity>>
+
+    /** El apartado y su anotación en el historial se guardan juntos o no se guarda ninguno. */
+    @Transaction
+    open suspend fun moverApartado(meta: MetaAhorroEntity, aporte: AporteMetaEntity) {
+        actualizarMeta(meta.id, meta.nombre, meta.objetivoCentavos, meta.apartadoCentavos, meta.fechaLimite, meta.reservarDeDisponible, meta.archivada)
+        insertarAporte(aporte)
+    }
 }
 
 internal class RepositorioMetasRoom(private val dao: MetasDao) : RepositorioMetas {
@@ -132,6 +168,14 @@ internal class RepositorioMetasRoom(private val dao: MetasDao) : RepositorioMeta
 
     override suspend fun eliminarMeta(id: MetaAhorroId) {
         dao.eliminarMeta(id.valor)
+    }
+
+    override fun observarAportes(meta: MetaAhorroId): Flow<List<AporteMeta>> =
+        dao.observarAportes(meta.valor).map { filas -> filas.map { AporteMeta(LocalDate.fromEpochDays(it.fecha), Dinero(it.centavos)) } }
+
+    override suspend fun moverApartado(meta: MetaAhorro, fecha: LocalDate, monto: Dinero) {
+        val id = requireNotNull(meta.id) { "Se requiere id para mover el apartado" }.valor
+        dao.moverApartado(meta.aEntidad().copy(id = id), AporteMetaEntity(metaId = id, fecha = fecha.toEpochDays(), centavos = monto.centavos))
     }
 }
 

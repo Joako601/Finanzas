@@ -120,6 +120,10 @@ internal class ClienteHttpBackend(
         get() = urlBaseValida != null
 
     private val mutexRefresco = Mutex()
+
+    // Último refresco como par (token que falló → token nuevo): solo se reusa si el 401 vino
+    // de ese mismo token, así no se entrega un JWT viejo ni de otro usuario.
+    private var ultimoTokenFallido: String? = null
     private var ultimoTokenRefrescado: String? = null
 
     suspend fun get(rutaConQuery: String): RespuestaHttp {
@@ -156,13 +160,13 @@ internal class ClienteHttpBackend(
     private suspend fun refrescarTokenCoordinado(tokenFallido: String): ResultadoTokenId =
         mutexRefresco.withLock {
             val yaRefrescado = ultimoTokenRefrescado
-            if (yaRefrescado != null && yaRefrescado != tokenFallido) {
+            if (yaRefrescado != null && ultimoTokenFallido == tokenFallido) {
                 return@withLock ResultadoTokenId.Exito(yaRefrescado)
             }
             val res = repositorioSesion.obtenerTokenId(forzarRefresco = true)
-            if (res is ResultadoTokenId.Exito && esTokenBearerValido(res.token)) {
-                ultimoTokenRefrescado = res.token
-            }
+            val valido = res is ResultadoTokenId.Exito && esTokenBearerValido(res.token)
+            ultimoTokenFallido = tokenFallido.takeIf { valido }
+            ultimoTokenRefrescado = (res as? ResultadoTokenId.Exito)?.token?.takeIf { valido }
             res
         }
 

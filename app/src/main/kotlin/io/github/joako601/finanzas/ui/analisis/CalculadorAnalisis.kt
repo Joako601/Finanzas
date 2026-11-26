@@ -12,20 +12,23 @@ import io.github.joako601.finanzas.core.domain.libro.Movimiento
 import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.libro.resumir
+import io.github.joako601.finanzas.core.domain.libro.saldosPorCuenta
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
+import kotlinx.datetime.daysUntil
 import kotlinx.datetime.minus
 import kotlinx.datetime.plus
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 /**
- * Horizontes de análisis disponibles en el selector global superior.
- * Sincroniza las 3 tarjetas de la pantalla con un solo toque.
+ * Horizontes de análisis del selector superior. [MES] es un mes de calendario (el actual
+ * hasta hoy, o uno anterior con las flechas); los otros, los últimos 30 o 90 días.
  */
-enum class PeriodoAnalisis(val diasHistoricos: Int) {
-    QUINCE_DIAS(15),
-    TREINTA_DIAS(30),
+enum class PeriodoAnalisis {
+    MES,
+    TREINTA_DIAS,
+    TRES_MESES,
 }
 
 /** Fase temporal de un punto en la curva unificada de liquidez. */
@@ -59,8 +62,22 @@ data class FlujoPeriodo(
     val ritmoDiarioSalidas: Dinero = Dinero.CERO,
     val proporcionSalidas: Float = 0f,
     val proporcionEntradas: Float = 0f,
+    /** % de cambio de las salidas contra el periodo anterior de igual largo; `null` si antes no hubo salidas. */
+    val variacionSalidas: Int? = null,
+    /** Salidas pagadas con tarjeta de crédito; el resto salió de efectivo o débito. */
+    val salidasConCredito: Dinero = Dinero.CERO,
 ) {
     val tieneDatos: Boolean get() = entradas.esPositivo || salidas.esPositivo
+    val neto: Dinero get() = entradas - salidas
+    val salidasConDinero: Dinero get() = salidas - salidasConCredito
+
+    /** Qué parte de lo que entró no se gastó; `null` sin entradas. Puede ser negativa. */
+    val tasaAhorro: Int? get() = if (entradas.esPositivo) ((neto.centavos * 100.0) / entradas.centavos).roundToInt() else null
+}
+
+/** Lo que tienes menos lo que debes en tarjetas, hoy. No depende del periodo. */
+data class Patrimonio(val enCuentas: Dinero, val deudaTarjetas: Dinero) {
+    val neto: Dinero get() = enCuentas - deudaTarjetas
 }
 
 /**
@@ -74,6 +91,8 @@ data class GastoCategoria(
     val porcentajeRedondeado: Int,
     val esAgrupacionOtras: Boolean = false,
     val cantidadAgrupadas: Int = 0,
+    /** Clave del ícono elegido para una categoría propia; `null` = por nombre. */
+    val icono: String? = null,
 )
 
 /**
@@ -81,6 +100,11 @@ data class GastoCategoria(
  */
 data class CortePeriodoAnalisis(
     val periodo: PeriodoAnalisis,
+    /** Días de historia de la curva (siempre termina hoy). */
+    val diasHistoricos: Int,
+    /** Ventana de flujo y categorías: puede ser un mes anterior completo. */
+    val desde: LocalDate,
+    val hasta: LocalDate,
     val puntosCurva: List<PuntoLiquidez>,
     val indiceHoy: Int,
     val indicePuntoMasBajo: Int?,
@@ -91,6 +115,11 @@ data class CortePeriodoAnalisis(
     val flujo: FlujoPeriodo,
     val totalGastosCategorias: Dinero,
     val categorias: List<GastoCategoria>,
+    /** Todas las categorías sin agrupar, para expandir "Otras categorías". */
+    val todasLasCategorias: List<GastoCategoria> = categorias,
+    /** Los gastos de la ventana, para ver los de una categoría al tocarla. */
+    val gastos: List<MovimientoResumido> = emptyList(),
+    val patrimonio: Patrimonio = Patrimonio(Dinero.CERO, Dinero.CERO),
 )
 
 /**
@@ -101,14 +130,46 @@ object CalculadorAnalisis {
 
     private const val MAX_CATEGORIAS_INDIVIDUALES = 5
 
+    /** Ventana [desde, hasta] del periodo; [mesDesplazamiento] (≤ 0) solo aplica a [PeriodoAnalisis.MES]. */
+    fun ventana(periodo: PeriodoAnalisis, hoy: LocalDate, mesDesplazamiento: Int = 0): Pair<LocalDate, LocalDate> = when (periodo) {
+        PeriodoAnalisis.MES -> {
+            val inicio = LocalDate(hoy.year, hoy.month, 1).plus(mesDesplazamiento, DateTimeUnit.MONTH)
+            inicio to minOf(inicio.plus(1, DateTimeUnit.MONTH).minus(1, DateTimeUnit.DAY), hoy)
+        }
+        PeriodoAnalisis.TREINTA_DIAS -> hoy.minus(29, DateTimeUnit.DAY) to hoy
+        PeriodoAnalisis.TRES_MESES -> hoy.minus(89, DateTimeUnit.DAY) to hoy
+    }
+
+    /**
+     * El periodo anterior del mismo largo, para comparar. En meses: los mismos primeros días
+     * del mes anterior (el 1–12 de octubre contra el 1–12 de noviembre), no el mes completo.
+     */
+    fun ventanaAnterior(periodo: PeriodoAnalisis, desde: LocalDate, hasta: LocalDate): Pair<LocalDate, LocalDate> {
+        val largo = desde.daysUntil(hasta)
+        val finAnterior = desde.minus(1, DateTimeUnit.DAY)
+        return if (periodo == PeriodoAnalisis.MES) {
+            val inicio = desde.minus(1, DateTimeUnit.MONTH)
+            inicio to minOf(inicio.plus(largo, DateTimeUnit.DAY), finAnterior)
+        } else {
+            finAnterior.minus(largo, DateTimeUnit.DAY) to finAnterior
+        }
+    }
+
     fun calcularCorte(
         periodo: PeriodoAnalisis,
         cuentasPorId: Map<CuentaId, Cuenta>,
         movimientos: List<Movimiento>,
         linea: LineaDeTiempo,
+        mesDesplazamiento: Int = 0,
     ): CortePeriodoAnalisis {
         val hoy = linea.hoy
-        val nDias = periodo.diasHistoricos
+        val nDias = when (periodo) {
+            // La curva del mes empieza el día 1 (al menos un día de historia).
+            PeriodoAnalisis.MES -> (hoy.day - 1).coerceAtLeast(1)
+            PeriodoAnalisis.TREINTA_DIAS -> 30
+            PeriodoAnalisis.TRES_MESES -> 90
+        }
+        val (desde, hasta) = ventana(periodo, hoy, mesDesplazamiento)
 
         // 1. Curva de liquidez unificada: [-nDias .. hoy .. +30 días]
         val cuentasActivo = cuentasPorId.values
@@ -228,13 +289,21 @@ object CalculadorAnalisis {
             linea.disponible.esNegativo ||
             (linea.enCuentas.esPositivo && linea.disponible.centavos <= linea.enCuentas.centavos / 4L)
 
-        // 2. Flujo y Categorías en la ventana histórica [hoy - (nDias - 1) .. hoy]
-        val fechaInicioVentana = hoy.minus(nDias - 1, DateTimeUnit.DAY)
+        // 2. Flujo y Categorías en la ventana [desde .. hasta]
         val resumidosEnVentana = movimientos
             .asSequence()
-            .filter { it.fecha in fechaInicioVentana..hoy }
+            .filter { it.fecha in desde..hasta }
             .map { it.resumir(cuentasPorId) }
             .toList()
+        val (desdeAnterior, hastaAnterior) = ventanaAnterior(periodo, desde, hasta)
+        val salidasAnteriores = movimientos
+            .asSequence()
+            .filter { it.fecha in desdeAnterior..hastaAnterior }
+            .map { it.resumir(cuentasPorId) }
+            .filter { it.clase == ClaseMovimiento.GASTO }
+            .map { it.monto }
+            .toList()
+            .sumar()
 
         val entradas = resumidosEnVentana
             .filter { it.clase == ClaseMovimiento.INGRESO }
@@ -245,8 +314,9 @@ object CalculadorAnalisis {
             .filter { it.clase == ClaseMovimiento.GASTO }
 
         val salidas = gastos.map { it.monto }.sumar()
+        val diasVentana = desde.daysUntil(hasta) + 1
         val ritmoDiario = if (salidas.esPositivo) {
-            Dinero((salidas.centavos.toDouble() / nDias.toDouble()).roundToLong())
+            Dinero((salidas.centavos.toDouble() / diasVentana.toDouble()).roundToLong())
         } else {
             Dinero.CERO
         }
@@ -259,6 +329,12 @@ object CalculadorAnalisis {
                 ritmoDiarioSalidas = ritmoDiario,
                 proporcionSalidas = (salidas.centavos.toDouble() / sumaFlujoCentavos.toDouble()).toFloat().coerceIn(0f, 1f),
                 proporcionEntradas = (entradas.centavos.toDouble() / sumaFlujoCentavos.toDouble()).toFloat().coerceIn(0f, 1f),
+                variacionSalidas = if (salidasAnteriores.esPositivo) {
+                    (((salidas - salidasAnteriores).centavos * 100.0) / salidasAnteriores.centavos).roundToInt()
+                } else {
+                    null
+                },
+                salidasConCredito = gastos.filter { it.cuenta?.tipo == TipoCuenta.PASIVO }.map { it.monto }.sumar(),
             )
         } else {
             FlujoPeriodo()
@@ -267,8 +343,18 @@ object CalculadorAnalisis {
         // 3. Desglose de gastos por categoría (Top 5 + fila 6 "Otras categorías (N)")
         val categorias = construirRankingCategorias(gastos, salidas)
 
+        // 4. Patrimonio: lo de hoy en cuentas menos la deuda de las tarjetas activas (un saldo a favor la reduce).
+        val saldos = saldosPorCuenta(movimientos)
+        val deudaTarjetas = -cuentasPorId.values
+            .filter { it.tipo == TipoCuenta.PASIVO && !it.archivada }
+            .map { saldos[it.id] ?: Dinero.CERO }
+            .sumar()
+
         return CortePeriodoAnalisis(
             periodo = periodo,
+            diasHistoricos = nDias,
+            desde = desde,
+            hasta = hasta,
             puntosCurva = puntos,
             indiceHoy = indiceHoy,
             indicePuntoMasBajo = indicePuntoMasBajo,
@@ -279,16 +365,20 @@ object CalculadorAnalisis {
             flujo = flujo,
             totalGastosCategorias = salidas,
             categorias = categorias,
+            todasLasCategorias = construirRankingCategorias(gastos, salidas, maximoIndividuales = Int.MAX_VALUE),
+            gastos = gastos,
+            patrimonio = Patrimonio(linea.enCuentas, deudaTarjetas),
         )
     }
 
     private fun construirRankingCategorias(
         gastos: List<MovimientoResumido>,
         totalGastos: Dinero,
+        maximoIndividuales: Int = MAX_CATEGORIAS_INDIVIDUALES,
     ): List<GastoCategoria> {
         if (gastos.isEmpty() || !totalGastos.esPositivo) return emptyList()
 
-        data class Acumulado(val id: CuentaId?, val nombre: String, val monto: Dinero)
+        data class Acumulado(val id: CuentaId?, val nombre: String, val monto: Dinero, val icono: String?)
 
         val ordenadas = gastos
             .groupBy { it.categoria?.id to (it.categoria?.nombre ?: "Otros gastos") }
@@ -297,6 +387,7 @@ object CalculadorAnalisis {
                     id = clave.first,
                     nombre = clave.second,
                     monto = lista.map { it.monto }.sumar(),
+                    icono = lista.first().categoria?.icono,
                 )
             }
             .filter { it.monto.esPositivo }
@@ -312,6 +403,7 @@ object CalculadorAnalisis {
             monto: Dinero,
             esOtras: Boolean = false,
             cantidadAgrupadas: Int = 0,
+            icono: String? = null,
         ): GastoCategoria {
             val proporcion = (monto.centavos.toDouble() / totalCentavos).toFloat().coerceIn(0f, 1f)
             val porcentaje = ((monto.centavos.toDouble() * 100.0) / totalCentavos)
@@ -325,11 +417,12 @@ object CalculadorAnalisis {
                 porcentajeRedondeado = porcentaje,
                 esAgrupacionOtras = esOtras,
                 cantidadAgrupadas = cantidadAgrupadas,
+                icono = icono,
             )
         }
 
-        if (ordenadas.size <= MAX_CATEGORIAS_INDIVIDUALES) {
-            return ordenadas.map { aGastoCategoria(it.id, it.nombre, it.monto) }
+        if (ordenadas.size <= maximoIndividuales) {
+            return ordenadas.map { aGastoCategoria(it.id, it.nombre, it.monto, icono = it.icono) }
         }
 
         val principales = ordenadas.take(MAX_CATEGORIAS_INDIVIDUALES)
@@ -337,7 +430,7 @@ object CalculadorAnalisis {
         val montoRestantes = restantes.map { it.monto }.sumar()
 
         return buildList(MAX_CATEGORIAS_INDIVIDUALES + 1) {
-            principales.forEach { add(aGastoCategoria(it.id, it.nombre, it.monto)) }
+            principales.forEach { add(aGastoCategoria(it.id, it.nombre, it.monto, icono = it.icono)) }
             add(
                 aGastoCategoria(
                     id = null,

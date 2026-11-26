@@ -7,19 +7,23 @@ import android.util.Log
 import io.github.joako601.finanzas.ETIQUETA_LOG
 import io.github.joako601.finanzas.FinanzasApp
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 /**
  * Corre el programador fuera del hilo principal. `goAsync` mantiene vivo el receptor
- * mientras termina la corrutina (el sistema da unos segundos; consultar la base y
- * publicar un aviso tarda mucho menos).
+ * mientras termina la corrutina; el sistema da ~10 s antes de un ANR, así que se corta
+ * antes (consultar la base y publicar un aviso tarda mucho menos).
  */
 private fun BroadcastReceiver.ejecutarProgramador(context: Context) {
     val pendiente = goAsync()
     val contenedor = (context.applicationContext as FinanzasApp).contenedor
     contenedor.alcance.launch {
         try {
-            contenedor.programador.ejecutar()
+            withTimeout(LIMITE_RECEPTOR_MS) { contenedor.programador.ejecutar() }
+        } catch (e: TimeoutCancellationException) {
+            Log.w(ETIQUETA_LOG, "El programador de avisos tardó demasiado", e)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -30,6 +34,8 @@ private fun BroadcastReceiver.ejecutarProgramador(context: Context) {
         }
     }
 }
+
+private const val LIMITE_RECEPTOR_MS = 8_000L
 
 /** Recibe la alarma programada. No exportado: solo nuestra PendingIntent lo invoca. */
 class ReceptorAlarma : BroadcastReceiver() {

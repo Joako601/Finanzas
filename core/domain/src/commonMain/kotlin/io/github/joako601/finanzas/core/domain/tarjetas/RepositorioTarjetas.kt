@@ -31,5 +31,8 @@ public interface RepositorioTarjetas {
     public suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta)
 
     /** Elimina un estado de cuenta específico por tarjeta y fecha de corte (al corregir la fecha de corte). */
+    /** Guarda la tasa anual que el usuario eligió para esta tarjeta al simular un pago. */
+    public suspend fun guardarTasaAnual(tarjeta: CuentaId, tasa: Int)
+
     public suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate)
 }

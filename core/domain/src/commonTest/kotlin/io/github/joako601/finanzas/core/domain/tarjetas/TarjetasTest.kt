@@ -251,6 +251,7 @@ class TarjetasTest {
             servicio.validarAlta(" ", "abc", "0", "32", "1.234"),
         )
         assertTrue(servicio.validarAlta("Nu", "30,000", "15", "5", "").isEmpty())
+        assertEquals(setOf(ErrorTarjeta.NOMBRE_VACIO), servicio.validarAlta("x".repeat(61), "30,000", "15", "5", ""))
     }
 
     @Test
@@ -290,5 +291,12 @@ class TarjetasTest {
         servicio.capturarEstadoDeCuenta(nu, fecha("2026-11-15"), fecha("2026-12-05"), "100", "10")
         servicio.capturarEstadoDeCuenta(nu, fecha("2026-11-15"), fecha("2026-12-05"), "200", "20")
         assertEquals(Dinero.pesos(200), repo.estados.value.single().pagoSinIntereses)
+    }
+
+    @Test
+    fun un_estado_de_cuenta_rechaza_minimo_mayor_al_pago_sin_intereses() {
+        assertFailsWith<IllegalArgumentException> {
+            estado("2026-11-15", "2026-12-05", 1_000).copy(pagoMinimo = Dinero.pesos(1_001))
+        }
     }
 }

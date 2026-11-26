@@ -28,6 +28,7 @@ import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
 import io.github.joako601.finanzas.core.domain.metas.SugerenciaTope
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
+import io.github.joako601.finanzas.core.domain.tarjetas.comprasAMeses
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
 import io.github.joako601.finanzas.ui.componentes.limpiarMonto
 import io.github.joako601.finanzas.ui.diasDesde
@@ -36,6 +37,11 @@ import io.github.joako601.finanzas.ui.movimientos.textoEditable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import io.github.joako601.finanzas.core.domain.metas.AporteMeta
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -108,10 +114,15 @@ data class MovimientoMetaDialogo(
     val tipo: TipoMovimientoMeta,
     val montoTexto: String = "",
     val archivarAlVaciar: Boolean = true,
+    /** Retiro: al guardarlo, abrir la captura de un gasto con ese monto ("Retirar y registrar gasto"). */
+    val registrarComoGasto: Boolean = false,
     val error: ErrorMovimientoMeta? = null,
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
 )
+
+/** Un retiro que el usuario quiere registrar también como gasto: monto y nota sugerida. */
+data class GastoDesdeRetiro(val monto: Dinero, val nota: String)
 
 /** Diálogo de confirmación para eliminar una meta de ahorro. */
 data class EliminacionMeta(
@@ -157,6 +168,7 @@ class MetasViewModel(
             pagos = pagosATarjetas(movimientos, porId),
             recurrentes = listaRecurrentes,
             hoy = hoy,
+            compras = comprasAMeses(movimientos, porId, listaTarjetas),
         )
         val resumenTopes = AnalizadorTopes.analizar(
             topes = topes,
@@ -217,6 +229,22 @@ class MetasViewModel(
     private val _detalleMetaId = MutableStateFlow<MetaAhorroId?>(null)
     val detalleMetaId: StateFlow<MetaAhorroId?> = _detalleMetaId.asStateFlow()
 
+    /** Historial de la meta abierta en el detalle; vacío si no hay ninguna. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val aportesDetalle: StateFlow<List<AporteMeta>> = _detalleMetaId
+        .flatMapLatest { id -> id?.let(repositorioMetas::observarAportes) ?: flowOf(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Retiro guardado que debe abrirse como gasto en Inicio; se consume al atenderlo. */
+    private val _gastoDesdeRetiro = MutableStateFlow<GastoDesdeRetiro?>(null)
+    val gastoDesdeRetiro: StateFlow<GastoDesdeRetiro?> = _gastoDesdeRetiro.asStateFlow()
+
+    fun consumirGastoDesdeRetiro() {
+        _gastoDesdeRetiro.value = null
+    }
+
+    fun cambiarRegistrarComoGasto(valor: Boolean) = _movimientoMeta.update { it?.copy(registrarComoGasto = valor) }
+
     private val _accionDetalleMeta = MutableStateFlow(AccionDetalleMeta())
     val accionDetalleMeta: StateFlow<AccionDetalleMeta> = _accionDetalleMeta.asStateFlow()
 
@@ -238,6 +266,18 @@ class MetasViewModel(
             categoriaEditada = null,
             montoEditadoManualmente = false,
         )
+    }
+
+    /**
+     * Desde Análisis: abre el detalle del tope de la categoría o, si aún no tiene, el editor de uno
+     * nuevo con ella elegida. Espera a que Metas cargue, porque se llama justo al cambiar de pestaña.
+     */
+    suspend fun abrirTopeDeCategoria(id: CuentaId) {
+        val listo = estado.first { !it.cargando }
+        when {
+            listo.resumenTopes?.topes?.any { it.categoria.id == id } == true -> abrirDetalleTope(id)
+            listo.categoriasSinTope.any { it.id == id } -> abrirNuevoTope(id)
+        }
     }
 
     fun abrirEditarTope(analisis: AnalisisTope) {
@@ -555,12 +595,16 @@ class MetasViewModel(
         viewModelScope.launch {
             try {
                 when (actual.tipo) {
-                    TipoMovimientoMeta.APORTAR -> servicio.aportarAMeta(vigente.meta, monto)
+                    TipoMovimientoMeta.APORTAR -> servicio.aportarAMeta(vigente.meta, monto, fechaDeHoy())
                     TipoMovimientoMeta.RETIRAR -> servicio.retirarDeMeta(
                         meta = vigente.meta,
                         monto = monto,
+                        fecha = fechaDeHoy(),
                         archivarSiQuedaEnCero = !vigente.meta.archivada && actual.archivarAlVaciar,
                     )
+                }
+                if (actual.tipo == TipoMovimientoMeta.RETIRAR && actual.registrarComoGasto) {
+                    _gastoDesdeRetiro.value = GastoDesdeRetiro(monto, vigente.meta.nombre)
                 }
                 _movimientoMeta.update { dialog ->
                     if (dialog?.guardando == true && dialog.analisis.meta.id == metaId) null else dialog

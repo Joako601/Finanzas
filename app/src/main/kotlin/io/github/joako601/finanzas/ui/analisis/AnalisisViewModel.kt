@@ -19,20 +19,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.datetime.LocalDate
 
 /**
  * Estado inmutable del apartado `Análisis`.
- * Precalcula en hilo de fondo los cortes de 15 y 30 días para que el cambio de
- * horizonte en la interfaz sea instantáneo (`0 ms`).
+ * Precalcula en hilo de fondo los cortes de los tres periodos para que el cambio de
+ * horizonte en la interfaz sea instantáneo (`0 ms`). [mesDesplazamiento]: 0 = este mes,
+ * −1 = el anterior; solo mueve el periodo "Mes".
  */
 data class EstadoAnalisis(
     val cargando: Boolean = true,
     val tieneCuentasDeDinero: Boolean = false,
     val estadoLinea: EstadoLineaDeTiempo = EstadoLineaDeTiempo(),
     val cortes: Map<PeriodoAnalisis, CortePeriodoAnalisis> = emptyMap(),
+    val mesDesplazamiento: Int = 0,
 )
 
 class AnalisisViewModel(
@@ -45,8 +50,13 @@ class AnalisisViewModel(
 
     private val dias = diasDesde(fechaDeHoy)
 
+    private val mesDesplazamiento = MutableStateFlow(0)
+
+    /** −1 = mes anterior; nunca pasa del mes actual. */
+    fun moverMes(delta: Int) = mesDesplazamiento.update { (it + delta).coerceAtMost(0) }
+
     val estado: StateFlow<EstadoAnalisis> = calcularLinea(libro, tarjetas, recurrentes, metas, dias)
-        .map { calculo ->
+        .combine(mesDesplazamiento) { calculo, desplazamiento ->
             EstadoAnalisis(
                 cargando = false,
                 tieneCuentasDeDinero = calculo.cuentas.any { !it.archivada && it.tipo == TipoCuenta.ACTIVO },
@@ -57,8 +67,10 @@ class AnalisisViewModel(
                         cuentasPorId = calculo.estado.categorias,
                         movimientos = calculo.movimientos,
                         linea = calculo.linea,
+                        mesDesplazamiento = desplazamiento,
                     )
                 },
+                mesDesplazamiento = desplazamiento,
             )
         }
         .flowOn(Dispatchers.Default)

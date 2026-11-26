@@ -8,6 +8,7 @@ import android.database.sqlite.SQLiteException
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import io.github.joako601.finanzas.core.data.FinanzasDatabase
+import io.github.joako601.finanzas.core.data.SembrarCatalogo
 import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
 import io.github.joako601.finanzas.core.data.metas.RepositorioMetasRoom
 import io.github.joako601.finanzas.core.data.recurrentes.RepositorioRecurrentesRoom
@@ -69,7 +70,12 @@ public class Respaldo internal constructor(
                 } finally {
                     copia.close()
                 }
-                CifradoRespaldo.cifrar(archivo.readBytes(), contrasena)
+                val plano = archivo.readBytes()
+                try {
+                    CifradoRespaldo.cifrar(plano, contrasena)
+                } finally {
+                    plano.fill(0) // No dejar los datos sin cifrar en el montón hasta que pase el recolector.
+                }
             }
         }
     }
@@ -83,7 +89,11 @@ public class Respaldo internal constructor(
         candado.withLock {
             val datos = CifradoRespaldo.descifrar(sobre, contrasena)
             conTemporal(ENTRADA) { archivo ->
-                archivo.writeBytes(datos)
+                try {
+                    archivo.writeBytes(datos)
+                } finally {
+                    datos.fill(0)
+                }
                 revisar(archivo)
                 val copia = abrirConRoom(archivo)
                 try {
@@ -106,17 +116,43 @@ public class Respaldo internal constructor(
     }
 
     /**
+     * Borra todos los datos y deja la base como recién instalada, con su catálogo, en una sola
+     * transacción: o queda vacía o no cambia. Los contadores de ids no se reinician, para que
+     * nada nuevo herede la marca de "aviso entregado" de algo borrado.
+     */
+    public suspend fun borrarTodo(): Unit = withContext(Dispatchers.IO) {
+        candado.withLock {
+            base.runInTransaction {
+                val db = base.openHelper.writableDatabase
+                ordenPadresPrimero(db).asReversed().forEach { db.execSQL("DELETE FROM `$it`") }
+                SembrarCatalogo.onCreate(db)
+            }
+        }
+    }
+
+    /**
      * Antes de tocar la base real: llaves foráneas sanas y que cada fila la puedan leer los
      * mismos repositorios que usa la app. Así cualquier regla del dominio (partida doble,
      * metas, periodicidades) se valida sin copiarla aquí. Si algo falla, [ErrorRespaldo.Motivo.BASE_INVALIDA].
      */
     private suspend fun validarConElDominio(copia: FinanzasDatabase) {
-        if (copia.openHelper.writableDatabase.query("PRAGMA foreign_key_check").use { it.moveToFirst() }) {
+        val db = copia.openHelper.writableDatabase
+        if (db.query("PRAGMA foreign_key_check").use { it.moveToFirst() }) {
             throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
         }
+        // Las llaves foráneas no revisan el tipo de cuenta: un tope solo va en una categoría de gasto
+        // y un pago fijo en una categoría de su misma clase.
+        val tiposCruzados = db.query(
+            "SELECT 1 FROM tope_categoria t JOIN cuenta c ON c.id = t.categoria_id WHERE c.tipo <> 'GASTO' " +
+                "UNION ALL SELECT 1 FROM recurrente r JOIN cuenta c ON c.id = r.categoria_id WHERE c.tipo <> r.clase LIMIT 1",
+        ).use { it.moveToFirst() }
+        if (tiposCruzados) throw ErrorRespaldo(ErrorRespaldo.Motivo.BASE_INVALIDA)
         try {
             // Saldos también: un SUM que se desborda (montos enormes alterados) tronaría en cada arranque.
-            RepositorioLibroRoom(copia).run { observarCuentas().first(); observarMovimientos().first(); observarSaldos().first() }
+            // Y la cuenta de capital: sin ella, crear una cuenta con saldo falla después de restaurar.
+            RepositorioLibroRoom(copia).run {
+                observarCuentas().first(); observarMovimientos().first(); observarSaldos().first(); cuentaDeSaldosIniciales()
+            }
             RepositorioTarjetasRoom(copia.tarjetasDao()).run { observarTarjetas().first(); observarEstadosDeCuenta().first() }
             RepositorioRecurrentesRoom(copia.recurrentesDao()).observarRecurrentes().first()
             RepositorioMetasRoom(copia.metasDao()).run { observarTopes().first(); observarMetas().first() }

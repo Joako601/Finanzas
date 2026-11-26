@@ -40,12 +40,25 @@ class RecurrentesViewModelTest {
     private val hoy = LocalDate(2026, 11, 19)
     private val efectivo = Cuenta(CuentaId(1), "Efectivo", TipoCuenta.ACTIVO)
     private val luz = Cuenta(CuentaId(2), "Luz, agua y gas", TipoCuenta.GASTO)
+    private val nu = Cuenta(CuentaId(7), "Nu", TipoCuenta.PASIVO)
     private val cfe = Recurrente(
         RecurrenteId(1), "CFE", ClaseRegistro.GASTO, Dinero.pesos(650), luz.id, Periodicidad.BIMESTRAL,
         LocalDate(2026, 11, 25), LocalDate(2026, 11, 25),
     )
 
-    private val libro = LibroFalso(listOf(efectivo, luz))
+    @Test
+    fun inicio_muestra_vencidos_y_proximos_7_dias_hasta_3_o_el_mas_cercano() {
+        fun r(dias: Int) = ResumenRecurrente(cfe, luz, dias)
+        // Vencido, hoy, en 7 días y en 8: entran los tres primeros.
+        assertEquals(listOf(-2, 0, 7), recurrentesCercanos(listOf(r(-2), r(0), r(7), r(8))).map { it.diasParaProxima })
+        // Más de 3 cercanos: solo los 3 primeros (los vencidos van antes por el orden de fecha).
+        assertEquals(3, recurrentesCercanos(listOf(r(-5), r(-1), r(1), r(2))).size)
+        // Ninguno en la semana: el más cercano, para que la sección no quede vacía.
+        assertEquals(listOf(20), recurrentesCercanos(listOf(r(20), r(40))).map { it.diasParaProxima })
+        assertEquals(emptyList<ResumenRecurrente>(), recurrentesCercanos(emptyList()))
+    }
+
+    private val libro = LibroFalso(listOf(efectivo, luz, nu))
     private val recurrentes = RecurrentesFalso(listOf(cfe))
 
     @Before
@@ -102,6 +115,29 @@ class RecurrentesViewModelTest {
 
         assertEquals(true, vm.registro.value?.errorAlGuardar)
         assertEquals(false, vm.registro.value?.guardando)
+    }
+
+    @Test
+    fun la_cuenta_preferida_se_guarda_y_se_preselecciona_al_registrar() = runTest {
+        val vm = viewModel()
+        cargar(vm)
+        vm.abrirNuevo()
+        vm.editarNuevo { copy(nombre = "Netflix", monto = "300", categoriaId = luz.id, cuentaId = nu.id) }
+        vm.guardarNuevo()
+        advanceUntilIdle()
+
+        val guardado = recurrentes.lista.value.single { it.nombre == "Netflix" }
+        assertEquals(nu.id, guardado.cuenta)
+        val resumen = vm.estado.first { e -> e.recurrentes.any { it.recurrente.nombre == "Netflix" } }
+            .recurrentes.single { it.recurrente.nombre == "Netflix" }
+        vm.abrirRegistro(resumen)
+        assertEquals(nu.id, vm.registro.value?.cuentaId)
+
+        // Un ingreso no llega a una tarjeta: al cambiar de clase se limpia.
+        vm.abrirNuevo()
+        vm.editarNuevo { copy(cuentaId = nu.id) }
+        vm.editarNuevo { copy(clase = ClaseRegistro.INGRESO) }
+        assertNull(vm.nuevo.value?.cuentaId)
     }
 
     @Test
@@ -163,6 +199,8 @@ private class LibroFalso(cuentas: List<Cuenta>) : RepositorioLibro {
     override suspend fun actualizar(movimiento: Movimiento) = Unit
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = error("no se usa")
     override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) = error("no se usa")
+    override suspend fun actualizarIcono(id: CuentaId, icono: String?) = error("no se usa")
+    override suspend fun cambiarArchivada(id: CuentaId, archivada: Boolean) = error("no se usa")
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = error("no se usa")
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()
 }
@@ -172,7 +210,11 @@ private class RecurrentesFalso(inicial: List<Recurrente>) : RepositorioRecurrent
     var fallar = false
 
     override fun observarRecurrentes(): Flow<List<Recurrente>> = lista
-    override suspend fun guardar(recurrente: Recurrente): RecurrenteId = error("no se usa")
+    override suspend fun guardar(recurrente: Recurrente): RecurrenteId {
+        val id = RecurrenteId(lista.value.size + 100L)
+        lista.value = lista.value + recurrente.copy(id = id)
+        return id
+    }
     override suspend fun actualizar(recurrente: Recurrente) {
         if (fallar) throw IllegalStateException("base no disponible")
         lista.value = lista.value.map { if (it.id == recurrente.id) recurrente else it }

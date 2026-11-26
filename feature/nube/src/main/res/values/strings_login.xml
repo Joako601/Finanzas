@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
-    <string name="login_subtitulo">Accede a tu cuenta para consultar el catálogo</string>
+    <string name="login_titulo_correo">Entra con tu correo</string>
+    <string name="login_titulo_contrasena">Escribe tu contraseña</string>
+    <string name="login_continuar">Continuar</string>
+    <string name="login_o">o</string>
+    <string name="login_continuar_google">Continuar con Google</string>
+    <string name="login_cambiar_correo">Cambiar</string>
+    <string name="login_usar_sin_cuenta">Usar sin cuenta · solo en este teléfono</string>
+    <string name="login_mayusculas">Mayúsculas activadas</string>
+    <string name="login_sin_cuenta">¿No tienes cuenta?</string>
     <string name="login_campo_correo">Correo electrónico</string>
     <string name="login_campo_contrasena">Contraseña</string>
     <string name="login_boton_entrar">Iniciar sesión</string>
@@ -12,17 +20,19 @@
     <string name="login_exito_banner">¡Acceso verificado! Abriendo tu cuenta…</string>
 
     <!-- Avisos globales OWASP (nunca por campo ni revelando existencia de correo) -->
-    <string name="login_error_campos_vacios">Ingresa tu correo y contraseña para continuar.</string>
+    <string name="login_error_correo_vacio">Escribe tu correo para continuar.</string>
+    <string name="login_error_contrasena_vacia">Escribe tu contraseña para continuar.</string>
     <string name="login_error_credenciales">Credenciales inválidas. Verifica tu correo y contraseña.</string>
     <string name="login_error_sin_conexion">Sin conexión a internet. Revisa tu red e intenta de nuevo.</string>
     <string name="login_error_demasiados_intentos">Demasiados intentos fallidos. Espera unos minutos antes de volver a intentar.</string>
+    <string name="login_error_google_no_disponible">No pudimos usar tu cuenta de Google. Revisa que haya una cuenta de Google en el teléfono o entra con tu correo.</string>
     <string name="login_error_inesperado">No pudimos iniciar sesión en este momento. Intenta de nuevo.</string>
 
     <!-- Descripciones accesibles (TalkBack) de la mascota -->
-    <string name="login_mascota_reposo">Alcancía guardián de Kren en espera</string>
-    <string name="login_mascota_correo">Alcancía guardián atenta mientras escribes tu correo</string>
-    <string name="login_mascota_contrasena">Alcancía guardián cubriéndose los ojos para proteger tu contraseña</string>
-    <string name="login_mascota_cargando">Alcancía guardián verificando tu acceso</string>
-    <string name="login_mascota_exito">Alcancía guardián celebrando inicio de sesión exitoso</string>
-    <string name="login_mascota_error">Alcancía guardián indicando un error al iniciar sesión</string>
+    <string name="login_mascota_reposo">Símbolo de Kren en espera</string>
+    <string name="login_mascota_correo">Símbolo de Kren mirando el campo de correo</string>
+    <string name="login_mascota_contrasena">Símbolo de Kren con los ojos cerrados para no ver tu contraseña</string>
+    <string name="login_mascota_cargando">Símbolo de Kren verificando tu acceso</string>
+    <string name="login_mascota_exito">Símbolo de Kren con una palomita: acceso correcto</string>
+    <string name="login_mascota_error">Símbolo de Kren indicando un error al iniciar sesión</string>
 </resources>

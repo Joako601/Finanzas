@@ -7,8 +7,11 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.github.joako601.finanzas.FinanzasApp
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.MovimientoId
+import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
@@ -16,12 +19,15 @@ import io.github.joako601.finanzas.core.domain.tarjetas.AnalisisTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorEstadoDeCuenta
+import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.ErrorTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.ServicioTarjetas
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.deudaDe
+import io.github.joako601.finanzas.core.domain.tarjetas.CompraAMeses
+import io.github.joako601.finanzas.core.domain.tarjetas.comprasAMeses
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
 import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.hoy
@@ -46,6 +52,8 @@ data class ResumenTarjeta(
     val disponible: Dinero,
     val situacion: SituacionTarjeta,
     val analisis: AnalisisTarjeta,
+    /** Compras a meses con mensualidades por facturar (D-022). */
+    val compras: List<CompraAMeses> = emptyList(),
 )
 
 data class EstadoTarjetas(
@@ -78,6 +86,8 @@ data class EdicionTarjeta(
     val errores: Set<ErrorTarjeta> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
+    /** El diálogo muestra la confirmación de archivar en lugar de los campos. */
+    val confirmandoArchivar: Boolean = false,
 )
 
 enum class ErrorPago { MONTO_INVALIDO, SIN_CUENTA }
@@ -93,6 +103,10 @@ data class PagoTarjeta(
     val errores: Set<ErrorPago> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
+    /** Pago ya guardado que se está corrigiendo; `null` si es un pago nuevo. */
+    val editando: MovimientoId? = null,
+    /** Nota del pago original, para no perderla al corregirlo. */
+    val nota: String = "",
 )
 
 /** Diálogo de captura de estado de cuenta. */
@@ -106,6 +120,8 @@ data class CapturaEstadoDeCuenta(
     val errores: Set<ErrorEstadoDeCuenta> = emptySet(),
     val errorAlGuardar: Boolean = false,
     val guardando: Boolean = false,
+    /** Al editar un estado guardado: el diálogo muestra la confirmación de eliminarlo. */
+    val confirmandoEliminar: Boolean = false,
 )
 
 /**
@@ -115,7 +131,7 @@ data class CapturaEstadoDeCuenta(
  */
 class TarjetasViewModel(
     private val libro: RepositorioLibro,
-    repositorioTarjetas: RepositorioTarjetas,
+    private val repositorioTarjetas: RepositorioTarjetas,
     private val servicio: ServicioTarjetas,
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
@@ -128,6 +144,7 @@ class TarjetasViewModel(
     ) { (cuentas, saldos, movimientos), (tarjetas, estadosDeCuenta, hoy) ->
         val porId = cuentas.associateBy { it.id }
         val pagos = pagosATarjetas(movimientos, porId)
+        val compras = comprasAMeses(movimientos, porId, tarjetas).filter { it.activaAl(hoy) }
         val cuentasActivas = cuentas.filter { it.tipo == TipoCuenta.ACTIVO && !it.archivada }
         val saldosActivas = cuentasActivas.associate { it.id to (saldos[it.id] ?: Dinero.CERO) }
 
@@ -147,6 +164,7 @@ class TarjetasViewModel(
                     disponible = analisis.desglose.creditoDisponible,
                     situacion = analisis.situacion,
                     analisis = analisis,
+                    compras = compras.filter { it.tarjeta.id == tarjeta.id },
                 )
             },
             cuentasParaPagar = cuentasActivas,
@@ -171,9 +189,6 @@ class TarjetasViewModel(
     private val _captura = MutableStateFlow<CapturaEstadoDeCuenta?>(null)
     val captura: StateFlow<CapturaEstadoDeCuenta?> = _captura.asStateFlow()
 
-    /** Tasas anuales personalizadas en sesión por tarjeta (por defecto 60%). */
-    private val tasasPorTarjeta = mutableMapOf<CuentaId, Int>()
-
     // ---- Detalle y Edición ----
 
     fun abrirDetalle(resumen: ResumenTarjeta) {
@@ -196,6 +211,29 @@ class TarjetasViewModel(
 
     fun cerrarEdicionTarjeta() {
         _edicionTarjeta.value = null
+    }
+
+    fun pedirArchivarTarjeta() = _edicionTarjeta.update {
+        if (it == null || it.guardando) it else it.copy(confirmandoArchivar = true, errorAlGuardar = false)
+    }
+
+    fun cancelarArchivarTarjeta() = _edicionTarjeta.update { it?.copy(confirmandoArchivar = false) }
+
+    /** Archiva la tarjeta en edición: sale de Inicio, del registro y de los avisos; su historial queda. */
+    fun archivarTarjeta() {
+        val actual = _edicionTarjeta.value ?: return
+        if (actual.guardando || !actual.confirmandoArchivar) return
+        _edicionTarjeta.value = actual.copy(guardando = true, errorAlGuardar = false)
+        viewModelScope.launch {
+            try {
+                libro.cambiarArchivada(actual.actual.cuenta.id, archivada = true)
+                _edicionTarjeta.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _edicionTarjeta.update { it?.copy(guardando = false, errorAlGuardar = true) }
+            }
+        }
     }
 
     fun editarTarjetaExistente(cambio: EdicionTarjeta.() -> EdicionTarjeta) =
@@ -282,7 +320,7 @@ class TarjetasViewModel(
         val sugerido = montoSugerido
             ?: exigibleCiclo?.takeIf { it.esPositivo }
             ?: resumen.analisis.desglose.deudaTotal.takeIf { it.esPositivo }
-        val tasa = tasasPorTarjeta[resumen.tarjeta.id] ?: AnalizadorTarjeta.TASA_ANUAL_REFERENCIA_MEXICO
+        val tasa = resumen.tarjeta.tasaAnual ?: AnalizadorTarjeta.TASA_ANUAL_REFERENCIA_MEXICO
 
         // Preseleccionar la primera cuenta cuyo saldo cubra el pago, o la primera cuenta disponible.
         val cuentas = estado.value.cuentasParaPagar
@@ -303,6 +341,24 @@ class TarjetasViewModel(
         )
     }
 
+    /**
+     * Abre un pago a tarjeta ya registrado para corregir monto, cuenta o fecha. Sin el análisis
+     * de la tarjeta: la deuda actual ya descuenta este pago y sus sugerencias confundirían.
+     */
+    fun abrirEdicionPago(resumen: MovimientoResumido) {
+        val id = resumen.movimiento.id ?: return
+        if (resumen.clase != ClaseMovimiento.PAGO_TARJETA) return
+        val tarjeta = estado.value.tarjetas.firstOrNull { it.tarjeta.cuenta.id == resumen.contraparte?.id }?.tarjeta ?: return
+        _pago.value = PagoTarjeta(
+            tarjeta = tarjeta,
+            montoTexto = resumen.monto.textoEditable(),
+            desdeId = resumen.cuenta?.id,
+            fecha = resumen.movimiento.fecha,
+            editando = id,
+            nota = resumen.movimiento.descripcion,
+        )
+    }
+
     fun cerrarPago() {
         _pago.value = null
     }
@@ -314,12 +370,23 @@ class TarjetasViewModel(
         }
     }
 
-    fun editarPago(cambio: PagoTarjeta.() -> PagoTarjeta) =
-        _pago.update { actual ->
-            actual?.cambio()?.also { actualizado ->
-                tasasPorTarjeta[actualizado.tarjeta.id] = actualizado.tasaAnualPorcentaje
-            }?.copy(errores = emptySet(), errorAlGuardar = false)
+    fun editarPago(cambio: PagoTarjeta.() -> PagoTarjeta) {
+        val antes = _pago.value ?: return
+        val despues = antes.cambio().copy(errores = emptySet(), errorAlGuardar = false)
+        _pago.value = despues
+        // La tasa elegida queda guardada en la tarjeta (v7) para la próxima simulación.
+        if (despues.tasaAnualPorcentaje != antes.tasaAnualPorcentaje) {
+            viewModelScope.launch {
+                try {
+                    repositorioTarjetas.guardarTasaAnual(despues.tarjeta.id, despues.tasaAnualPorcentaje)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Sin dinero de por medio: la simulación sigue con la tasa elegida; solo no se recuerda.
+                }
+            }
         }
+    }
 
     fun guardarPago() {
         val actual = _pago.value ?: return
@@ -337,7 +404,8 @@ class TarjetasViewModel(
         _pago.value = actual.copy(guardando = true)
         viewModelScope.launch {
             try {
-                libro.registrar(Registro.pagoDeTarjeta(actual.fecha, monto!!, desde!!, actual.tarjeta.cuenta))
+                val movimiento = Registro.pagoDeTarjeta(actual.fecha, monto!!, desde!!, actual.tarjeta.cuenta, actual.nota)
+                if (actual.editando == null) libro.registrar(movimiento) else libro.actualizar(movimiento.copy(id = actual.editando))
                 _pago.value = null
             } catch (e: CancellationException) {
                 throw e
@@ -377,8 +445,44 @@ class TarjetasViewModel(
         )
     }
 
+    /** Corregir un estado de cuenta ya capturado, aunque no sea el último (desde el historial). */
+    fun abrirEdicionEstado(tarjeta: Tarjeta, estado: EstadoDeCuenta) {
+        _captura.value = CapturaEstadoDeCuenta(
+            tarjeta = tarjeta,
+            fechaCorte = estado.fechaCorte,
+            fechaLimite = estado.fechaLimite,
+            fechaCorteOriginal = estado.fechaCorte,
+            pagoSinIntereses = estado.pagoSinIntereses.textoEditable(),
+            pagoMinimo = estado.pagoMinimo.textoEditable(),
+        )
+    }
+
     fun cerrarCaptura() {
         _captura.value = null
+    }
+
+    fun pedirEliminarEstado() = _captura.update {
+        if (it?.fechaCorteOriginal == null || it.guardando) it else it.copy(confirmandoEliminar = true, errorAlGuardar = false)
+    }
+
+    fun cancelarEliminarEstado() = _captura.update { it?.copy(confirmandoEliminar = false) }
+
+    /** Borra un estado de cuenta capturado por error. Compras y pagos no cambian. */
+    fun eliminarEstado() {
+        val actual = _captura.value ?: return
+        val corte = actual.fechaCorteOriginal ?: return
+        if (actual.guardando || !actual.confirmandoEliminar) return
+        _captura.value = actual.copy(guardando = true, errorAlGuardar = false)
+        viewModelScope.launch {
+            try {
+                repositorioTarjetas.eliminarEstadoDeCuenta(actual.tarjeta.id, corte)
+                _captura.value = null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _captura.update { it?.copy(guardando = false, errorAlGuardar = true) }
+            }
+        }
     }
 
     fun editarCaptura(cambio: CapturaEstadoDeCuenta.() -> CapturaEstadoDeCuenta) =

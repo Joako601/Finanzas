@@ -2,10 +2,11 @@ package io.github.joako601.finanzas.nube.sesion
 
 import kotlinx.coroutines.flow.StateFlow
 
-/** Datos mínimos de la cuenta con sesión iniciada. */
+/** Datos mínimos de la cuenta con sesión iniciada. [nombre] llega con Google; con correo suele ser `null`. */
 data class UsuarioSesion(
     val uid: String,
     val correo: String,
+    val nombre: String? = null,
 ) {
     override fun toString(): String = "UsuarioSesion(uid=$uid, correoLen=${correo.length})"
 }
@@ -74,6 +75,9 @@ interface RepositorioSesion {
     val estado: StateFlow<EstadoSesion>
 
     suspend fun iniciarSesion(correo: String, contrasena: String): ResultadoLogin
+
+    /** Entra (o crea la cuenta la primera vez) con el ID token de Google que dio el teléfono. */
+    suspend fun iniciarSesionConGoogle(idToken: String): ResultadoLogin
 
     suspend fun registrar(correo: String, contrasena: String): ResultadoRegistro
 

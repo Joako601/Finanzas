@@ -11,6 +11,7 @@ import io.github.joako601.finanzas.core.data.libro.AsientoEntity
 import io.github.joako601.finanzas.core.data.libro.CuentaEntity
 import io.github.joako601.finanzas.core.data.libro.LibroDao
 import io.github.joako601.finanzas.core.data.libro.MovimientoEntity
+import io.github.joako601.finanzas.core.data.metas.AporteMetaEntity
 import io.github.joako601.finanzas.core.data.metas.MetaAhorroEntity
 import io.github.joako601.finanzas.core.data.metas.MetasDao
 import io.github.joako601.finanzas.core.data.metas.TopeCategoriaEntity
@@ -38,6 +39,10 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
  * - 4: recurrente (pagos e ingresos fijos). Automática, más [De3a4], que agrega la
  *   categoría "Impuestos y predial" a las bases creadas antes de que existiera.
  * - 5: tope_categoria y meta_ahorro (límites mensuales y apartados de ahorro). Automática.
+ * - 6: columna `meses` en movimiento (compras a meses sin intereses, D-022). Automática:
+ *   nula en todo lo anterior, que queda como compra de contado.
+ * - 7: `tarjeta.tasa_anual`, `recurrente.cuenta_id`, `cuenta.icono` y la tabla `aporte_meta`
+ *   (D-023). Automática: columnas nulas y tabla vacía; nada existente cambia.
  *
  * Todavía sin cifrar. SQLCipher o no se decide con el modelo de amenazas, antes de la
  * primera versión que use alguien más.
@@ -53,14 +58,17 @@ import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
         RecurrenteEntity::class,
         TopeCategoriaEntity::class,
         MetaAhorroEntity::class,
+        AporteMetaEntity::class,
     ],
-    version = 5,
+    version = 7,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4, spec = De3a4::class),
         AutoMigration(from = 4, to = 5),
+        AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 6, to = 7),
     ],
 )
 internal abstract class FinanzasDatabase : RoomDatabase() {

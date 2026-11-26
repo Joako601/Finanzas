@@ -700,6 +700,93 @@ cuatro carpetas independientes (`login/`, `registro/`, `recuperar/`, `catalogo/`
 
 ---
 
+## D-022 Kren 1.0: compras a meses sin intereses y cierre de la versión
+
+**Fecha:** 2026-11-25
+
+**Decisión (MSI):** una compra a meses es un gasto con tarjeta como cualquier otro más una
+columna nullable `movimiento.meses` (3, 6, 9, 12, 18 o 24). Base v6 con `AutoMigration(5, 6)`:
+todo lo anterior queda como compra de contado. El respaldo copia tablas y columnas de forma
+genérica, así que la columna viaja sin código extra (probado en el simulacro de `RespaldoTest`).
+`CompraAMeses` calcula lo facturado como piso de total·n/meses en centavos (la última
+mensualidad completa el total exacto) y la línea de tiempo estima el pago de un ciclo sin
+estado capturado como la deuda menos lo que ese corte todavía no factura (antes S9 exageraba).
+Un estado de cuenta capturado sigue siendo la verdad: ya trae la mensualidad.
+
+**Supuesto S13:** cada corte en o después de la compra factura una mensualidad (una compra el
+mismo día del corte entra en ese corte). Si un banco la difiere un mes, la app adelanta una.
+
+**Por qué no una tabla `compra_msi`:** un plazo por movimiento es 1:1 con el movimiento; una
+tabla aparte pedía DAO, repositorio y borrado en cascada para guardar un solo entero.
+
+**Resto de la 1.0 (sin cambio de esquema):**
+- Bienvenida del Día 1: tres pasos que abren los diálogos existentes; solo con historial vacío
+  y una vez (marca en preferencias `privacidad`).
+- Búsqueda y filtros en Inicio: filtran en memoria el historial que ya se leyó (ninguna
+  consulta nueva). Sin tipo elegido el total es el neto (ingresos − gastos).
+- Privacidad y seguridad: modo discreto (`LocalMontosOcultos`), `FLAG_SECURE`, bloqueo con
+  `KeyguardManager.createConfirmDeviceCredentialIntent` (sin dependencias ni permisos nuevos;
+  30 s de gracia para no pedir el PIN al volver del selector de archivos) y borrar todos los
+  datos (`Respaldo.borrarTodo` en una transacción + catálogo inicial; los contadores de ids no
+  se reinician).
+- Cuentas y tarjetas: archivar y reactivar con el campo `archivada` existente; nunca deja sin
+  efectivo ni débito activos y avisa el saldo o la deuda que deja de contar. La "cuenta
+  predeterminada" es la misma preferencia de la última cuenta usada.
+
+## D-023 Base v7: una sola migración para Análisis, tarjetas, pagos fijos y Metas
+
+**Fecha:** 2026-11-25
+
+**Decisión:** `AutoMigration(6, 7)` con solo columnas nulas y una tabla vacía, agrupando lo
+que piden las tandas 2 y 3 para no migrar dos veces:
+- `tarjeta.tasa_anual`: la tasa que el usuario elige al simular un pago queda guardada en
+  la tarjeta (antes vivía en memoria y se perdía al cerrar). Nula = referencia de México.
+- `recurrente.cuenta_id` (FK RESTRICT, las cuentas se archivan, no se borran): cuenta
+  preferida de un pago o cobro fijo; se preselecciona al registrar. Nula = se elige al registrar.
+- `cuenta.icono`: ícono local de una categoría propia (Tanda 3); nulo = se deduce del nombre.
+- `aporte_meta (meta_id, fecha, centavos)` con CASCADE: historial de aportes y retiros
+  **solo desde la v7**. Lo apartado antes ya está sumado en `meta_ahorro.apartado_centavos`
+  y no se reconstruye (decisión del autor: no modificar lo existente).
+
+**Supuesto S14 (D-017):** un pago fijo cuya cuenta preferida es una tarjeta (cargo
+domiciliado) aparece en la línea de tiempo pero no resta del efectivo en su fecha: se paga
+después con la tarjeta. Si el corte aún no se captura, el pago estimado de la tarjeta puede
+quedarse corto por ese cargo, igual que en S9.
+
+**Análisis:** periodos Mes (con flechas al mes anterior), 30 días y 3 meses. Las flechas
+mueven flujo y categorías; la curva de liquidez siempre termina hoy porque proyecta el futuro.
+La comparación usa el periodo anterior del mismo largo (en meses, los mismos primeros días
+del mes anterior). Patrimonio neto = efectivo y débito − deuda de tarjetas activas.
+
+**Respaldo:** copia la base completa y la migra al restaurar, así que un respaldo v6 se
+restaura en la v7 sin código extra (probado en `MigracionTest.de_6_a_7…`).
+
+## D-024 Tanda 3: Metas, ahorro y Perfil sin cambio de esquema
+
+**Fecha:** 2026-11-26
+
+**Decisión:** todo usa la base v7 de D-023; ninguna migración nueva.
+- **Historial de aportes:** `MetasDao` pasa a clase abstracta para tener `moverApartado`
+  con `@Transaction` (como `LibroDao`): el apartado y su anotación se guardan juntos o no se
+  guarda ninguno. Solo hay historial desde la v7.
+- **Retirar y registrar gasto:** el retiro se guarda y la captura de Inicio se abre con el
+  monto y el nombre de la meta como nota; el usuario elige cuenta y categoría. No es un
+  movimiento automático: el apartado es virtual y el dinero real ya está en una cuenta.
+- **Topes:** historial de 3 meses comparado contra el tope de **hoy** (el límite de cada
+  mes no se guarda; si importa, sería una tabla nueva). "Fuera de topes" = gastos del mes en
+  categorías sin tope. El aviso de la captura aparece desde el 80 % del tope o al pasarlo;
+  al editar no cuenta el mismo movimiento dos veces.
+- **Categorías propias:** son cuentas GASTO/INGRESO como las del catálogo (partida doble
+  intacta). `cuenta.icono` guarda una **clave** ("salud"), no el id del recurso, que cambia
+  entre compilaciones. Nombre repetido en el mismo tipo se rechaza, incluso archivado.
+- **Tema:** Sistema/Claro/Oscuro en preferencias `apariencia` (sobrevive a "Borrar datos");
+  las barras del sistema siguen al tema elegido.
+- **Horas de aviso:** mañana y noche elegibles en `finanzas_avisos` (se reinician con
+  "Borrar datos"); `PlanRecordatorios.calcular` recibe `HorasAviso` y al cambiarlas se
+  reprograma la alarma.
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |

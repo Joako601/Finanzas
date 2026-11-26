@@ -37,6 +37,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.libro.MovimientoResumido
+import androidx.compose.foundation.clickable
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
@@ -86,7 +88,7 @@ fun DialogoTope(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        IconoEnCirculo(iconoDeCategoria(categoriaFija.nombre), tamano = 36.dp)
+                        IconoEnCirculo(iconoDeCategoria(categoriaFija), tamano = 36.dp)
                         Text(
                             text = categoriaFija.nombre,
                             style = MaterialTheme.typography.titleMedium,
@@ -108,7 +110,7 @@ fun DialogoTope(
                                 enabled = !editor.guardando,
                                 leadingIcon = {
                                     Icon(
-                                        painter = painterResource(iconoDeCategoria(categoria.nombre)),
+                                        painter = painterResource(iconoDeCategoria(categoria)),
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
                                     )
@@ -216,6 +218,8 @@ fun HojaDetalleTope(
     onEditar: () -> Unit,
     onEliminar: () -> Unit,
     onCerrar: () -> Unit,
+    /** Abre el movimiento en Inicio para editarlo. */
+    onTocarMovimiento: (MovimientoResumido) -> Unit = {},
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val alcance = rememberCoroutineScope()
@@ -242,7 +246,7 @@ fun HojaDetalleTope(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    IconoEnCirculo(iconoDeCategoria(analisis.categoria.nombre), tamano = 40.dp)
+                    IconoEnCirculo(iconoDeCategoria(analisis.categoria), tamano = 40.dp)
                     Column {
                         Text(
                             text = analisis.categoria.nombre,
@@ -309,15 +313,27 @@ fun HojaDetalleTope(
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                    Text(
-                        text = if (analisis.gastadoMesAnterior.esPositivo) {
-                            stringResource(R.string.metas_detalle_mes_pasado, analisis.gastadoMesAnterior.formatear())
-                        } else {
-                            stringResource(R.string.metas_detalle_sin_mes_pasado)
-                        },
-                        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    // Meses anteriores contra el tope de hoy (el de antes no se guarda).
+                    analisis.historial.forEach { mes ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = mes.mes.formatoMes(),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = stringResource(
+                                    if (mes.cumplido) R.string.metas_historial_cumplido else R.string.metas_historial_excedido,
+                                    mes.gastado.formatear(),
+                                ),
+                                style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                                color = if (mes.cumplido) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -328,6 +344,7 @@ fun HojaDetalleTope(
                 modifier = Modifier.semantics { heading() },
             )
 
+            val etiquetaEditar = stringResource(R.string.editar)
             TarjetaFinanzas(Modifier.fillMaxWidth()) {
                 if (analisis.movimientosMesActual.isEmpty()) {
                     Text(
@@ -352,6 +369,13 @@ fun HojaDetalleTope(
                         FlowRow(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clickable(onClickLabel = etiquetaEditar) {
+                                    alcance.launch {
+                                        estadoHoja.hide()
+                                        onCerrar()
+                                        onTocarMovimiento(mov)
+                                    }
+                                }
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                                 .semantics(mergeDescendants = true) {},
                             horizontalArrangement = Arrangement.SpaceBetween,

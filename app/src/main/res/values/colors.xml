@@ -3,4 +3,6 @@
     <color name="ic_launcher_fondo">#111111</color>
     <!-- Fondo de la ventana antes de que Compose dibuje; igual al fondo del tema (Tema.kt). -->
     <color name="fondo_ventana">#F5F5F7</color>
+    <!-- Mismo carbón que el splash animado de Kren (SplashAnimadoKren), en claro y oscuro. -->
+    <color name="fondo_splash">#111111</color>
 </resources>

@@ -47,6 +47,8 @@ class Avisos(private val context: Context) {
         val referencia = recordatorio.fechaReferencia
         // Se calcula contra la fecha real de entrega (no la programada) para no decir "Mañana" si llegó al día siguiente.
         val diasHastaReferencia = hoy().daysUntil(referencia)
+        // Llegó después de su fecha (p. ej. pasó la medianoche): "Hoy pagas" sería falso y ya no sirve.
+        if (diasHastaReferencia < 0 && recordatorio.tipo != TipoRecordatorio.CAPTURAR_ESTADO) return
         val (titulo, texto) = when (recordatorio.tipo) {
             TipoRecordatorio.ANTES_DEL_CORTE -> Pair(
                 if (diasHastaReferencia <= 0) {

@@ -214,6 +214,76 @@ class MigracionTest {
         }
     }
 
+    /** D-022: lo anterior a la versión 6 queda como compra de contado y el plazo se guarda y se edita. */
+    @Test
+    fun de_5_a_6_los_movimientos_quedan_de_contado_y_se_puede_guardar_el_plazo() = runTest {
+        ayudante.createDatabase(nombre, 5).use { db ->
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (1, 'Nu', 'PASIVO', 0, 1)")
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (2, 'Súper', 'GASTO', 0, 2)")
+            db.execSQL("INSERT INTO movimiento (id, fecha, descripcion, creado_en) VALUES (1, 20774, 'pantalla', 0)")
+            db.execSQL("INSERT INTO asiento (movimiento_id, cuenta_id, centavos) VALUES (1, 2, 600000)")
+            db.execSQL("INSERT INTO asiento (movimiento_id, cuenta_id, centavos) VALUES (1, 1, -600000)")
+        }
+        ayudante.runMigrationsAndValidate(nombre, 6, true).use { db ->
+            db.query("SELECT meses FROM movimiento WHERE id = 1").use { c ->
+                c.moveToFirst()
+                assertTrue(c.isNull(0))
+            }
+        }
+        val contexto = InstrumentationRegistry.getInstrumentation().targetContext
+        val baseDeDatos = Room.databaseBuilder(contexto, FinanzasDatabase::class.java, nombre).build()
+        try {
+            val repositorio = RepositorioLibroRoom(baseDeDatos)
+            val compra = repositorio.observarMovimientos().first().single()
+            assertEquals(null, compra.meses)
+            repositorio.actualizar(compra.copy(meses = 6))
+            assertEquals(6, repositorio.observarMovimientos().first().single().meses)
+        } finally {
+            baseDeDatos.close()
+        }
+    }
+
+    @Test
+    fun de_6_a_7_conserva_tarjetas_y_pagos_fijos_con_las_columnas_nuevas_vacias() = runTest {
+        ayudante.createDatabase(nombre, 6).use { db ->
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (1, 'Nu', 'PASIVO', 0, 1)")
+            db.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (2, 'Luz', 'GASTO', 0, 2)")
+            db.execSQL("INSERT INTO tarjeta (cuenta_id, linea_centavos, dia_corte, dia_limite) VALUES (1, 3000000, 15, 5)")
+            db.execSQL(
+                "INSERT INTO recurrente (id, nombre, clase, monto_centavos, categoria_id, periodo, cada, primer_dia, segundo_dia, inicio, proxima) " +
+                    "VALUES (1, 'CFE', 'GASTO', 65000, 2, 'MESES', 2, NULL, NULL, 20774, 20774)",
+            )
+            db.execSQL("INSERT INTO meta_ahorro (id, nombre, objetivo_centavos, apartado_centavos, fecha_limite, reservar_de_disponible, archivada) VALUES (1, 'Viaje', 1000000, 250000, NULL, 1, 0)")
+        }
+        ayudante.runMigrationsAndValidate(nombre, 7, true).use { db ->
+            db.query("SELECT tasa_anual FROM tarjeta WHERE cuenta_id = 1").use { c -> c.moveToFirst(); assertTrue(c.isNull(0)) }
+            db.query("SELECT cuenta_id, nombre FROM recurrente WHERE id = 1").use { c ->
+                c.moveToFirst()
+                assertTrue(c.isNull(0))
+                assertEquals("CFE", c.getString(1))
+            }
+            db.query("SELECT icono FROM cuenta WHERE id = 2").use { c -> c.moveToFirst(); assertTrue(c.isNull(0)) }
+            // Lo apartado antes no se reconstruye como historial (D-023).
+            db.query("SELECT apartado_centavos FROM meta_ahorro WHERE id = 1").use { c -> c.moveToFirst(); assertEquals(250000L, c.getLong(0)) }
+            db.query("SELECT COUNT(*) FROM aporte_meta").use { c -> c.moveToFirst(); assertEquals(0, c.getInt(0)) }
+        }
+        val contexto = InstrumentationRegistry.getInstrumentation().targetContext
+        val baseDeDatos = Room.databaseBuilder(contexto, FinanzasDatabase::class.java, nombre).build()
+        try {
+            val tarjetas = io.github.joako601.finanzas.core.data.tarjetas.RepositorioTarjetasRoom(baseDeDatos.tarjetasDao())
+            assertEquals(null, tarjetas.observarTarjetas().first().single().tasaAnual)
+            tarjetas.guardarTasaAnual(CuentaId(1), 90)
+            assertEquals(90, tarjetas.observarTarjetas().first().single().tasaAnual)
+            val recurrentes = io.github.joako601.finanzas.core.data.recurrentes.RepositorioRecurrentesRoom(baseDeDatos.recurrentesDao())
+            val cfe = recurrentes.observarRecurrentes().first().single()
+            assertEquals(null, cfe.cuenta)
+            recurrentes.actualizar(cfe.copy(cuenta = CuentaId(1)))
+            assertEquals(CuentaId(1), recurrentes.observarRecurrentes().first().single().cuenta)
+        } finally {
+            baseDeDatos.close()
+        }
+    }
+
     /** El nombre que inserta la migración es el mismo del catálogo de bases nuevas. */
     @Test
     fun la_categoria_de_la_migracion_esta_en_el_catalogo() {

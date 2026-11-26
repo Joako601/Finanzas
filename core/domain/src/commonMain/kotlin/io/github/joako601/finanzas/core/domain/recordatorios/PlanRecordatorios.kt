@@ -60,17 +60,20 @@ public data class Recordatorio(
  * contenido nunca queda viejo: si el usuario ya pagó, el aviso de pago desaparece del
  * plan aunque la alarma se haya programado antes.
  *
- * Horas fijas por ahora (se volverán configurables):
+ * Horas configurables en Perfil → Recordatorios ([HorasAviso]); por omisión:
  * - avisos de pago y de corte a las 9:00, para actuar durante el día;
  * - aviso de captura a las 19:00, cuando es más probable revisar el correo o la app del banco.
  *
  * SUPUESTO S6: lo comprado el día del corte entra en ese estado de cuenta; lo comprado
  * desde el día siguiente, en el próximo. Se verifica con los estados capturados.
  */
-public object PlanRecordatorios {
+/** Horas de los avisos: [dia] para pagos y cortes, [noche] para pedir capturar el estado de cuenta. */
+public data class HorasAviso(
+    val dia: LocalTime = LocalTime(9, 0),
+    val noche: LocalTime = LocalTime(19, 0),
+)
 
-    public val HORA_DIA: LocalTime = LocalTime(9, 0)
-    public val HORA_NOCHE: LocalTime = LocalTime(19, 0)
+public object PlanRecordatorios {
 
     /** Días antes de la fecha límite en que se avisa del pago. */
     public val DIAS_AVISO_PAGO: List<Int> = listOf(3, 1)
@@ -78,9 +81,13 @@ public object PlanRecordatorios {
     /** Días después del corte en que se pide capturar el estado de cuenta. */
     public const val DIAS_PARA_CAPTURAR: Int = 2
 
+    /** Días hacia atrás que se recuperan avisos no entregados (teléfono apagado, alarma perdida). */
+    public const val DIAS_DE_ATRASO: Int = 1
+
     /**
-     * Todos los recordatorios cuyo día es [hoy] o posterior, más los de días anteriores
-     * que siguen siendo útiles (por ejemplo, capturar un estado cuyo límite no ha pasado).
+     * Todos los recordatorios cuyo día es [hoy] o posterior, más los de los [DIAS_DE_ATRASO]
+     * anteriores (para recuperarlos si no se entregaron) y los que siguen siendo útiles
+     * (por ejemplo, capturar un estado cuyo límite no ha pasado).
      * Ordenados por momento.
      */
     public fun calcular(
@@ -91,25 +98,26 @@ public object PlanRecordatorios {
         recurrentes: List<Recurrente> = emptyList(),
         /** Saldos del libro, para no avisar que se pague con saldo a favor. `null` = sin tope. */
         saldos: Map<CuentaId, Dinero>? = null,
+        horas: HorasAviso = HorasAviso(),
     ): List<Recordatorio> = (
         tarjetas
             .filterNot { it.cuenta.archivada }
             .flatMap { tarjeta ->
-                paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy, saldos?.let { deudaDe(tarjeta, it) })
+                paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy, saldos?.let { deudaDe(tarjeta, it) }, horas)
             } +
-            recurrentes.mapNotNull { paraRecurrente(it, hoy) }
+            recurrentes.mapNotNull { paraRecurrente(it, hoy.minus(DIAS_DE_ATRASO, DateTimeUnit.DAY), horas) }
         ).sortedBy { it.momento }
 
-    /** Un día antes de cada pago fijo pendiente, a las 9:00. Si ese día ya pasó, no se avisa. */
-    private fun paraRecurrente(recurrente: Recurrente, hoy: LocalDate): Recordatorio? {
+    /** Un día antes de cada pago fijo pendiente, a las 9:00. Si ese día es anterior a [desde], no se avisa. */
+    private fun paraRecurrente(recurrente: Recurrente, desde: LocalDate, horas: HorasAviso): Recordatorio? {
         val id = recurrente.id?.valor ?: return null
         if (recurrente.clase != ClaseRegistro.GASTO) return null
         val dia = recurrente.proxima.minus(1, DateTimeUnit.DAY)
-        if (dia < hoy) return null
+        if (dia < desde) return null
         return Recordatorio(
             clave = "recurrente:$id:${recurrente.proxima}",
             tipo = TipoRecordatorio.PAGO_RECURRENTE,
-            momento = dia.atTime(HORA_DIA),
+            momento = dia.atTime(horas.dia),
             nombre = recurrente.nombre,
             fechaReferencia = recurrente.proxima,
             monto = recurrente.montoEstimado,
@@ -122,20 +130,25 @@ public object PlanRecordatorios {
         pagos: List<PagoATarjeta>,
         hoy: LocalDate,
         deuda: Dinero?,
+        horas: HorasAviso,
     ): List<Recordatorio> = buildList {
         val id = tarjeta.id.valor
+        val desde = hoy.minus(DIAS_DE_ATRASO, DateTimeUnit.DAY)
 
-        // 1. Antes del próximo corte (mañana en adelante: el de hoy ya no tiene aviso útil).
+        // 1. Antes del próximo corte. Si el corte es hoy, su aviso fue ayer: se conserva para
+        //    recuperarlo (lo de hoy aún entra en ese estado de cuenta, S6).
         val proximoCorte = CalendarioTarjeta.siguienteCorteDesde(tarjeta, hoy.plus(1, DateTimeUnit.DAY))
-        add(
-            Recordatorio(
-                clave = "corte:$id:$proximoCorte",
-                tipo = TipoRecordatorio.ANTES_DEL_CORTE,
-                momento = proximoCorte.minus(1, DateTimeUnit.DAY).atTime(HORA_DIA),
-                nombre = tarjeta.cuenta.nombre,
-                fechaReferencia = proximoCorte,
-            ),
-        )
+        for (corte in listOf(CalendarioTarjeta.siguienteCorteDesde(tarjeta, hoy), proximoCorte).distinct()) {
+            add(
+                Recordatorio(
+                    clave = "corte:$id:$corte",
+                    tipo = TipoRecordatorio.ANTES_DEL_CORTE,
+                    momento = corte.minus(1, DateTimeUnit.DAY).atTime(horas.dia),
+                    nombre = tarjeta.cuenta.nombre,
+                    fechaReferencia = corte,
+                ),
+            )
+        }
 
         // 2. Capturar el estado de cuenta del último corte y del próximo, si faltan.
         val ultimoCorte = CalendarioTarjeta.ultimoCorteHasta(tarjeta, hoy)
@@ -149,7 +162,7 @@ public object PlanRecordatorios {
                     Recordatorio(
                         clave = "capturar:$id:$corte",
                         tipo = TipoRecordatorio.CAPTURAR_ESTADO,
-                        momento = diaAviso.atTime(HORA_NOCHE),
+                        momento = diaAviso.atTime(horas.noche),
                         nombre = tarjeta.cuenta.nombre,
                         fechaReferencia = corte,
                     ),
@@ -164,12 +177,12 @@ public object PlanRecordatorios {
             for (dias in DIAS_AVISO_PAGO) {
                 val dia = limite.minus(dias, DateTimeUnit.DAY)
                 // Si el estado se capturó tarde y el día del aviso ya pasó, no se manda.
-                if (dia >= hoy) {
+                if (dia >= desde) {
                     add(
                         Recordatorio(
                             clave = "pago:$id:$limite:$dias",
                             tipo = TipoRecordatorio.PAGO_PROXIMO,
-                            momento = dia.atTime(HORA_DIA),
+                            momento = dia.atTime(horas.dia),
                             nombre = tarjeta.cuenta.nombre,
                             fechaReferencia = limite,
                             monto = situacion.restante,
@@ -192,7 +205,7 @@ public object PlanRecordatorios {
         plan: List<Recordatorio>,
         ahora: LocalDateTime,
         entregados: Set<String>,
-        diasDeAtraso: Int = 1,
+        diasDeAtraso: Int = DIAS_DE_ATRASO,
     ): Seleccion {
         val primerDiaValido = ahora.date.minus(diasDeAtraso, DateTimeUnit.DAY)
         val vencidos = plan.filter {

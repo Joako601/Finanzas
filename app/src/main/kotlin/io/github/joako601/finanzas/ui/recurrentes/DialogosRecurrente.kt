@@ -39,6 +39,8 @@ fun DialogoNuevoRecurrente(
     nuevo: NuevoRecurrente,
     categorias: List<Cuenta>,
     onEditar: (NuevoRecurrente.() -> NuevoRecurrente) -> Unit,
+    /** Efectivo, débito y, en un pago, tarjetas. */
+    cuentas: List<Cuenta>,
     onGuardar: () -> Unit,
     onCerrar: () -> Unit,
 ) {
@@ -93,6 +95,24 @@ fun DialogoNuevoRecurrente(
                             selected = nuevo.categoriaId == categoria.id,
                             onClick = { onEditar { copy(categoriaId = categoria.id) } },
                             label = { Text(categoria.nombre) },
+                        )
+                    }
+                }
+                // Opcional: con una tarjeta (cargo domiciliado) no resta del disponible en su fecha (D-023).
+                Grupo(
+                    titulo = stringResource(if (nuevo.clase == ClaseRegistro.GASTO) R.string.cuenta_preferida else R.string.cuenta_preferida_ingreso),
+                    error = null,
+                ) {
+                    FilterChip(
+                        selected = nuevo.cuentaId == null,
+                        onClick = { onEditar { copy(cuentaId = null) } },
+                        label = { Text(stringResource(R.string.elegir_al_registrar)) },
+                    )
+                    cuentas.forEach { cuenta ->
+                        FilterChip(
+                            selected = nuevo.cuentaId == cuenta.id,
+                            onClick = { onEditar { copy(cuentaId = cuenta.id) } },
+                            label = { Text(cuenta.nombre) },
                         )
                     }
                 }

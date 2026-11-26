@@ -3,6 +3,7 @@ package io.github.joako601.finanzas.core.domain.recurrentes
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
+import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ResultadoRegistro
@@ -26,10 +27,17 @@ public class ServicioRecurrentes(
     /** Valida el alta. La categoría debe ser de gasto para un pago y de ingreso para un ingreso. */
     public fun validarAlta(nombre: String, montoTexto: String, clase: ClaseRegistro, categoria: Cuenta?): Set<ErrorRecurrente> =
         buildSet {
-            if (nombre.isBlank()) add(ErrorRecurrente.NOMBRE_VACIO)
+            if (nombre.isBlank() || nombre.trim().length > Cuenta.LARGO_MAXIMO_NOMBRE) add(ErrorRecurrente.NOMBRE_VACIO)
             if (Dinero.parsear(montoTexto)?.esPositivo != true) add(ErrorRecurrente.MONTO_INVALIDO)
             if (categoria == null || categoria.tipo != clase.tipoDeCategoria) add(ErrorRecurrente.SIN_CATEGORIA)
         }
+
+    /** Un pago se cobra de efectivo, débito o tarjeta; un ingreso solo llega a efectivo o débito. */
+    private fun validarCuenta(cuenta: Cuenta?, clase: ClaseRegistro) {
+        require(
+            cuenta == null || cuenta.tipo == TipoCuenta.ACTIVO || (cuenta.tipo == TipoCuenta.PASIVO && clase == ClaseRegistro.GASTO),
+        ) { "La cuenta no corresponde" }
+    }
 
     /**
      * Da de alta la serie. Si [inicio] ya pasó (por ejemplo, la fecha del último recibo),
@@ -43,11 +51,13 @@ public class ServicioRecurrentes(
         periodicidad: Periodicidad,
         inicio: LocalDate,
         hoy: LocalDate,
+        cuenta: Cuenta? = null,
     ): Recurrente {
         require(categoria.tipo == clase.tipoDeCategoria) { "La categoría no corresponde" }
+        validarCuenta(cuenta, clase)
         val primera = periodicidad.primeraDesde(inicio)
         val proxima = if (primera >= hoy) primera else periodicidad.siguienteDespues(inicio, hoy.minus(1, DateTimeUnit.DAY))
-        val nuevo = Recurrente(null, nombre.trim(), clase, montoEstimado, categoria.id, periodicidad, inicio, proxima)
+        val nuevo = Recurrente(null, nombre.trim(), clase, montoEstimado, categoria.id, periodicidad, inicio, proxima, cuenta?.id)
         return nuevo.copy(id = recurrentes.guardar(nuevo))
     }
 
@@ -72,8 +82,10 @@ public class ServicioRecurrentes(
         hoy: LocalDate,
         proximaAnterior: LocalDate? = null,
         conservarProxima: Boolean = false,
+        cuenta: Cuenta? = null,
     ): Recurrente {
         require(categoria.tipo == clase.tipoDeCategoria) { "La categoría no corresponde" }
+        validarCuenta(cuenta, clase)
         val primera = periodicidad.primeraDesde(inicio)
         val proxima = when {
             conservarProxima && proximaAnterior != null && proximaAnterior >= primera -> proximaAnterior
@@ -81,7 +93,7 @@ public class ServicioRecurrentes(
             primera >= hoy -> primera
             else -> periodicidad.siguienteDespues(inicio, hoy.minus(1, DateTimeUnit.DAY))
         }
-        val actualizado = Recurrente(id, nombre.trim(), clase, montoEstimado, categoria.id, periodicidad, inicio, proxima)
+        val actualizado = Recurrente(id, nombre.trim(), clase, montoEstimado, categoria.id, periodicidad, inicio, proxima, cuenta?.id)
         recurrentes.actualizar(actualizado)
         return actualizado
     }

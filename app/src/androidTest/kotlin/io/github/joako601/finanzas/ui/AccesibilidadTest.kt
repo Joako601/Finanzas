@@ -71,7 +71,7 @@ class AccesibilidadTest {
             categoriasDeGasto = listOf(super_),
             dias = listOf(DiaDeMovimientos(hoy, movimientos.map { it.resumir(porId) })),
         )
-        val linea = LineaDeTiempo.calcular(cuentas, saldos, emptyList(), emptyList(), emptyList(), emptyList(), hoy)
+        val linea = LineaDeTiempo.calcular(cuentas, saldos, emptyList(), emptyList(), emptyList(), emptyList(), hoy, emptyList())
         regla.setContent {
             TemaFinanzas {
                 ContenidoMovimientos(
@@ -86,7 +86,6 @@ class AccesibilidadTest {
                     estadoRecurrentes = EstadoRecurrentes(),
                     accionesRecurrentes = AccionesRecurrentes(agregar = {}, tocar = {}),
                     onTocarMovimiento = {},
-                    onRespaldo = {},
                 )
             }
         }
