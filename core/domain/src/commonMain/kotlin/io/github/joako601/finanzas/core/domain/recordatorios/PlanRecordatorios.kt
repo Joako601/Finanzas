@@ -4,6 +4,7 @@ import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
@@ -99,11 +100,13 @@ public object PlanRecordatorios {
         /** Saldos del libro, para no avisar que se pague con saldo a favor. `null` = sin tope. */
         saldos: Map<CuentaId, Dinero>? = null,
         horas: HorasAviso = HorasAviso(),
+        /** Días inhábiles y elección del usuario para la fecha límite predicha (S14). */
+        calendario: CalendarioBancario = CalendarioBancario.NINGUNO,
     ): List<Recordatorio> = (
         tarjetas
             .filterNot { it.cuenta.archivada }
             .flatMap { tarjeta ->
-                paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy, saldos?.let { deudaDe(tarjeta, it) }, horas)
+                paraTarjeta(tarjeta, estados.filter { it.tarjeta == tarjeta.id }, pagos, hoy, saldos?.let { deudaDe(tarjeta, it) }, horas, calendario)
             } +
             recurrentes.mapNotNull { paraRecurrente(it, hoy.minus(DIAS_DE_ATRASO, DateTimeUnit.DAY), horas) }
         ).sortedBy { it.momento }
@@ -131,6 +134,7 @@ public object PlanRecordatorios {
         hoy: LocalDate,
         deuda: Dinero?,
         horas: HorasAviso,
+        calendario: CalendarioBancario,
     ): List<Recordatorio> = buildList {
         val id = tarjeta.id.valor
         val desde = hoy.minus(DIAS_DE_ATRASO, DateTimeUnit.DAY)
@@ -155,7 +159,7 @@ public object PlanRecordatorios {
         for (corte in listOf(ultimoCorte, proximoCorte).distinct()) {
             val capturado = corteCapturado(estados, corte)
             val diaAviso = corte.plus(DIAS_PARA_CAPTURAR, DateTimeUnit.DAY)
-            val limitePredicho = CalendarioTarjeta.limiteParaCorte(tarjeta, corte)
+            val limitePredicho = calendario.limite(tarjeta, corte)
             // Pedir la captura solo mientras sirve: antes de que pase su fecha límite.
             if (!capturado && limitePredicho >= hoy && diaAviso <= limitePredicho) {
                 add(
@@ -171,7 +175,7 @@ public object PlanRecordatorios {
         }
 
         // 3. Pago pendiente del estado de cuenta vigente.
-        val situacion = situacionTarjeta(tarjeta, estados, pagos, hoy, deuda)
+        val situacion = situacionTarjeta(tarjeta, estados, pagos, hoy, deuda, calendario)
         if (situacion is SituacionTarjeta.PagoPendiente) {
             val limite = situacion.estado.fechaLimite
             for (dias in DIAS_AVISO_PAGO) {
