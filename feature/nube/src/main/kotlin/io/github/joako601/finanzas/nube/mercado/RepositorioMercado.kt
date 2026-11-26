@@ -50,6 +50,8 @@ class RepositorioMercado internal constructor(
     conectado: StateFlow<Boolean>,
     private val sesion: StateFlow<EstadoSesion>,
     alcance: CoroutineScope,
+    /** Se evalúan cada vez que llegan cotizaciones nuevas. */
+    val alertas: AlertasLocales? = null,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val reloj: () -> Long = System::currentTimeMillis,
 ) {
@@ -140,6 +142,13 @@ class RepositorioMercado internal constructor(
         ultimaRespuesta = nuevos.recibidoEn
         expirada.value = false
         datos.value = nuevos
+        if (parte.cotizaciones != null && alertas != null) {
+            try {
+                withContext(io) { alertas.evaluar(nuevos.cotizaciones) }
+            } catch (_: IOException) {
+                // Sin espacio: la próxima actualización vuelve a evaluar.
+            }
+        }
     }
 
     companion object {

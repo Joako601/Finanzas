@@ -19,6 +19,9 @@ import io.github.joako601.finanzas.nube.EntradaNube
 import io.github.joako601.finanzas.nube.SeccionNube
 import io.github.joako601.finanzas.nube.mercado.EstadoMercado
 import io.github.joako601.finanzas.nube.mercado.PantallaMercado
+import io.github.joako601.finanzas.nube.mercado.textoDisparo
+import io.github.joako601.finanzas.recordatorios.Avisos
+import io.github.joako601.finanzas.ui.tarjetas.recordarAvisos
 import io.github.joako601.finanzas.nube.recuperar.DialogoCerrarSesion
 import io.github.joako601.finanzas.nube.sesion.EstadoSesion
 import io.github.joako601.finanzas.ui.componentes.DestinoLogoSplash
@@ -118,6 +121,15 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
         val tarea = alcance.launch { repositorioMercado.sincronizar() }
         onStopOrDispose { tarea.cancel() }
     }
+    // Las alertas se evalúan al sincronizar, que solo pasa con esta pantalla viva: aquí se publican.
+    LaunchedEffect(repositorioMercado) {
+        val avisos = Avisos(context.applicationContext)
+        repositorioMercado.alertas?.disparos?.collect { disparo ->
+            val (titulo, texto) = textoDisparo(context, disparo)
+            avisos.mostrarAlertaCambio(disparo.alerta.id, titulo, texto)
+        }
+    }
+    val avisos = recordarAvisos()
     ContenedorPrincipal(
         cuenta = cuenta,
         mercado = if (estadoMercado is EstadoMercado.Oculto) {
@@ -128,6 +140,8 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
                     repositorio = repositorioMercado,
                     margenInferior = margenInferior,
                     onIniciarSesion = onAbrirNube,
+                    avisosActivos = avisos.activos,
+                    onActivarAvisos = avisos.activar,
                 )
             }
         },

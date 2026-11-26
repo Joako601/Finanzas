@@ -14,6 +14,7 @@ import io.github.joako601.finanzas.nube.red.ClienteHttpBackend
 import io.github.joako601.finanzas.nube.sesion.InicializadorFirebase
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFirebase
+import io.github.joako601.finanzas.nube.mercado.AlertasLocales
 import io.github.joako601.finanzas.nube.mercado.CacheMercado
 import io.github.joako601.finanzas.nube.mercado.EstadoMercado
 import io.github.joako601.finanzas.nube.mercado.FuenteMercado
@@ -27,6 +28,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.math.BigDecimal
 
@@ -79,6 +81,7 @@ class ContenedorNube(context: Context) {
             else -> FuenteMercado { ResultadoFuente.ErrorServidor }
         },
         cache = CacheMercado(File(context.noBackupFilesDir, "mercado")),
+        alertas = AlertasLocales(File(context.noBackupFilesDir, "mercado")),
         conectado = monitorConexion.conectado,
         sesion = sesionFirebase?.estado ?: MutableStateFlow(EstadoSesion.SinSesion),
         alcance = alcance,
@@ -86,11 +89,14 @@ class ContenedorNube(context: Context) {
 
     /**
      * La sesión de Firebase con el cierre centralizado: cerrar sesión a propósito, desde
-     * cualquier pantalla, borra también los datos de Mercado. Una sesión que se cae por fuera
+     * cualquier pantalla, borra también los datos y las alertas de Mercado. Una sesión que se cae por fuera
      * (token revocado) no pasa por aquí y conserva los datos.
      */
     val repositorioSesion: RepositorioSesion? = sesionFirebase?.let { base ->
-        SesionConLimpieza(base) { repositorioMercado.borrar() }
+        SesionConLimpieza(base) {
+            repositorioMercado.borrar()
+            withContext(Dispatchers.IO) { repositorioMercado.alertas?.borrar() }
+        }
     }
 
     companion object {
