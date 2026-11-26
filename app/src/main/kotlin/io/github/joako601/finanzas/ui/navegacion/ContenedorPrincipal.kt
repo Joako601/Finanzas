@@ -15,6 +15,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.libro.MovimientoId
@@ -52,13 +54,24 @@ import io.github.joako601.finanzas.ui.perfil.SubpantallaPerfil
  *   cifrado, CSV y recordatorios).
  *
  * @param cuenta datos de la cuenta nube para el Perfil; `null` en la distribución privada.
+ * @param mercado contenido de la 5.ª pestaña ([PestanaPrincipal.MERCADO]), recibe el margen
+ *   inferior; `null` la oculta (distribución privada o nube sin sesión ni datos). Si
+ *   desaparece estando abierta, se vuelve a Inicio.
  * - Conserva el estado de UI (scroll de listas) al cambiar de pestaña mediante [rememberSaveableStateHolder].
  */
 @Composable
 fun ContenedorPrincipal(
     cuenta: CuentaPerfil? = null,
+    mercado: (@Composable (margenInferior: Dp) -> Unit)? = null,
 ) {
     var pestanaActual by rememberSaveable { mutableStateOf(PestanaPrincipal.INICIO) }
+    val sinMercado = mercado == null
+    LaunchedEffect(sinMercado) {
+        if (sinMercado && pestanaActual == PestanaPrincipal.MERCADO) pestanaActual = PestanaPrincipal.INICIO
+    }
+    val pestanas = remember(sinMercado) {
+        PestanaPrincipal.entries.filter { !sinMercado || it != PestanaPrincipal.MERCADO }
+    }
     var subpantallaPerfil by rememberSaveable { mutableStateOf(SubpantallaPerfil.NINGUNA) }
     // Categoría tocada en Análisis que Metas debe abrir; se consume al atenderla.
     var categoriaParaMetas by remember { mutableStateOf<CuentaId?>(null) }
@@ -135,6 +148,8 @@ fun ContenedorPrincipal(
                         },
                     )
 
+                    PestanaPrincipal.MERCADO -> mercado?.invoke(AlturaTotalBarraInferior)
+
                     PestanaPrincipal.PERFIL -> PantallaPerfil(
                         cuenta = cuenta,
                         subpantalla = subpantallaPerfil,
@@ -147,6 +162,7 @@ fun ContenedorPrincipal(
 
         BarraNavegacionInferior(
             seleccionada = pestanaActual,
+            pestanas = pestanas,
             onSeleccionar = {
                 // Salir de Perfil, o volver a tocarlo, lo deja en su raíz (patrón de pestañas iOS).
                 if (it != PestanaPrincipal.PERFIL || pestanaActual == PestanaPrincipal.PERFIL) {

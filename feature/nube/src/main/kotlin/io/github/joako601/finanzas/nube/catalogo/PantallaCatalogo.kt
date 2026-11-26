@@ -613,7 +613,7 @@ private fun EncabezadoCatalogo(
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TarjetaProductoFinanciero(producto: ProductoFinanciero) {
+internal fun TarjetaProductoFinanciero(producto: ProductoFinanciero) {
     val costoFormateado = remember(producto.costoReferenciaPesos, producto.periodicidad) {
         formatearCostoReferencia(producto.costoReferenciaPesos, producto.periodicidad)
     }

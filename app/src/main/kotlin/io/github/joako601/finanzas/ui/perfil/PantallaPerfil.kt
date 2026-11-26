@@ -320,11 +320,6 @@ private fun RaizPerfil(
                 EncabezadoPerfil(cuenta)
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                if (cuenta?.conSesion == true) {
-                    Spacer(Modifier.height(24.dp))
-                    TarjetaCatalogo(onClick = cuenta.onAbrirCatalogo)
-                }
-
                 Spacer(Modifier.height(32.dp))
                 Text(
                     text = stringResource(R.string.perfil_ajustes),
@@ -476,38 +471,6 @@ private fun EncabezadoPerfil(cuenta: CuentaPerfil?) {
             )
         }
         if (onClick != null) {
-            Icon(
-                painter = painterResource(R.drawable.ic_flecha_derecha),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-    }
-}
-
-@Composable
-private fun TarjetaCatalogo(onClick: () -> Unit) {
-    val interaccion = remember { MutableInteractionSource() }
-    TarjetaFinanzas(
-        Modifier
-            .fillMaxWidth()
-            .toqueTactil(interaccion)
-            .clip(MaterialTheme.shapes.large)
-            .clickable(interactionSource = interaccion, indication = null, role = Role.Button, onClick = onClick),
-    ) {
-        Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(R.string.perfil_catalogo_titulo),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = stringResource(R.string.perfil_catalogo_texto),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(Modifier.width(12.dp))
             Icon(
                 painter = painterResource(R.drawable.ic_flecha_derecha),
                 contentDescription = null,

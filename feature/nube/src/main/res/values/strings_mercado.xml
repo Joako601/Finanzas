@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:locale="es">
+    <string name="mercado_titulo">Mercado</string>
+    <string name="mercado_actualizar">Actualizar datos de mercado</string>
+    <string name="mercado_actualizado">Actualizado %1$s · %2$s</string>
+    <string name="mercado_hoy">hoy</string>
+    <string name="mercado_actualizando">Actualizando…</string>
+
+    <string name="mercado_hace_min">hace %1$d min</string>
+    <string name="mercado_hace_horas">hace %1$d h</string>
+    <string name="mercado_hace_dias">hace %1$d d</string>
+    <string name="mercado_sin_conexion">Sin conexión · datos %1$s</string>
+    <string name="mercado_datos_viejos">Datos %1$s. Actualiza para verlos al día.</string>
+    <string name="mercado_sesion_expirada">Inicia sesión para actualizar. Mientras, ves los últimos datos.</string>
+    <string name="mercado_iniciar_sesion">Iniciar sesión</string>
+
+    <string name="mercado_esperando_titulo">Esperando datos del servidor</string>
+    <string name="mercado_esperando_texto">En cuanto lleguen, se guardan en el teléfono y se ven aunque no tengas internet.</string>
+    <string name="mercado_esperando_sin_conexion">Sin conexión. Actualiza cuando vuelva el internet.</string>
+    <string name="mercado_boton_actualizar">Actualizar</string>
+
+    <string name="mercado_vista_divisas">Divisas</string>
+    <string name="mercado_vista_indicadores">Indicadores</string>
+    <string name="mercado_vista_catalogo">Catálogo</string>
+
+    <string name="mercado_conversor_titulo">Conversor</string>
+    <string name="mercado_conversor_monto">Monto</string>
+    <string name="mercado_conversor_de">De</string>
+    <string name="mercado_conversor_a">A</string>
+    <string name="mercado_conversor_invertir">Invertir monedas</string>
+    <string name="mercado_conversor_sin_tasa">No hay tasa guardada para este par.</string>
+    <string name="mercado_conversor_nota">Calculado en el teléfono con tasas del %1$s</string>
+    <string name="mercado_conversor_nota_offline">Calculado en el teléfono con tasas del %1$s · Offline</string>
+    <string name="mercado_cotizaciones_titulo">Frente al peso</string>
+    <string name="mercado_cotizacion_fila">1 %1$s = $%2$s MXN</string>
+    <string name="mercado_sin_cotizaciones">Aún no hay tipos de cambio guardados.</string>
+
+    <string name="mercado_sin_indicadores">Aún no hay indicadores guardados.</string>
+    <string name="mercado_indicador_meta">%1$s · %2$s</string>
+
+    <string name="mercado_categoria_todas">Todas</string>
+    <string name="mercado_sin_productos">Aún no hay productos guardados.</string>
+</resources>

@@ -71,6 +71,7 @@ import io.github.joako601.finanzas.ui.componentes.toqueTactil
  * - [INICIO]: pantalla principal de movimientos, cuentas, tarjetas y pagos fijos.
  * - [ANALISIS]: liquidez, flujo y gastos por categoría.
  * - [METAS]: topes mensuales y apartados de ahorro.
+ * - [MERCADO]: divisas, indicadores y catálogo (solo distribución nube, con sesión o datos guardados).
  * - [PERFIL]: cuenta (si la hay), respaldo, exportación y recordatorios.
  */
 enum class PestanaPrincipal(
@@ -84,6 +85,9 @@ enum class PestanaPrincipal(
     ),
     METAS(
         etiquetaRes = R.string.nav_presupuesto,
+    ),
+    MERCADO(
+        etiquetaRes = R.string.nav_mercado,
     ),
     PERFIL(
         etiquetaRes = R.string.nav_perfil,
@@ -100,7 +104,7 @@ val AlturaDifuminadoBarra: Dp = 24.dp
 val AlturaTotalBarraInferior: Dp = AlturaBarraNavegacion + AlturaDifuminadoBarra
 
 /**
- * Barra de navegación inferior con 4 apartados y difuminado superior progresivo
+ * Barra de navegación inferior con 4 apartados (5 con Mercado en la distribución nube) y difuminado superior progresivo
  * (*Tinta & Papel · Aireada Apple · Seda iOS*).
  *
  * El borde superior proyecta un velo degradado semitransparente de 24 dp hacia el mismo
@@ -112,6 +116,7 @@ fun BarraNavegacionInferior(
     seleccionada: PestanaPrincipal,
     onSeleccionar: (PestanaPrincipal) -> Unit,
     modifier: Modifier = Modifier,
+    pestanas: List<PestanaPrincipal> = PestanaPrincipal.entries.filter { it != PestanaPrincipal.MERCADO },
 ) {
     val colorSuperficie = MaterialTheme.colorScheme.surfaceContainerLowest
     val colorBorde = MaterialTheme.colorScheme.outlineVariant
@@ -164,7 +169,7 @@ fun BarraNavegacionInferior(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                PestanaPrincipal.entries.forEach { pestana ->
+                pestanas.forEach { pestana ->
                     ItemBarraNavegacion(
                         pestana = pestana,
                         activo = pestana == seleccionada,
@@ -297,6 +302,7 @@ private val CurvaMicroIconoNavbar = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
  * - **Inicio:** expansión suave del umbral inferior y relleno translúcido.
  * - **Análisis:** trazado progresivo de la curva Stocks + aparición del punto pico.
  * - **Metas:** impulso vertical sutil del trofeo + dos micro-destellos pasajeros.
+ * - **Mercado:** las dos flechas de intercambio se cruzan un poco y vuelven.
  * - **Perfil:** la cabeza de la silueta sube y vuelve, como un saludo breve.
  *
  * Recibe [color] y [progresoAnim] como lambdas para no invalidar `drawWithCache`
@@ -516,6 +522,33 @@ internal fun IconoPestanaPrincipal(
                                 cap = StrokeCap.Round,
                             )
                         }
+                    }
+                }
+
+                PestanaPrincipal.MERCADO -> {
+                    // Intercambio: dos flechas opuestas; al activarse se cruzan un poco y vuelven.
+                    val flechaArriba = Path().apply {
+                        moveTo(4.5f * u, 8.5f * u)
+                        lineTo(18.5f * u, 8.5f * u)
+                        moveTo(15.2f * u, 5.2f * u)
+                        lineTo(18.5f * u, 8.5f * u)
+                        lineTo(15.2f * u, 11.8f * u)
+                    }
+                    val flechaAbajo = Path().apply {
+                        moveTo(19.5f * u, 15.5f * u)
+                        lineTo(5.5f * u, 15.5f * u)
+                        moveTo(8.8f * u, 12.2f * u)
+                        lineTo(5.5f * u, 15.5f * u)
+                        lineTo(8.8f * u, 18.8f * u)
+                    }
+                    val corrimiento = 1.4f * u
+
+                    onDrawBehind {
+                        val tinta = color()
+                        val p = progresoAnim().coerceIn(0f, 1f)
+                        val dx = if (activo) corrimiento * sin(PI.toFloat() * p) else 0f
+                        translate(left = dx) { drawPath(path = flechaArriba, color = tinta, style = trazo) }
+                        translate(left = -dx) { drawPath(path = flechaAbajo, color = tinta, style = trazo) }
                     }
                 }
 
