@@ -12,10 +12,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.joako601.finanzas.nube.ContenedorNube
 import io.github.joako601.finanzas.nube.EntradaNube
 import io.github.joako601.finanzas.nube.SeccionNube
+import io.github.joako601.finanzas.nube.mercado.EstadoMercado
+import io.github.joako601.finanzas.nube.mercado.PantallaMercado
 import io.github.joako601.finanzas.nube.recuperar.DialogoCerrarSesion
 import io.github.joako601.finanzas.nube.sesion.EstadoSesion
 import io.github.joako601.finanzas.ui.componentes.DestinoLogoSplash
@@ -80,7 +83,7 @@ fun ContenidoApp() {
             onIrAFinanzas = { modo = ModoInicioNube.PRIVADO },
         )
 
-        // En modo privado la nube se abre desde el Perfil (entrar o catálogo).
+        // En modo privado la nube se abre desde el Perfil o desde Mercado para iniciar sesión.
         ModoInicioNube.PRIVADO -> guardadorFinanzas.SaveableStateProvider("finanzas") {
             FinanzasConPerfil(onAbrirNube = { modo = ModoInicioNube.NUBE })
         }
@@ -105,11 +108,30 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
             correo = usuario?.correo,
             nombre = usuario?.nombre,
             onEntrar = onAbrirNube,
-            onAbrirCatalogo = onAbrirNube,
             onCerrarSesion = { confirmarCierre = true },
         )
     }
-    ContenedorPrincipal(cuenta = cuenta)
+    val repositorioMercado = remember(context) { ContenedorNube.obtener(context).repositorioMercado }
+    val estadoMercado by repositorioMercado.estado.collectAsStateWithLifecycle()
+    // Sin WorkManager: Mercado se actualiza solo con la app al frente (la espera de 15 min evita llamadas de más).
+    LifecycleStartEffect(repositorioMercado, usuario?.uid) {
+        val tarea = alcance.launch { repositorioMercado.sincronizar() }
+        onStopOrDispose { tarea.cancel() }
+    }
+    ContenedorPrincipal(
+        cuenta = cuenta,
+        mercado = if (estadoMercado is EstadoMercado.Oculto) {
+            null
+        } else {
+            { margenInferior ->
+                PantallaMercado(
+                    repositorio = repositorioMercado,
+                    margenInferior = margenInferior,
+                    onIniciarSesion = onAbrirNube,
+                )
+            }
+        },
+    )
 
     // Si la sesión se cerró por fuera (token revocado, desde el catálogo), el diálogo ya no aplica
     // y no debe reaparecer al volver a entrar.

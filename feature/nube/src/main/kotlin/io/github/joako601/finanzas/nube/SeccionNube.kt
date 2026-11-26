@@ -269,8 +269,8 @@ fun SeccionNube(
                     repositorioSesion = repositorioSesion,
                     onLoginExitoso = {
                         mostrarRecuperar = false
-                        // Desde la entrada, iniciar sesión es entrar a la app: directo a finanzas.
-                        if (entrada != null && onIrAFinanzas != null) onIrAFinanzas() else rutaActual = RutaNube.CATALOGO
+                        // Iniciar sesión es volver a la app: directo a finanzas, donde ya está la pestaña Mercado.
+                        if (onIrAFinanzas != null) onIrAFinanzas() else rutaActual = RutaNube.CATALOGO
                     },
                     onIrARegistro = { rutaActual = RutaNube.REGISTRO },
                     onAbrirRecuperar = { correo ->

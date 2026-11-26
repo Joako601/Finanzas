@@ -290,6 +290,7 @@
     <string name="nav_inicio">Inicio</string>
     <string name="nav_analisis">Análisis</string>
     <string name="nav_presupuesto">Metas</string>
+    <string name="nav_mercado">Mercado</string>
     <string name="nav_perfil">Perfil</string>
 
     <!-- Apartado Análisis: histórico + proyección 30 días -->
@@ -347,8 +348,6 @@
     <string name="perfil_privada_texto">Tus datos viven solo en este teléfono</string>
     <string name="perfil_sin_sesion_titulo">Inicia sesión</string>
     <string name="perfil_sin_sesion_texto">Consulta el catálogo en la nube</string>
-    <string name="perfil_catalogo_titulo">Catálogo en la nube</string>
-    <string name="perfil_catalogo_texto">Consulta artículos y tipos de cambio. Tus finanzas siguen solo en este teléfono.</string>
     <string name="perfil_exportar">Exportar movimientos</string>
     <string name="perfil_recordatorios">Recordatorios</string>
     <string name="perfil_cerrar_sesion">Cerrar sesión</string>

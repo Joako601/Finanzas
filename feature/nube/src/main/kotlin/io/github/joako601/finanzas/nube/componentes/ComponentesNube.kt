@@ -68,6 +68,14 @@ internal object ColoresSemanticosNube {
     @ReadOnlyComposable
     fun exito(): Color = if (esTemaOscuro()) ExitoOscuro else ExitoClaro
 
+    private val AvisoClaro = Color(0xFFB54708)
+    private val AvisoOscuro = Color(0xFFFF9F0A)
+
+    /** Mismo tono que `TemaFinanzas.colores.aviso` de la app: datos viejos o sin conexión. */
+    @Composable
+    @ReadOnlyComposable
+    fun aviso(): Color = if (esTemaOscuro()) AvisoOscuro else AvisoClaro
+
 
 }
 

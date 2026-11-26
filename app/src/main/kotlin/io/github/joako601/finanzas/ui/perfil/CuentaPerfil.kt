@@ -13,7 +13,6 @@ class CuentaPerfil(
     val correo: String?,
     val nombre: String?,
     val onEntrar: () -> Unit,
-    val onAbrirCatalogo: () -> Unit,
     val onCerrarSesion: () -> Unit,
 ) {
     val conSesion: Boolean get() = correo != null
