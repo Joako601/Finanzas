@@ -115,7 +115,7 @@ internal class RepositorioDivisasRemoto(
     }
 
     private companion object {
-        val MONEDAS_PRINCIPALES = listOf("USD", "EUR", "CAD")
+        val MONEDAS_PRINCIPALES = listOf("USD", "EUR", "CAD", "GBP", "JPY")
         const val MONEDA_DESTINO = "MXN"
         val PATRON_ISO = Regex("^[A-Z]{3}$")
         val MONTO_MINIMO = BigDecimal("0.01")

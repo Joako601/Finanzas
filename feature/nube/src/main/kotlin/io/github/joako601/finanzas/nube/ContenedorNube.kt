@@ -14,6 +14,20 @@ import io.github.joako601.finanzas.nube.red.ClienteHttpBackend
 import io.github.joako601.finanzas.nube.sesion.InicializadorFirebase
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFirebase
+import io.github.joako601.finanzas.nube.mercado.CacheMercado
+import io.github.joako601.finanzas.nube.mercado.EstadoMercado
+import io.github.joako601.finanzas.nube.mercado.FuenteMercado
+import io.github.joako601.finanzas.nube.mercado.FuenteMercadoFalsa
+import io.github.joako601.finanzas.nube.mercado.FuenteMercadoRemota
+import io.github.joako601.finanzas.nube.mercado.MonitorConexion
+import io.github.joako601.finanzas.nube.mercado.RepositorioMercado
+import io.github.joako601.finanzas.nube.mercado.ResultadoFuente
+import io.github.joako601.finanzas.nube.sesion.EstadoSesion
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import java.io.File
 import java.math.BigDecimal
 
 /**
@@ -26,11 +40,11 @@ class ContenedorNube(context: Context) {
 
     val firebaseConfigurado: Boolean = InicializadorFirebase.estaConfigurado()
 
-    val repositorioSesion: RepositorioSesion? =
+    private val sesionFirebase: RepositorioSesion? =
         InicializadorFirebase.obtenerAuth(context)?.let(::RepositorioSesionFirebase)
 
     private val clienteHttpBackend: ClienteHttpBackend? =
-        repositorioSesion?.let { sesion ->
+        sesionFirebase?.let { sesion ->
             ClienteHttpBackend(
                 baseUrl = BuildConfig.BACKEND_BASE_URL,
                 repositorioSesion = sesion,
@@ -53,6 +67,32 @@ class ContenedorNube(context: Context) {
         else -> RepositorioDivisasNoConfigurado
     }
 
+    private val alcance = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val monitorConexion = MonitorConexion(context)
+
+    /** Datos de la pestaña Mercado. Sin Firebase configurado queda en [EstadoMercado.Oculto]. */
+    val repositorioMercado: RepositorioMercado = RepositorioMercado(
+        fuente = when {
+            clienteHttpBackend != null -> FuenteMercadoRemota(clienteHttpBackend, repositorioDivisas, repositorioCatalogo)
+            BuildConfig.DEBUG -> FuenteMercadoFalsa(repositorioDivisas, repositorioCatalogo)
+            else -> FuenteMercado { ResultadoFuente.ErrorServidor }
+        },
+        cache = CacheMercado(File(context.noBackupFilesDir, "mercado")),
+        conectado = monitorConexion.conectado,
+        sesion = sesionFirebase?.estado ?: MutableStateFlow(EstadoSesion.SinSesion),
+        alcance = alcance,
+    )
+
+    /**
+     * La sesión de Firebase con el cierre centralizado: cerrar sesión a propósito, desde
+     * cualquier pantalla, borra también los datos de Mercado. Una sesión que se cae por fuera
+     * (token revocado) no pasa por aquí y conserva los datos.
+     */
+    val repositorioSesion: RepositorioSesion? = sesionFirebase?.let { base ->
+        SesionConLimpieza(base) { repositorioMercado.borrar() }
+    }
+
     companion object {
         @Volatile
         private var instancia: ContenedorNube? = null
@@ -61,6 +101,16 @@ class ContenedorNube(context: Context) {
             instancia ?: synchronized(this) {
                 instancia ?: ContenedorNube(context.applicationContext).also { instancia = it }
             }
+    }
+}
+
+private class SesionConLimpieza(
+    private val base: RepositorioSesion,
+    private val limpiar: suspend () -> Unit,
+) : RepositorioSesion by base {
+    override suspend fun cerrarSesion() {
+        base.cerrarSesion()
+        limpiar()
     }
 }
 
