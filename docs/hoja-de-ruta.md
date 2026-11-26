@@ -1,6 +1,7 @@
 # Hoja de ruta
 
-Estado al 2026-11-20. Se actualiza al cerrar cada módulo. El detalle de cada decisión
+Estado al 2026-11-26: **Kren 1.0.0 publicada** (`versionCode` 12, base v7). Ver
+[CHANGELOG.md](../CHANGELOG.md). Se actualiza al cerrar cada módulo. El detalle de cada decisión
 está en `decisiones.md` y la evidencia en `verificacion.md`.
 
 ## Hecho
@@ -20,6 +21,7 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 | Tarjetas en carrusel de lado con círculos de posición; todas del mismo tamaño | versionCode 10 y 11 | `CarruselTarjetasTest` (3 casos) en el S24 FE al 0.9 y al 130 %; capturas en claro, oscuro y al 130 % |
 | Pagos y cobros fijos: periodicidades, registro de un toque, aviso un día antes, categoría de impuestos (D-016) | versionCode 5 | 14 pruebas de dominio, 4 del ViewModel, 24 de Room en el S24 FE; instalada en el S24 FE con migración 3→4 verificada sobre datos reales |
 | Base de distribución nube opcional y aislada (`privada` / `nube`, `:feature:nube`, Firebase Auth manual, guardias de permisos y dependencias, contrato `RepositorioSesion` y placeholders; D-020, D-021) | — | `./gradlew check`, `aapt2 dump permissions` en `privadaRelease` y `nubeDebug`, contraprueba de guardia de dependencias, 5 pruebas JVM de sesión |
+| **Kren 1.0**: compras a MSI, bienvenida, búsqueda y filtros, Análisis, Metas y topes, Perfil (privacidad, archivar, tema, horas de aviso), login en dos pasos en nube (D-022, D-023, D-024) | versionCode 12 · v1.0.0 | `./gradlew check` y CI; Room 49/49 y app 7/7 en el S24 FE; instalada encima sin perder datos |
 
 ## Siguiente, en orden
 
@@ -27,7 +29,7 @@ está en `decisiones.md` y la evidencia en `verificacion.md`.
 2. ~~Recordatorios~~ (hecho; corre la medición de dos semanas con
    `herramientas/medir-recordatorios.sh`).
 3. ~~Pagos recurrentes e ingresos esperados~~ (hecho, D-016; instalado en el S24 FE).
-4. **Compras a MSI** (pospuesto el 2026-11-19: el autor todavía no lo usa; el disponible
+4. ~~Compras a MSI~~ (hecho en la 1.0, D-022; antes pospuesto el 2026-11-19: el autor todavía no lo usa; el disponible
    real trata una compra a meses como deuda completa hasta entonces, S9): repartidas en los estados de cuenta siguientes; el gasto cuenta
    el mes de la compra y el flujo, mes a mes.
 5. ~~Línea de tiempo de 30 días y "disponible real"~~ (hecho, D-017).

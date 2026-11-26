@@ -1,0 +1,28 @@
+name: Proponer una idea
+description: Una función nueva o una mejora.
+title: "[Idea] "
+labels: ["mejora"]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: ¿Qué problema resuelve?
+      description: Cuéntalo desde tu situación, por ejemplo "cada quincena tengo que…".
+    validations:
+      required: true
+  - type: textarea
+    id: propuesta
+    attributes:
+      label: ¿Cómo te imaginas la solución?
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas que consideraste
+  - type: checkboxes
+    id: privacidad
+    attributes:
+      label: Privacidad
+      options:
+        - label: La idea funciona sin internet, o entiendo que solo podría ir en la distribución nube.
