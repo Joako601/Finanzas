@@ -43,6 +43,8 @@ public data class Cuenta(
     val nombre: String,
     val tipo: TipoCuenta,
     val archivada: Boolean = false,
+    /** Clave de un ícono local elegido para una categoría propia; `null` = se deduce del nombre (v7). */
+    val icono: String? = null,
 ) {
     init {
         require(nombre.isNotBlank()) { "La cuenta necesita nombre" }

@@ -45,6 +45,15 @@
 
     <!-- Detalle -->
     <string name="eliminar">Eliminar</string>
+    <string name="archivar">Archivar</string>
+    <string name="eliminar_estado">Eliminar estado de cuenta</string>
+    <string name="eliminar_estado_pregunta">¿Eliminar el estado de cuenta del %1$s?</string>
+    <string name="eliminar_estado_ayuda">Tus compras y pagos no cambian. Puedes volver a capturarlo cuando quieras.</string>
+    <string name="archivar_pregunta">¿Archivar %1$s?</string>
+    <string name="archivar_cuenta">Archivar cuenta</string>
+    <string name="archivar_cuenta_ayuda">Deja de aparecer al registrar y su saldo ya no cuenta en tu disponible. Sus movimientos se conservan en tu historial.</string>
+    <string name="archivar_tarjeta">Archivar tarjeta</string>
+    <string name="archivar_tarjeta_ayuda">Deja de aparecer en Inicio, al registrar y en tus avisos. Sus compras y pagos se conservan en tu historial.</string>
     <string name="eliminar_movimiento_pregunta">¿Eliminar este movimiento?</string>
 
     <!-- Nueva cuenta / Editar cuenta -->
@@ -99,6 +108,7 @@
 
     <!-- Pago de tarjeta -->
     <string name="pagar_tarjeta">Pagar %1$s</string>
+    <string name="editar_pago_tarjeta">Pago a %1$s</string>
     <string name="desde">Desde</string>
     <string name="error_sin_cuenta_pago">Elige de qué cuenta pagas</string>
     <string name="error_monto_pago">Escribe un monto mayor a cero</string>
@@ -235,11 +245,10 @@
     <string name="activar_avisos_titulo">Activa los avisos</string>
     <string name="activar_avisos_texto">Te avisamos antes de tus fechas límite de tarjeta y de tus pagos fijos para que no se te pase ninguno.</string>
     <string name="activar_avisos_boton">Activar avisos</string>
+    <string name="activar_avisos_ahora_no">Ahora no</string>
+    <string name="activar_avisos_desde_perfil">Puedes activarlos después en Perfil › Recordatorios.</string>
 
     <!-- Respaldo y exportación (D-018) -->
-    <string name="mas_opciones">Más opciones</string>
-    <string name="respaldo_y_exportar">Respaldo y exportar</string>
-    <string name="cuenta_y_catalogo">Cuenta y catálogo</string>
     <string name="respaldo_cifrado">Respaldo cifrado</string>
     <string name="ultimo_respaldo">Último respaldo: %1$s</string>
     <string name="sin_respaldo">Todavía no tienes un respaldo. Si pierdes o cambias de teléfono, pierdes tus datos.</string>
@@ -280,19 +289,14 @@
     <string name="nav_inicio">Inicio</string>
     <string name="nav_analisis">Análisis</string>
     <string name="nav_presupuesto">Metas</string>
-    <string name="nav_boveda">Bóveda</string>
-    <string name="nav_proximamente_badge">PRÓXIMAMENTE</string>
-    <string name="nav_volver_inicio">Volver a Inicio</string>
-    <string name="nav_analisis_titulo">Tu dinero, explicado por categoría y ritmo</string>
-    <string name="nav_analisis_desc">Aquí verás comparativas mensuales, tendencias de gasto fijo vs. variable y en qué categorías se concentra tu flujo, todo calculado localmente en tu teléfono.</string>
-    <string name="nav_presupuesto_titulo">Límites tranquilos y metas de ahorro</string>
-    <string name="nav_presupuesto_desc">Define topes mensuales por categoría y apartados de ahorro sin estrés, conectados directamente con tu disponible real de los próximos 30 días.</string>
-    <string name="nav_boveda_titulo">Seguridad local, llaves y preferencias</string>
-    <string name="nav_boveda_desc">Administra el cifrado de tu base de datos, respaldos automáticos, horarios de recordatorios y opciones de privacidad desde un solo lugar.</string>
+    <string name="nav_perfil">Perfil</string>
 
     <!-- Apartado Análisis: histórico + proyección 30 días -->
-    <string name="analisis_periodo_15_dias">15 días</string>
+    <string name="analisis_periodo_mes">Mes</string>
     <string name="analisis_periodo_30_dias">30 días</string>
+    <string name="analisis_periodo_3_meses">3 meses</string>
+    <string name="analisis_mes_anterior">Mes anterior</string>
+    <string name="analisis_mes_siguiente">Mes siguiente</string>
     <string name="analisis_disponible_subtitulo">Disponible real · Efectivo y débito</string>
     <string name="analisis_fase_historico">%1$s · Saldo en cuentas</string>
     <string name="analisis_fase_hoy">Hoy · En cuentas</string>
@@ -302,38 +306,56 @@
     <string name="analisis_un_movimiento_dia">1 movimiento · Neto en cuentas %1$s</string>
     <string name="analisis_varios_movimientos_dia">%1$d movimientos · Neto en cuentas %2$s</string>
     <string name="analisis_mas_eventos">%1$s (+%2$d más)</string>
-    <string name="analisis_eje_menos_15">−15 d</string>
-    <string name="analisis_eje_menos_30">−30 d</string>
+    <string name="analisis_eje_menos_dias">−%1$d d</string>
     <string name="analisis_eje_mas_30">+30 d</string>
     <string name="analisis_accion_inicio_periodo">Inspeccionar inicio del periodo</string>
     <string name="analisis_accion_saldo_hoy">Inspeccionar saldo de hoy</string>
     <string name="analisis_accion_punto_mas_bajo">Inspeccionar día de saldo más bajo</string>
     <string name="analisis_accion_restablecer">Mostrar disponible real</string>
     <string name="analisis_grafico_cd">Gráfico de liquidez de %1$d días pasados y 30 días futuros. Hoy tienes %2$s en cuentas; tu disponible real es %3$s.</string>
-    <string name="analisis_flujo_titulo_15">Flujo de los últimos 15 días</string>
+    <string name="analisis_flujo_titulo_mes">Flujo de %1$s</string>
     <string name="analisis_flujo_titulo_30">Flujo de los últimos 30 días</string>
+    <string name="analisis_flujo_titulo_3_meses">Flujo de los últimos 3 meses</string>
+    <string name="analisis_neto">Neto</string>
+    <string name="analisis_tasa_ahorro">Guardaste el %1$d%% de lo que entró</string>
+    <string name="analisis_tasa_ahorro_negativa">Gastaste %1$d%% más de lo que entró</string>
+    <string name="analisis_variacion_mas">Gastaste %1$d%% más que en el periodo anterior</string>
+    <string name="analisis_variacion_menos">Gastaste %1$d%% menos que en el periodo anterior</string>
+    <string name="analisis_variacion_igual">Gastaste lo mismo que en el periodo anterior</string>
+    <string name="analisis_metodo_pago">Con tarjeta %1$s · Con efectivo y débito %2$s</string>
+    <string name="analisis_patrimonio_titulo">Patrimonio neto</string>
+    <string name="analisis_patrimonio_detalle">En cuentas %1$s · Deuda en tarjetas %2$s</string>
     <string name="analisis_flujo_subtitulo">Ingresos y gastos · Salidas: %1$s / día</string>
     <string name="analisis_flujo_sin_salidas">Ingresos y gastos registrados en el periodo</string>
     <string name="analisis_entradas">Entradas</string>
     <string name="analisis_salidas">Salidas</string>
     <string name="analisis_categorias_titulo">Gastos por categoría</string>
     <string name="analisis_categorias_subtitulo">Efectivo, débito y compras con tarjeta</string>
-    <string name="analisis_categorias_vacio">Sin gastos registrados en estos %1$d días.</string>
+    <string name="analisis_categorias_vacio">Sin gastos registrados en este periodo.</string>
+    <string name="analisis_ver_movimientos">Ver movimientos</string>
+    <string name="analisis_ver_todas">Ver todas las categorías</string>
+    <string name="analisis_otros_gastos">Otros gastos</string>
     <string name="analisis_otras_categorias">Otras categorías (%1$d)</string>
     <string name="analisis_porcentaje">%1$d%%</string>
+    <string name="analisis_ver_tope">Ver tope en Metas</string>
 
-    <!-- Bóveda (pestaña 4) -->
-    <string name="boveda_estado_al_dia">Al día</string>
-    <string name="boveda_estado_pendiente">Pendiente</string>
-    <string name="boveda_avisos_titulo">Recordatorios y avisos</string>
-    <string name="boveda_avisos_activos">Activos</string>
-    <string name="boveda_avisos_inactivos">Desactivados</string>
-    <string name="boveda_avisos_texto_activos">Te avisaremos antes del corte, de la fecha límite de tus tarjetas y de tus pagos fijos.</string>
-    <string name="boveda_avisos_texto_inactivos">Activa las notificaciones para recibir avisos antes de la fecha límite de tus tarjetas y tus pagos fijos.</string>
-    <string name="boveda_ajustes_avisos">Ajustes de notificaciones</string>
-    <string name="boveda_nube_titulo">Cuenta y catálogo</string>
-    <string name="boveda_nube_texto">Inicia sesión para consultar el catálogo de artículos en la nube. Tus finanzas personales siguen guardadas únicamente en este teléfono.</string>
-    <string name="boveda_abrir_nube">Abrir cuenta y catálogo</string>
+    <!-- Perfil (pestaña 4) -->
+    <string name="perfil_ajustes">Ajustes</string>
+    <string name="perfil_tu_cuenta">Tu cuenta</string>
+    <string name="perfil_privada_titulo">Kren</string>
+    <string name="perfil_privada_texto">Tus datos viven solo en este teléfono</string>
+    <string name="perfil_sin_sesion_titulo">Inicia sesión</string>
+    <string name="perfil_sin_sesion_texto">Consulta el catálogo en la nube</string>
+    <string name="perfil_catalogo_titulo">Catálogo en la nube</string>
+    <string name="perfil_catalogo_texto">Consulta artículos y tipos de cambio. Tus finanzas siguen solo en este teléfono.</string>
+    <string name="perfil_exportar">Exportar movimientos</string>
+    <string name="perfil_recordatorios">Recordatorios</string>
+    <string name="perfil_cerrar_sesion">Cerrar sesión</string>
+    <string name="perfil_volver">Volver</string>
+    <string name="perfil_estado_pendiente">Pendiente</string>
+    <string name="perfil_avisos_activos">Activos</string>
+    <string name="perfil_avisos_inactivos">Desactivados</string>
+    <string name="perfil_abrir_ajustes_avisos">Abrir ajustes de notificaciones</string>
 
     <!-- Hoja de captura rápida -->
     <string name="ver_todas_categorias">Ver todas (%1$d)</string>
@@ -458,4 +480,125 @@
     <string name="disponible_apartados_sin_respaldo">Sin respaldo libre mientras tengas pagos por cubrir.</string>
     <string name="disponible_apartados_sin_saldo">Sin saldo disponible para respaldar tus apartados.</string>
     <string name="disponible_seccion_apartados">Apartados reservados</string>
+
+    <!-- Kren 1.0: compras a meses sin intereses (D-022) -->
+    <string name="msi_plazo">Meses sin intereses</string>
+    <string name="msi_contado">De contado</string>
+    <string name="msi_n">%1$d meses</string>
+    <string name="msi_activas">Compras a meses activas</string>
+    <string name="msi_fila">%1$s · %2$d de %3$d facturadas</string>
+    <string name="msi_cuota">%1$s al mes</string>
+    <string name="msi_por_facturar">Por facturar</string>
+
+    <!-- Kren 1.0: modo discreto y búsqueda en Inicio -->
+    <string name="monto_oculto">Monto oculto</string>
+    <string name="ocultar_montos">Ocultar montos</string>
+    <string name="mostrar_montos">Mostrar montos</string>
+    <string name="buscar_movimientos">Buscar movimientos</string>
+    <string name="buscar_nota_categoria">Buscar en nota o categoría</string>
+    <string name="filtro_tipo">Tipo</string>
+    <string name="filtro_mes">Mes</string>
+    <string name="filtro_todos">Todos</string>
+    <string name="filtro_todas">Todas</string>
+    <plurals name="filtro_conteo">
+        <item quantity="one">%d movimiento</item>
+        <item quantity="many">%d movimientos</item>
+        <item quantity="other">%d movimientos</item>
+    </plurals>
+    <string name="filtro_resultado_neto">%1$s · neto %2$s</string>
+    <string name="filtro_resultado_total">%1$s · total %2$s</string>
+    <string name="cerrar_busqueda">Cerrar búsqueda</string>
+    <string name="ver_movimientos">Ver movimientos</string>
+    <string name="total_del_dia">Total del día</string>
+    <string name="cargo_a_tarjeta">Se carga a tu tarjeta</string>
+    <string name="corregir_estado">Corregir</string>
+    <string name="perfil_categorias">Categorías</string>
+    <string name="editar">Editar</string>
+    <string name="metas_historial_cumplido">%1$s · Dentro del tope</string>
+    <string name="metas_historial_excedido">%1$s · Pasaste el tope</string>
+    <string name="metas_fuera_de_topes">Fuera de topes este mes: %1$s</string>
+    <string name="captura_tope_restante">Te quedarían %1$s de tu tope de %2$s</string>
+    <string name="captura_tope_excede">Con esto pasas tu tope de %2$s por %1$s</string>
+    <string name="perfil_apariencia">Apariencia</string>
+    <string name="apariencia_tema">Tema</string>
+    <string name="apariencia_sistema">Sistema</string>
+    <string name="apariencia_claro">Claro</string>
+    <string name="apariencia_oscuro">Oscuro</string>
+    <string name="apariencia_ayuda">Con "Sistema", Kren cambia sola cuando el teléfono pasa a modo oscuro.</string>
+    <string name="avisos_estado_activos">Los avisos están activos.</string>
+    <string name="avisos_estado_inactivos">Los avisos están desactivados: no te avisaremos de pagos ni cortes.</string>
+    <string name="avisos_hora_dia">Hora de la mañana</string>
+    <string name="avisos_hora_dia_ayuda">Pagos próximos, pagos fijos y cortes de tarjeta</string>
+    <string name="avisos_hora_noche">Hora de la noche</string>
+    <string name="avisos_hora_noche_ayuda">Recordatorio para capturar tu estado de cuenta</string>
+    <string name="avisos_hora">%1$d:00</string>
+    <string name="categorias_gastos">Gastos</string>
+    <string name="categorias_ingresos">Ingresos</string>
+    <string name="categorias_archivadas">Archivadas</string>
+    <string name="categorias_nueva_gasto">Nueva categoría de gasto</string>
+    <string name="categorias_nueva_ingreso">Nueva categoría de ingreso</string>
+    <string name="categorias_editar">Editar categoría</string>
+    <string name="categorias_nombre">Nombre</string>
+    <string name="categorias_icono">Ícono</string>
+    <string name="categorias_error_repetida">Ya tienes una categoría con ese nombre</string>
+    <string name="metas_ahorro_registrar_gasto">También registrarlo como gasto</string>
+    <string name="metas_ahorro_historial">Aportes y retiros</string>
+    <string name="metas_ahorro_historial_vacio">Los aportes y retiros aparecen aquí desde esta versión.</string>
+    <string name="cuenta_preferida">Se paga con</string>
+    <string name="cuenta_preferida_ingreso">Llega a</string>
+    <string name="elegir_al_registrar">Elegir al registrar</string>
+    <string name="ver_todos_recurrentes">Ver todos (%1$d)</string>
+    <string name="ver_menos">Ver menos</string>
+
+    <!-- Kren 1.0: bienvenida del Día 1 -->
+    <string name="bienvenida_paso_de">Paso %1$d de 3</string>
+    <string name="bienvenida_paso1_titulo">Tu dinero de hoy</string>
+    <string name="bienvenida_paso1_texto">Anota cuánto tienes en efectivo y, si quieres, tu cuenta de débito principal.</string>
+    <string name="bienvenida_paso2_titulo">Tu ingreso fijo</string>
+    <string name="bienvenida_paso2_texto">Tu quincena o sueldo alimenta desde hoy tus próximos 30 días.</string>
+    <string name="bienvenida_paso3_titulo">¿Usas tarjeta de crédito?</string>
+    <string name="bienvenida_paso3_texto">Con su corte y su fecha límite, Kren calcula cuánto apartar para pagarla.</string>
+    <string name="bienvenida_saldo_efectivo">Capturar mi efectivo</string>
+    <string name="bienvenida_agregar_debito">Agregar cuenta de débito</string>
+    <string name="bienvenida_agregar_ingreso">Agregar ingreso fijo</string>
+    <string name="bienvenida_siguiente">Siguiente</string>
+    <string name="bienvenida_listo">Listo</string>
+    <string name="bienvenida_saltar">Saltar</string>
+
+    <!-- Kren 1.0: Perfil → Privacidad y seguridad -->
+    <string name="perfil_privacidad">Privacidad y seguridad</string>
+    <string name="privacidad_discreto">Iniciar con montos ocultos</string>
+    <string name="privacidad_discreto_texto">Inicio abre con $ ••••. Tócalos con el ojo para verlos.</string>
+    <string name="privacidad_recientes">Ocultar en apps recientes</string>
+    <string name="privacidad_recientes_texto">La vista previa sale en blanco y no se permiten capturas de pantalla.</string>
+    <string name="privacidad_bloqueo">Bloquear al abrir</string>
+    <string name="privacidad_bloqueo_texto">Pide el PIN, patrón o huella de tu teléfono al abrir Kren y la oculta en apps recientes.</string>
+    <string name="privacidad_bloqueo_sin_pin">Configura un bloqueo de pantalla en tu teléfono para usarlo.</string>
+    <string name="privacidad_borrar">Borrar todos los datos</string>
+    <string name="privacidad_borrar_texto">Deja Kren como recién instalada en este teléfono.</string>
+    <string name="privacidad_borrar_pregunta">¿Borrar todos tus datos?</string>
+    <string name="privacidad_borrar_ayuda">Se borran tus cuentas, movimientos, tarjetas, pagos fijos, metas y avisos de este teléfono. No se puede deshacer. Si quieres conservarlos, crea antes un respaldo cifrado.</string>
+    <string name="privacidad_borrar_confirmar">Borrar todo</string>
+    <string name="privacidad_borrar_error">No se pudieron borrar los datos. Siguen como estaban; intenta de nuevo.</string>
+    <string name="bloqueo_motivo">Confirma que eres tú para ver tus finanzas</string>
+    <string name="bloqueo_tocar">Toca para desbloquear</string>
+
+    <!-- Kren 1.0: Perfil → Cuentas y tarjetas -->
+    <string name="perfil_cuentas">Cuentas y tarjetas</string>
+    <string name="cuentas_al_registrar">Elige con cuál se abre Registrar. Si usas otra, la próxima vez se propone esa.</string>
+    <string name="cuentas_activas">Activas</string>
+    <string name="cuentas_archivadas">Archivadas</string>
+    <string name="cuentas_reactivar">Reactivar</string>
+    <string name="cuentas_ultima_activa">Necesitas al menos una cuenta de efectivo o débito activa.</string>
+    <string name="cuentas_aviso_saldo">Tiene %1$s: dejará de contar en tu disponible.</string>
+    <string name="cuentas_aviso_deuda">Debes %1$s: dejará de contar en tus pagos de los próximos 30 días.</string>
+
+    <!-- Kren 1.0: Perfil → Acerca de Kren -->
+    <string name="perfil_acerca">Acerca de Kren</string>
+    <string name="acerca_disponible_titulo">Cómo calcula Kren tu Disponible real</string>
+    <string name="acerca_disponible_formula">Efectivo y débito − Pagos fijos 30 días − Tarjetas − Apartado en metas</string>
+    <string name="acerca_disponible_texto">Kren recorre tus próximos 30 días: resta tus pagos fijos y lo que toca pagar de cada tarjeta (lo capturado de tu estado de cuenta o, si falta, un estimado sin las mensualidades a meses que aún no se facturan) y suma tus ingresos fijos en su fecha. Tu Disponible real es el saldo más bajo de esos días: lo que puedes gastar hoy sin quedarte en negativo. Al final se resta lo que apartaste en tus metas para que veas lo que te queda libre.</string>
+    <string name="acerca_privacidad_titulo">Tus datos se quedan aquí</string>
+    <string name="acerca_privacidad_texto">Tus finanzas viven solo en este teléfono. Kren no las envía a ningún servidor ni las comparte. Los respaldos van cifrados con tu contraseña y los avisos no muestran montos en la pantalla de bloqueo.</string>
+    <string name="acerca_version">Kren %1$s</string>
 </resources>

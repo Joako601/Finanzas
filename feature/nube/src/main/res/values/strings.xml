@@ -10,7 +10,6 @@
     <string name="nube_explorar_demo">Explorar en modo demostración</string>
 
     <!-- Títulos y acciones compartidas entre las pantallas de nube -->
-    <string name="nube_login_titulo">Iniciar sesión</string>
     <string name="nube_registro_titulo">Crear cuenta</string>
     <string name="nube_recuperar_titulo">Recuperar contraseña</string>
     <string name="nube_catalogo_titulo">Catálogo</string>

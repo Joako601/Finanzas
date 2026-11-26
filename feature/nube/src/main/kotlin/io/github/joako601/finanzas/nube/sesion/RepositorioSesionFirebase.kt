@@ -6,6 +6,7 @@ import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,6 +38,19 @@ internal class RepositorioSesionFirebase(
 
     override suspend fun iniciarSesion(correo: String, contrasena: String): ResultadoLogin = try {
         auth.signInWithEmailAndPassword(correo.trim(), contrasena).esperar()
+        ResultadoLogin.Exito
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        mapearErrorLogin(
+            codigoError = (e as? FirebaseAuthException)?.errorCode,
+            esRed = e is FirebaseNetworkException,
+            demasiadosIntentos = e is FirebaseTooManyRequestsException,
+        )
+    }
+
+    override suspend fun iniciarSesionConGoogle(idToken: String): ResultadoLogin = try {
+        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).esperar()
         ResultadoLogin.Exito
     } catch (e: CancellationException) {
         throw e
@@ -104,7 +118,7 @@ private fun FirebaseUser?.aEstadoSesion(): EstadoSesion =
     if (this == null) {
         EstadoSesion.SinSesion
     } else {
-        EstadoSesion.Autenticado(UsuarioSesion(uid = uid, correo = email.orEmpty()))
+        EstadoSesion.Autenticado(UsuarioSesion(uid = uid, correo = email.orEmpty(), nombre = displayName?.takeIf { it.isNotBlank() }))
     }
 
 /** Espera un [Task] de Play Services sin agregar la dependencia `kotlinx-coroutines-play-services`. */

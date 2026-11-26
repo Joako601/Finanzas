@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.nube.red
 
 import io.github.joako601.finanzas.nube.sesion.EstadoSesion
+import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFalso
 import io.github.joako601.finanzas.nube.sesion.ResultadoTokenId
 import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
@@ -9,6 +10,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -155,5 +157,68 @@ class ClienteHttpBackendTest {
         )
         val res = cliente500.get("/api/v1/productos")
         assertTrue(res is RespuestaHttp.ErrorServidor && res.codigo == 503)
+    }
+
+    @Test
+    fun segundo_token_expirado_tras_un_refresco_vuelve_a_refrescar() = runTest {
+        val sesion = SesionConTokens(vigente = "t1", refrescos = ArrayDeque(listOf("r1", "r2")))
+        var validos = setOf("r1")
+        val cliente = ClienteHttpBackend(
+            baseUrl = "https://api.ejemplo.mx",
+            repositorioSesion = sesion,
+            transporte = TransporteHttp { _, token ->
+                ResultadoTransporte.Respuesta(if (token in validos) 200 else 401, "[]")
+            },
+            despachadorIo = StandardTestDispatcher(testScheduler),
+        )
+        assertEquals(RespuestaHttp.Exito(200, "[]"), cliente.get("/api/v1/productos"))
+
+        // Firebase rotó el token por su cuenta y después ese también expiró.
+        sesion.vigente = "t3"
+        validos = setOf("r2")
+        assertEquals(RespuestaHttp.Exito(200, "[]"), cliente.get("/api/v1/productos"))
+        assertEquals(2, sesion.refrescosForzados)
+    }
+
+    @Test
+    fun cambio_de_usuario_no_reusa_el_jwt_refrescado_del_anterior() = runTest {
+        val sesion = RepositorioSesionFalso(
+            estadoInicial = EstadoSesion.Autenticado(UsuarioSesion("uid-a", "a@ejemplo.com")),
+            cuentasIniciales = mapOf("b@ejemplo.com" to "contrasena-b"),
+        )
+        val enviados = mutableListOf<String>()
+        val cliente = ClienteHttpBackend(
+            baseUrl = "https://api.ejemplo.mx",
+            repositorioSesion = sesion,
+            transporte = TransporteHttp { _, token ->
+                enviados += token
+                ResultadoTransporte.Respuesta(if (token.startsWith("token-falso-refrescado")) 200 else 401, "[]")
+            },
+            despachadorIo = StandardTestDispatcher(testScheduler),
+        )
+        cliente.get("/api/v1/productos")
+        sesion.cerrarSesion()
+        sesion.iniciarSesion("b@ejemplo.com", "contrasena-b")
+        enviados.clear()
+
+        assertEquals(RespuestaHttp.Exito(200, "[]"), cliente.get("/api/v1/productos"))
+        assertFalse(enviados.any { "uid-a" in it })
+        assertEquals("token-falso-refrescado-falso-b@ejemplo.com", enviados.last())
+    }
+}
+
+/** Sesión con tokens guionados: [vigente] es el token en caché y cada refresco forzado toma el siguiente. */
+private class SesionConTokens(
+    var vigente: String,
+    private val refrescos: ArrayDeque<String>,
+) : RepositorioSesion by RepositorioSesionFalso() {
+    var refrescosForzados = 0
+
+    override suspend fun obtenerTokenId(forzarRefresco: Boolean): ResultadoTokenId {
+        if (forzarRefresco) {
+            refrescosForzados++
+            vigente = refrescos.removeFirst()
+        }
+        return ResultadoTokenId.Exito(vigente)
     }
 }

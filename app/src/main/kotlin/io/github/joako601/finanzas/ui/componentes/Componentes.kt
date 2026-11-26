@@ -35,6 +35,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.composed
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import io.github.joako601.finanzas.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -154,9 +160,23 @@ internal fun Modifier.toqueTactil(interactionSource: MutableInteractionSource): 
     }
 }
 
+/** Modo discreto: con `true`, los montos de Inicio se muestran como [MONTO_OCULTO]. */
+val LocalMontosOcultos = staticCompositionLocalOf { false }
+
+const val MONTO_OCULTO = "$ ••••"
+
+/** El monto formateado, o [MONTO_OCULTO] en modo discreto. */
+@Composable
+fun Dinero.enPantalla(): String = if (LocalMontosOcultos.current) MONTO_OCULTO else formatear()
+
 /**
- * Muestra un monto en formato tabular (`tnum`) animando suavemente sus cambios en 360 ms
- * con curva "Seda iOS". Si las animaciones están desactivadas, actualiza sin interpolación.
+ * Muestra un monto en formato tabular (`tnum`) con curva "Seda iOS":
+ * - la primera vez que aparece cuenta desde $0 hasta el monto (600 ms); después, cada cambio
+ *   rueda del valor anterior al nuevo (360 ms);
+ * - en modo discreto el número corre y sus dígitos caen en puntos de izquierda a derecha
+ *   (450 ms); al mostrarlo, los puntos se van y vuelve a contar desde $0.
+ * Con *Quitar animaciones* todo cambia sin interpolar. TalkBack solo oye el monto final o
+ * "Monto oculto".
  */
 @Composable
 fun TextoMontoAnimado(
@@ -166,25 +186,49 @@ fun TextoMontoAnimado(
     color: Color = Color.Unspecified,
 ) {
     val sinAnimaciones = rememberAnimacionesDesactivadas()
+    val oculto = LocalMontosOcultos.current
     val estiloTabular = remember(style) { style.copy(fontFeatureSettings = "tnum") }
     val textoFinal = remember(monto) { monto.formatear() }
-    var origenCentavos by remember { mutableLongStateOf(monto.centavos) }
-    var destinoCentavos by remember { mutableLongStateOf(monto.centavos) }
+    // Saveable: no vuelve a contar desde $0 al regresar a la pestaña ni al volver una fila a la vista.
+    var yaContado by rememberSaveable { mutableStateOf(false) }
+    val inicial = if (yaContado || sinAnimaciones || oculto) monto.centavos else 0L
+    var origenCentavos by remember { mutableLongStateOf(inicial) }
+    var destinoCentavos by remember { mutableLongStateOf(inicial) }
     val progreso = remember { Animatable(1f) }
+    // 0 = monto visible, 1 = "$ ••••". Arranca donde está: abrir ya oculto no anima nada.
+    val pOculto = remember { Animatable(if (oculto) 1f else 0f) }
+
+    suspend fun rodarHasta(centavos: Long, duracionMs: Int) {
+        origenCentavos = interpolarCentavos(origenCentavos, destinoCentavos, progreso.value)
+        destinoCentavos = centavos
+        progreso.snapTo(0f)
+        progreso.animateTo(1f, tween(durationMillis = duracionMs, easing = CurvaSaldoRodante))
+    }
 
     LaunchedEffect(monto.centavos, sinAnimaciones) {
+        val primeraVez = !yaContado
+        yaContado = true
         if (sinAnimaciones || monto.centavos == destinoCentavos) {
             origenCentavos = monto.centavos
             destinoCentavos = monto.centavos
             progreso.snapTo(1f)
         } else {
-            origenCentavos = interpolarCentavos(origenCentavos, destinoCentavos, progreso.value)
-            destinoCentavos = monto.centavos
-            progreso.snapTo(0f)
-            progreso.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 360, easing = CurvaSaldoRodante),
-            )
+            rodarHasta(monto.centavos, if (primeraVez) 600 else 360)
+        }
+    }
+
+    LaunchedEffect(oculto, sinAnimaciones) {
+        when {
+            sinAnimaciones -> pOculto.snapTo(if (oculto) 1f else 0f)
+            oculto -> pOculto.animateTo(1f, tween(durationMillis = 450, easing = CurvaSaldoRodante))
+            pOculto.value > 0f -> {
+                // Al mostrar: los puntos se van mientras el número vuelve a contar desde $0.
+                origenCentavos = 0L
+                destinoCentavos = 0L
+                progreso.snapTo(1f)
+                launch { rodarHasta(monto.centavos, 600) }
+                pOculto.animateTo(0f, tween(durationMillis = 300, easing = CurvaSaldoRodante))
+            }
         }
     }
 
@@ -194,12 +238,56 @@ fun TextoMontoAnimado(
         else -> interpolarCentavos(origenCentavos, destinoCentavos, progreso.value)
     }
 
+    val hablado = if (oculto) stringResource(R.string.monto_oculto) else textoFinal
     Text(
-        text = Dinero(centavosVisibles).formatear(),
+        text = textoConPuntos(Dinero(centavosVisibles).formatear(), pOculto.value),
         style = estiloTabular,
         color = color,
-        modifier = modifier.clearAndSetSemantics { text = AnnotatedString(textoFinal) },
+        modifier = modifier.clearAndSetSemantics { text = AnnotatedString(hablado) },
     )
+}
+
+/**
+ * "Corre y cae en puntos": con [progreso] 0 es [formateado] tal cual y con 1 es [MONTO_OCULTO].
+ * En medio, `$`, comas y punto se quedan; cada dígito corre (sube de valor) hasta su turno y,
+ * de izquierda a derecha, se vuelve `•`. El largo no cambia, así el texto no brinca.
+ */
+internal fun textoConPuntos(formateado: String, progreso: Float): String {
+    if (progreso <= 0f) return formateado
+    if (progreso >= 1f) return MONTO_OCULTO
+    val digitos = formateado.count { it.isDigit() }
+    val giro = (progreso * 20).toInt()
+    var indice = 0
+    return buildString(formateado.length) {
+        formateado.forEach { c ->
+            if (!c.isDigit()) {
+                append(c)
+            } else {
+                val turno = 0.3f + 0.7f * indice / digitos
+                append(if (progreso >= turno) '•' else '0' + (c - '0' + giro) % 10)
+                indice++
+            }
+        }
+    }
+}
+
+/**
+ * Para frases y filas con [enPantalla]: al ocultar o mostrar, el texto nuevo entra con un
+ * fundido de 240 ms en lugar de cambiar de golpe. Nada con *Quitar animaciones*.
+ */
+fun Modifier.fundidoAlOcultar(): Modifier = composed {
+    val oculto = LocalMontosOcultos.current
+    val sinAnimaciones = rememberAnimacionesDesactivadas()
+    val alfa = remember { Animatable(1f) }
+    var previo by remember { mutableStateOf(oculto) }
+    LaunchedEffect(oculto) {
+        if (oculto != previo && !sinAnimaciones) {
+            alfa.snapTo(0f)
+            alfa.animateTo(1f, tween(durationMillis = 240, easing = CurvaSaldoRodante))
+        }
+        previo = oculto
+    }
+    graphicsLayer { alpha = alfa.value }
 }
 
 private fun interpolarCentavos(origen: Long, destino: Long, progreso: Float): Long {

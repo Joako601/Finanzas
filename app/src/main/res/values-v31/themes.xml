@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+: la pantalla de arranque del sistema usa el mismo fondo carbón que el splash
+  animado de Kren; si no, en modo claro se ve un destello claro antes del splash.
+-->
+<resources>
+    <style name="Theme.Finanzas" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/fondo_ventana</item>
+        <item name="android:windowSplashScreenBackground">@color/fondo_splash</item>
+    </style>
+</resources>

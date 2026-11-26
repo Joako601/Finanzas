@@ -38,10 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -49,7 +47,6 @@ import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.PI
@@ -72,33 +69,24 @@ import io.github.joako601.finanzas.ui.componentes.toqueTactil
  * Los 4 apartados principales de la barra de navegación inferior.
  *
  * - [INICIO]: pantalla principal de movimientos, cuentas, tarjetas y pagos fijos.
- * - [ANALISIS], [METAS], [BOVEDA]: apartados preparados en la arquitectura de navegación
- *   con vistas temporales minimalistas ("Próximamente").
+ * - [ANALISIS]: liquidez, flujo y gastos por categoría.
+ * - [METAS]: topes mensuales y apartados de ahorro.
+ * - [PERFIL]: cuenta (si la hay), respaldo, exportación y recordatorios.
  */
 enum class PestanaPrincipal(
     @param:StringRes val etiquetaRes: Int,
-    @param:StringRes val tituloPlaceholderRes: Int,
-    @param:StringRes val descripcionPlaceholderRes: Int,
 ) {
     INICIO(
         etiquetaRes = R.string.nav_inicio,
-        tituloPlaceholderRes = R.string.nav_inicio,
-        descripcionPlaceholderRes = R.string.nav_inicio,
     ),
     ANALISIS(
         etiquetaRes = R.string.nav_analisis,
-        tituloPlaceholderRes = R.string.nav_analisis_titulo,
-        descripcionPlaceholderRes = R.string.nav_analisis_desc,
     ),
     METAS(
         etiquetaRes = R.string.nav_presupuesto,
-        tituloPlaceholderRes = R.string.nav_presupuesto_titulo,
-        descripcionPlaceholderRes = R.string.nav_presupuesto_desc,
     ),
-    BOVEDA(
-        etiquetaRes = R.string.nav_boveda,
-        tituloPlaceholderRes = R.string.nav_boveda_titulo,
-        descripcionPlaceholderRes = R.string.nav_boveda_desc,
+    PERFIL(
+        etiquetaRes = R.string.nav_perfil,
     ),
 }
 
@@ -312,7 +300,7 @@ private val CurvaMicroIconoNavbar = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
  * - **Inicio:** expansión suave del umbral inferior y relleno translúcido.
  * - **Análisis:** trazado progresivo de la curva Stocks + aparición del punto pico.
  * - **Metas:** impulso vertical sutil del trofeo + dos micro-destellos pasajeros.
- * - **Bóveda:** giro preciso de `60°` del dial de la caja fuerte.
+ * - **Perfil:** la cabeza de la silueta sube y vuelve, como un saludo breve.
  *
  * Recibe [color] y [progresoAnim] como lambdas para no invalidar `drawWithCache`
  * durante las animaciones (0 alocaciones de `Path`/`Stroke` por frame).
@@ -534,74 +522,33 @@ internal fun IconoPestanaPrincipal(
                     }
                 }
 
-                PestanaPrincipal.BOVEDA -> {
-                    // Caja fuerte minimalista con giro de 60° del dial al activarse
-                    val origenBoveda = Offset(4.8f * u, 5.2f * u)
-                    val tamanoBoveda = Size(14.4f * u, 13.4f * u)
-                    val radioBoveda = CornerRadius(2.8f * u, 2.8f * u)
-                    val centroDial = Offset(12f * u, 11.9f * u)
-                    val radioAroDial = 3.60f * u
-                    val radioCentroDial = (if (activo) 1.10f else 0.95f) * u
-                    // Muesca anclada al borde interior del aro, despejada del punto central (>0.32u)
-                    val muescaInicio = Offset(12f * u, 9.00f * u)
-                    val muescaFin = Offset(12f * u, 9.90f * u)
-                    val pataIzqInicio = Offset(8f * u, 18.6f * u)
-                    val pataIzqFin = Offset(8f * u, 19.6f * u)
-                    val pataDerInicio = Offset(16f * u, 18.6f * u)
-                    val pataDerFin = Offset(16f * u, 19.6f * u)
+                PestanaPrincipal.PERFIL -> {
+                    // Persona dentro de un círculo; al activarse la cabeza sube y vuelve (saludo breve).
+                    val centro = Offset(12f * u, 12f * u)
+                    val radioAro = 8.2f * u
+                    val radioCabeza = 2.7f * u
+                    val centroCabezaY = 10.1f * u
+                    val hombros = Path().apply {
+                        moveTo(7.6f * u, 17.6f * u)
+                        cubicTo(8.8f * u, 14.6f * u, 15.2f * u, 14.6f * u, 16.4f * u, 17.6f * u)
+                    }
+                    val salto = 1.2f * u
 
                     onDrawBehind {
                         val tinta = color()
                         val p = progresoAnim().coerceIn(0f, 1f)
                         if (activo) {
-                            drawRoundRect(
-                                color = tinta.copy(alpha = 0.14f * p),
-                                topLeft = origenBoveda,
-                                size = tamanoBoveda,
-                                cornerRadius = radioBoveda,
-                            )
+                            drawCircle(color = tinta.copy(alpha = 0.14f * p), radius = radioAro, center = centro)
                         }
-                        drawRoundRect(
-                            color = tinta,
-                            topLeft = origenBoveda,
-                            size = tamanoBoveda,
-                            cornerRadius = radioBoveda,
-                            style = trazo,
-                        )
+                        drawCircle(color = tinta, radius = radioAro, center = centro, style = trazo)
+                        val elevacion = if (activo) salto * sin(PI.toFloat() * p) else 0f
                         drawCircle(
                             color = tinta,
-                            radius = radioAroDial,
-                            center = centroDial,
+                            radius = radioCabeza,
+                            center = Offset(centro.x, centroCabezaY - elevacion),
                             style = trazo,
                         )
-                        rotate(degrees = if (activo) -60f + 60f * p else 0f, pivot = centroDial) {
-                            drawLine(
-                                color = tinta,
-                                start = muescaInicio,
-                                end = muescaFin,
-                                strokeWidth = 1.15f * u,
-                                cap = StrokeCap.Round,
-                            )
-                        }
-                        drawCircle(
-                            color = tinta,
-                            radius = radioCentroDial,
-                            center = centroDial,
-                        )
-                        drawLine(
-                            color = tinta,
-                            start = pataIzqInicio,
-                            end = pataIzqFin,
-                            strokeWidth = anchoTrazo,
-                            cap = StrokeCap.Round,
-                        )
-                        drawLine(
-                            color = tinta,
-                            start = pataDerInicio,
-                            end = pataDerFin,
-                            strokeWidth = anchoTrazo,
-                            cap = StrokeCap.Round,
-                        )
+                        drawPath(path = hombros, color = tinta, style = trazo)
                     }
                 }
             }

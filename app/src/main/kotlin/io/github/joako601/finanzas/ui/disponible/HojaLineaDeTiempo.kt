@@ -28,6 +28,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import io.github.joako601.finanzas.ui.componentes.enPantalla
+import io.github.joako601.finanzas.ui.componentes.fundidoAlOcultar
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.disponible.EventoFuturo
@@ -77,28 +79,31 @@ fun ResumenDisponible(
                 Text(
                     when {
                         faltante.fecha != linea.hoy ->
-                            stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.formatear())
+                            stringResource(R.string.faltante, faltante.fecha.formatoDiaCorto(linea.hoy), faltante.falta.enPantalla())
                         linea.enCuentas.esNegativo && -linea.enCuentas == faltante.falta ->
-                            stringResource(R.string.faltante_hoy, faltante.falta.formatear())
-                        else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.formatear())
+                            stringResource(R.string.faltante_hoy, faltante.falta.enPantalla())
+                        else -> stringResource(R.string.faltante_hoy_vencidos, faltante.falta.enPantalla())
                     },
                     style = MaterialTheme.typography.labelLarge.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fundidoAlOcultar(),
                 )
                 // Si más adelante falta más, se dice cuándo: así cuadra con la cifra de arriba.
                 linea.faltanteMayor?.let { mayor ->
                     Text(
-                        stringResource(R.string.faltante_mayor, mayor.fecha.formatoDiaCorto(linea.hoy), mayor.falta.formatear()),
+                        stringResource(R.string.faltante_mayor, mayor.fecha.formatoDiaCorto(linea.hoy), mayor.falta.enPantalla()),
                         style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                         color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fundidoAlOcultar(),
                     )
                 }
             }
             bajo != null -> {
                 Text(
-                    stringResource(R.string.en_cuentas_para_pagos, linea.enCuentas.formatear(), linea.comprometido.formatear()),
+                    stringResource(R.string.en_cuentas_para_pagos, linea.enCuentas.enPantalla(), linea.comprometido.enPantalla()),
                     style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                     color = secundario,
+                    modifier = Modifier.fundidoAlOcultar(),
                 )
                 Text(
                     stringResource(R.string.saldo_mas_bajo, (linea.diaMasBajo ?: bajo.fecha).formatoDiaCorto(linea.hoy)),
@@ -134,9 +139,10 @@ fun ResumenDisponible(
                     modifier = Modifier.padding(end = 8.dp),
                 )
                 Text(
-                    text = desgloseMetas.apartadoEnMetas.formatear(),
+                    text = desgloseMetas.apartadoEnMetas.enPantalla(),
                     style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fundidoAlOcultar(),
                 )
             }
             when {
@@ -168,18 +174,20 @@ fun ResumenDisponible(
                             modifier = Modifier.padding(end = 8.dp),
                         )
                         Text(
-                            text = Dinero.CERO.formatear(),
+                            text = Dinero.CERO.enPantalla(),
                             style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                             color = TemaFinanzas.colores.aviso,
+                            modifier = Modifier.fundidoAlOcultar(),
                         )
                     }
                     Text(
                         text = stringResource(
                             R.string.disponible_apartados_exceden,
-                            desgloseMetas.excesoApartados.formatear(),
+                            desgloseMetas.excesoApartados.enPantalla(),
                         ),
                         style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                         color = TemaFinanzas.colores.aviso,
+                        modifier = Modifier.fundidoAlOcultar(),
                     )
                 }
                 else -> {
@@ -196,9 +204,10 @@ fun ResumenDisponible(
                             modifier = Modifier.padding(end = 8.dp),
                         )
                         Text(
-                            text = desgloseMetas.disponibleLibre.formatear(),
+                            text = desgloseMetas.disponibleLibre.enPantalla(),
                             style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                             color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fundidoAlOcultar(),
                         )
                     }
                 }
@@ -300,9 +309,10 @@ fun HojaLineaDeTiempo(estado: EstadoLineaDeTiempo, acciones: AccionesLineaDeTiem
                                     modifier = Modifier.padding(end = 12.dp),
                                 )
                                 Text(
-                                    text = meta.apartado.formatear(),
+                                    text = meta.apartado.enPantalla(),
                                     style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"),
                                     color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.fundidoAlOcultar(),
                                 )
                             }
                         }
@@ -394,7 +404,12 @@ private fun FilaEvento(
     val detalle = listOfNotNull(
         evento.fecha.formatoDiaCorto(linea.hoy),
         etiqueta,
-        stringResource(R.string.queda_saldo, evento.saldoDespues.formatear()).takeIf { evento.tipo != TipoEvento.CORTE },
+        when {
+            evento.tipo == TipoEvento.CORTE -> null
+            // Domiciliado a tarjeta: el saldo no cambia; decirlo evita pensar que falta restarlo.
+            evento.tipo == TipoEvento.PAGO_FIJO && !evento.esSalida -> stringResource(R.string.cargo_a_tarjeta)
+            else -> stringResource(R.string.queda_saldo, evento.saldoDespues.enPantalla())
+        },
     ).joinToString(" · ")
     val colorDetalle = if (evento.vencido || evento.saldoDespues.esNegativo) {
         MaterialTheme.colorScheme.error
@@ -440,13 +455,13 @@ private fun Monto(evento: EventoFuturo) {
         TipoEvento.PAGO_TARJETA -> "" to MaterialTheme.colorScheme.onSurfaceVariant
         TipoEvento.CORTE -> return
     }
-    Text(signo + evento.monto.formatear(), color = color, style = MaterialTheme.typography.titleMedium)
+    Text(signo + evento.monto.enPantalla(), color = color, style = MaterialTheme.typography.titleMedium, modifier = Modifier.fundidoAlOcultar())
 }
 
 @DrawableRes
 private fun icono(evento: EventoFuturo, estado: EstadoLineaDeTiempo): Int = when (evento.tipo) {
     TipoEvento.PAGO_TARJETA, TipoEvento.CORTE -> R.drawable.ic_cat_tarjeta
-    TipoEvento.PAGO_FIJO, TipoEvento.INGRESO_ESPERADO -> iconoDeCategoria(evento.categoria?.let { estado.categorias[it]?.nombre })
+    TipoEvento.PAGO_FIJO, TipoEvento.INGRESO_ESPERADO -> iconoDeCategoria(evento.categoria?.let { estado.categorias[it] })
 }
 
 /** Solo los eventos que coinciden con la fecha pendiente real ([Recurrente.proxima]) abren el registro. */

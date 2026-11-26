@@ -29,6 +29,11 @@ public data class Recurrente(
     val periodicidad: Periodicidad,
     val inicio: LocalDate,
     val proxima: LocalDate,
+    /**
+     * Cuenta con la que se paga o donde se cobra; `null` = se elige al registrar. Si es una
+     * tarjeta (cargo domiciliado), el pago no sale del efectivo en su fecha (D-023).
+     */
+    val cuenta: CuentaId? = null,
 ) {
     init {
         require(nombre.isNotBlank()) { "Necesita nombre" }

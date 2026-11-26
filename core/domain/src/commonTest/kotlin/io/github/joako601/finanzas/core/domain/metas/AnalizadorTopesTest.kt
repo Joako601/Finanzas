@@ -175,4 +175,46 @@ class AnalizadorTopesTest {
         assertEquals(false, sugerencias[transporte.id]?.esDelMesAnterior)
         assertEquals(1, sugerencias[transporte.id]?.mesesConDatos)
     }
+
+    @Test
+    fun historial_de_los_3_meses_anteriores_y_gasto_fuera_de_topes() {
+        val hoy = LocalDate(2026, 11, 15)
+        val movimientos = listOf(
+            Registro.gasto(LocalDate(2026, 10, 5), Dinero.pesos(2_500), efectivo, comida),
+            Registro.gasto(LocalDate(2026, 9, 5), Dinero.pesos(1_200), efectivo, comida),
+            // Agosto sin gastos: igual aparece, en cero y cumplido.
+            Registro.gasto(LocalDate(2026, 7, 5), Dinero.pesos(9_999), efectivo, comida),
+            // Súper no tiene tope: cuenta como "fuera de topes" este mes.
+            Registro.gasto(LocalDate(2026, 11, 2), Dinero.pesos(800), efectivo, super_),
+            Registro.gasto(LocalDate(2026, 11, 3), Dinero.pesos(100), efectivo, comida),
+        )
+        val topes = listOf(TopeCategoria(comida.id, Dinero.pesos(2_000)))
+
+        val resumen = AnalizadorTopes.analizar(topes, cuentas, movimientos, hoy)
+        val historial = resumen.topes.single().historial
+
+        // Del más reciente al más antiguo; se compara contra el tope de hoy (no se guarda el de antes).
+        assertEquals(listOf(LocalDate(2026, 10, 1), LocalDate(2026, 9, 1), LocalDate(2026, 8, 1)), historial.map { it.mes })
+        assertEquals(listOf(Dinero.pesos(2_500), Dinero.pesos(1_200), Dinero.CERO), historial.map { it.gastado })
+        assertEquals(listOf(false, true, true), historial.map { it.cumplido })
+        assertEquals(Dinero.pesos(2_500), resumen.topes.single().gastadoMesAnterior)
+        assertEquals(Dinero.pesos(800), resumen.gastadoSinTope)
+    }
+
+
+    @Test
+    fun con_saldo_restante_el_porcentaje_no_se_redondea_a_100() {
+        // $2,997 de $3,000 = 99.9 %: quedan $3, así que no puede decir 100 %.
+        val hoy = LocalDate(2026, 11, 28)
+        val topes = listOf(TopeCategoria(comida.id, Dinero.pesos(3_000)))
+        val casi = AnalizadorTopes.analizar(
+            topes, cuentas, listOf(Registro.gasto(LocalDate(2026, 11, 4), Dinero.pesos(2_997), debito, comida)), hoy,
+        ).topes.single()
+        assertEquals(99, casi.porcentajeEntero)
+
+        val justo = AnalizadorTopes.analizar(
+            topes, cuentas, listOf(Registro.gasto(LocalDate(2026, 11, 4), Dinero.pesos(3_000), debito, comida)), hoy,
+        ).topes.single()
+        assertEquals(100, justo.porcentajeEntero)
+    }
 }

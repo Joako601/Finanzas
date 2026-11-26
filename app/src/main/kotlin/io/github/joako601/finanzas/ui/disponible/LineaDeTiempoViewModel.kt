@@ -17,6 +17,7 @@ import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
 import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
 import io.github.joako601.finanzas.core.domain.tarjetas.RepositorioTarjetas
+import io.github.joako601.finanzas.core.domain.tarjetas.comprasAMeses
 import io.github.joako601.finanzas.core.domain.tarjetas.pagosATarjetas
 import io.github.joako601.finanzas.ui.diasDesde
 import io.github.joako601.finanzas.ui.hoy
@@ -67,6 +68,7 @@ internal fun calcularLinea(
         pagos = pagosATarjetas(movimientos, porId),
         recurrentes = listaRecurrentes,
         hoy = hoy,
+        compras = comprasAMeses(movimientos, porId, listaTarjetas),
     )
     val estado = EstadoLineaDeTiempo(
         linea = linea,

@@ -1,6 +1,7 @@
 package io.github.joako601.finanzas.ui.movimientos
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
@@ -12,6 +13,7 @@ import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.libro.ServicioLibro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.libro.saldosPorCuenta
+import io.github.joako601.finanzas.core.domain.metas.TopeCategoria
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -52,7 +54,7 @@ class MovimientosViewModelTest {
 
     /** Suscribe el estado como lo haría la pantalla y espera a que cargue. */
     private suspend fun kotlinx.coroutines.test.TestScope.viewModel(): MovimientosViewModel {
-        val vm = MovimientosViewModel(libro, ServicioLibro(libro)) { hoy }
+        val vm = MovimientosViewModel(libro, ServicioLibro(libro), fechaDeHoy = { hoy })
         backgroundScope.launch { vm.estado.collect {} }
         vm.estado.first { !it.cargando }
         return vm
@@ -170,6 +172,126 @@ class MovimientosViewModelTest {
     }
 
     @Test
+    fun una_compra_a_meses_guarda_el_plazo_y_al_editarla_lo_conserva() = runTest {
+        val vm = viewModel()
+        vm.abrirCaptura()
+        vm.cambiarMonto("6000")
+        vm.elegirCuenta(nu.id)
+        vm.elegirCategoria(super_.id)
+        vm.elegirMeses(6)
+        vm.guardarCaptura()
+
+        val guardado = libro.observarMovimientos().first().single()
+        assertEquals(6, guardado.meses)
+        vm.abrirEdicion(resumenDe(vm, guardado.id!!))
+        assertEquals(6, vm.captura.value!!.meses)
+    }
+
+    @Test
+    fun buscar_por_texto_sin_acentos_en_nota_o_categoria_y_sumar_el_neto() = runTest {
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 3), Dinero.pesos(300), efectivo, super_, "despensa"))
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 4), Dinero.pesos(120), debito, comida, "super tacos"))
+        libro.registrar(Registro.gasto(LocalDate(2026, 10, 30), Dinero.pesos(50), efectivo, super_, ""))
+        val vm = viewModel()
+        backgroundScope.launch { vm.resultado.collect {} }
+        vm.abrirBusqueda()
+
+        vm.cambiarFiltro { copy(texto = "SUPER") }
+        val porTexto = vm.resultado.first { it?.conteo == 3 }!!
+        // Sin tipo elegido el total es el neto: tres gastos restan.
+        assertEquals(-Dinero.pesos(470), porTexto.total)
+
+        vm.cambiarFiltro { copy(mes = LocalDate(2026, 11, 1), cuentaId = efectivo.id) }
+        val filtrado = vm.resultado.first { it?.conteo == 1 }!!
+        assertEquals(LocalDate(2026, 11, 3), filtrado.dias.single().fecha)
+
+        vm.cambiarFiltro { Filtro(clase = ClaseMovimiento.GASTO) }
+        assertEquals(Dinero.pesos(470), vm.resultado.first { it?.conteo == 3 }!!.total)
+
+        vm.cerrarBusqueda()
+        assertEquals(null, vm.resultado.first { it == null })
+    }
+
+    @Test
+    fun filtrar_por_categoria_y_total_del_dia_con_la_misma_regla() = runTest {
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 3), Dinero.pesos(300), efectivo, super_, ""))
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 3), Dinero.pesos(120), efectivo, comida, ""))
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 4), Dinero.pesos(80), debito, comida, ""))
+        val vm = viewModel()
+        backgroundScope.launch { vm.resultado.collect {} }
+        vm.abrirBusqueda()
+
+        vm.cambiarFiltro { copy(categoriaId = comida.id) }
+        val porCategoria = vm.resultado.first { it?.conteo == 2 }!!
+        assertEquals(-Dinero.pesos(200), porCategoria.total)
+
+        // El día 3 tiene dos gastos: su total neto es −420; con tipo Gasto, +420.
+        val dia3 = vm.estado.value.dias.single { it.fecha == LocalDate(2026, 11, 3) }.movimientos
+        assertEquals(-Dinero.pesos(420), totalDe(dia3, null))
+        assertEquals(Dinero.pesos(420), totalDe(dia3, ClaseMovimiento.GASTO))
+    }
+
+    @Test
+    fun ver_movimientos_de_una_cuenta_cierra_la_edicion_y_filtra_por_ella() = runTest {
+        val vm = viewModel()
+        vm.abrirEditarCuenta(vm.estado.value.cuentasDeDinero.first { it.cuenta.id == debito.id })
+
+        vm.verMovimientosDe(debito.id)
+
+        assertNull(vm.nuevaCuenta.value)
+        assertEquals(Filtro(cuentaId = debito.id), vm.filtro.value)
+    }
+
+    @Test
+    fun las_categorias_mas_usadas_en_90_dias_van_primero_y_los_empates_conservan_su_orden() = runTest {
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 10), Dinero.pesos(50), efectivo, comida, ""))
+        libro.registrar(Registro.gasto(LocalDate(2026, 11, 11), Dinero.pesos(50), efectivo, comida, ""))
+        // Hace más de 90 días: no cuenta.
+        repeat(3) { libro.registrar(Registro.gasto(LocalDate(2026, 7, 1), Dinero.pesos(10), efectivo, super_, "")) }
+        val vm = viewModel()
+
+        val orden = vm.estado.first { e -> e.dias.size == 3 }.categoriasDeGasto
+        assertEquals(listOf(comida, super_), orden)
+    }
+
+    @Test
+    fun aviso_de_tope_solo_al_acercarse_o_pasarse_y_sin_contar_el_movimiento_editado() = runTest {
+        val id = libro.registrar(Registro.gasto(LocalDate(2026, 11, 3), Dinero.pesos(700), efectivo, comida, ""))
+        // Otro mes: no cuenta.
+        libro.registrar(Registro.gasto(LocalDate(2026, 10, 3), Dinero.pesos(5_000), efectivo, comida, ""))
+        val dias = viewModel().estado.value.dias
+        val topes = listOf(TopeCategoria(comida.id, Dinero.pesos(1_000)))
+        fun captura(monto: String, editando: MovimientoId? = null) =
+            Captura(montoTexto = monto, categoriaId = comida.id, fecha = hoy, editando = editando)
+
+        // 700 + 50 = 75 % del tope: todavía sin aviso.
+        assertNull(avisoTope(captura("50"), topes, dias, listOf(comida)))
+        // 700 + 150 = 85 %: quedarían 150.
+        assertEquals(AvisoTope("Comida fuera", restante = Dinero.pesos(150)), avisoTope(captura("150"), topes, dias, listOf(comida)))
+        // 700 + 500: lo pasa por 200.
+        assertEquals(AvisoTope("Comida fuera", excedente = Dinero.pesos(200)), avisoTope(captura("500"), topes, dias, listOf(comida)))
+        // Al editar el gasto de 700 a 900 no se cuenta dos veces: 900 = 90 %.
+        assertEquals(AvisoTope("Comida fuera", restante = Dinero.pesos(100)), avisoTope(captura("900", editando = id), topes, dias, listOf(comida)))
+        // Un ingreso nunca avisa.
+        assertNull(avisoTope(captura("900").copy(clase = ClaseRegistro.INGRESO), topes, dias, listOf(comida)))
+    }
+
+    @Test
+    fun no_se_archiva_la_ultima_cuenta_de_dinero_y_reactivar_la_devuelve() = runTest {
+        val vm = viewModel()
+        vm.cambiarArchivada(efectivo, archivada = true)
+        vm.estado.first { e -> e.cuentasDeDinero.map { it.cuenta } == listOf(debito) }
+        // Débito es la única activa: no se archiva.
+        assertEquals(false, vm.puedeArchivar(debito))
+        vm.cambiarArchivada(debito, archivada = true)
+        assertEquals(listOf(debito), vm.estado.value.cuentasDeDinero.map { it.cuenta })
+        assertEquals(listOf(efectivo.id), vm.estado.value.archivadas.map { it.cuenta.id })
+
+        vm.cambiarArchivada(efectivo.copy(archivada = true), archivada = false)
+        vm.estado.first { e -> e.cuentasDeDinero.size == 2 && e.archivadas.isEmpty() }
+    }
+
+    @Test
     fun editar_un_gasto_con_tarjeta_conserva_la_tarjeta() = runTest {
         val id = libro.registrar(Registro.gasto(hoy, Dinero.pesos(300), nu, super_))
         val vm = viewModel()
@@ -246,6 +368,54 @@ class MovimientosViewModelTest {
     }
 
     @Test
+    fun archivar_cuenta_pide_confirmacion_y_la_saca_de_las_cuentas_sin_borrar_movimientos() = runTest {
+        libro.registrar(Registro.gasto(hoy, Dinero.pesos(50), debito, super_))
+        val vm = viewModel()
+        vm.abrirEditarCuenta(SaldoCuenta(debito, -Dinero.pesos(50)))
+
+        // Sin confirmar no pasa nada.
+        vm.archivarCuenta()
+        assertEquals(false, libro.observarCuentas().first().single { it.id == debito.id }.archivada)
+
+        vm.pedirArchivarCuenta()
+        assertTrue(vm.nuevaCuenta.value!!.confirmandoArchivar)
+        vm.archivarCuenta()
+
+        assertNull(vm.nuevaCuenta.value)
+        assertTrue(libro.observarCuentas().first().single { it.id == debito.id }.archivada)
+        vm.estado.first { e -> e.cuentasDeDinero.none { it.cuenta.id == debito.id } }
+        assertEquals(1, libro.observarMovimientos().first().size)
+    }
+
+    @Test
+    fun la_ultima_cuenta_guardada_se_preselecciona_al_abrir_la_app() = runTest {
+        val guardada = UltimaCuentaUsada.EnMemoria(debito.id)
+        val vm = MovimientosViewModel(libro, ServicioLibro(libro), { hoy }, guardada)
+        backgroundScope.launch { vm.estado.collect {} }
+        vm.estado.first { !it.cargando }
+
+        vm.abrirCaptura()
+        assertEquals(debito.id, vm.captura.value?.cuentaId)
+
+        vm.cambiarMonto("80")
+        vm.elegirCategoria(super_.id)
+        vm.elegirCuenta(efectivo.id)
+        vm.guardarCaptura()
+        assertEquals(efectivo.id, guardada.leer())
+    }
+
+    @Test
+    fun cancelar_archivar_vuelve_a_la_edicion() = runTest {
+        val vm = viewModel()
+        vm.abrirEditarCuenta(SaldoCuenta(efectivo, Dinero.CERO))
+        vm.pedirArchivarCuenta()
+        vm.cancelarArchivarCuenta()
+
+        assertEquals(false, vm.nuevaCuenta.value!!.confirmandoArchivar)
+        assertEquals(false, libro.observarCuentas().first().single { it.id == efectivo.id }.archivada)
+    }
+
+    @Test
     fun crear_cuenta_invoca_callback_con_el_id_creado() = runTest {
         val vm = viewModel()
         var creadaId: CuentaId? = null
@@ -296,6 +466,12 @@ private class LibroEnMemoria(cuentas: List<Cuenta>) : RepositorioLibro {
     }
     override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) {
         cuentas.value = cuentas.value.map { if (it.id == id) it.copy(nombre = nombre) else it }
+    }
+    override suspend fun actualizarIcono(id: CuentaId, icono: String?) {
+        cuentas.value = cuentas.value.map { if (it.id == id) it.copy(icono = icono) else it }
+    }
+    override suspend fun cambiarArchivada(id: CuentaId, archivada: Boolean) {
+        cuentas.value = cuentas.value.map { if (it.id == id) it.copy(archivada = archivada) else it }
     }
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = capital
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()

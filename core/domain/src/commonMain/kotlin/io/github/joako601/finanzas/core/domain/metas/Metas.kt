@@ -65,7 +65,16 @@ public interface RepositorioMetas {
     public suspend fun crearMeta(meta: MetaAhorro): MetaAhorroId
     public suspend fun actualizarMeta(meta: MetaAhorro)
     public suspend fun eliminarMeta(id: MetaAhorroId)
+
+    /** Historial de una meta, del más reciente al más antiguo. Solo existe desde la v7 (D-023). */
+    public fun observarAportes(meta: MetaAhorroId): Flow<List<AporteMeta>>
+
+    /** Guarda [meta] con su apartado nuevo y anota [monto] en su historial, en una sola transacción. */
+    public suspend fun moverApartado(meta: MetaAhorro, fecha: LocalDate, monto: Dinero)
 }
+
+/** Un aporte (monto positivo) o retiro (negativo) a un apartado. */
+public data class AporteMeta(val fecha: LocalDate, val monto: Dinero)
 
 public enum class ErrorTope {
     SIN_CATEGORIA,
@@ -160,17 +169,18 @@ public class ServicioMetas(private val repositorio: RepositorioMetas) {
         return null
     }
 
-    public suspend fun aportarAMeta(meta: MetaAhorro, monto: Dinero): MetaAhorro {
+    public suspend fun aportarAMeta(meta: MetaAhorro, monto: Dinero, fecha: LocalDate): MetaAhorro {
         requireNotNull(meta.id) { "La meta debe tener id para aportar" }
         require(monto.esPositivo) { "El aporte debe ser mayor a cero" }
         val actualizada = meta.copy(apartado = meta.apartado + monto, archivada = false)
-        repositorio.actualizarMeta(actualizada)
+        repositorio.moverApartado(actualizada, fecha, monto)
         return actualizada
     }
 
     public suspend fun retirarDeMeta(
         meta: MetaAhorro,
         monto: Dinero,
+        fecha: LocalDate,
         archivarSiQuedaEnCero: Boolean = false,
     ): MetaAhorro {
         requireNotNull(meta.id) { "La meta debe tener id para retirar" }
@@ -181,7 +191,7 @@ public class ServicioMetas(private val repositorio: RepositorioMetas) {
             apartado = nuevoApartado,
             archivada = if (archivarSiQuedaEnCero && nuevoApartado.esCero) true else meta.archivada,
         )
-        repositorio.actualizarMeta(actualizada)
+        repositorio.moverApartado(actualizada, fecha, -monto)
         return actualizada
     }
 }

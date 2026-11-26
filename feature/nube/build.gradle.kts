@@ -49,6 +49,9 @@ android {
         buildConfigField("String", "FIREBASE_API_KEY", valorFirebase("firebase.apiKey"))
         buildConfigField("String", "FIREBASE_APP_ID", valorFirebase("firebase.appId"))
         buildConfigField("String", "FIREBASE_PROJECT_ID", valorFirebase("firebase.projectId"))
+        // ID del cliente web (OAuth) que Firebase crea al activar Google. Sin él, el botón
+        // "Continuar con Google" no aparece.
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", valorFirebase("firebase.webClientId"))
     }
 
     buildTypes {
@@ -96,6 +99,11 @@ dependencies {
     // Solo Auth, sin Analytics, Crashlytics ni Messaging. La BoM fija versiones compatibles.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    // "Continuar con Google": Credential Manager pide la cuenta en el teléfono y googleid
+    // entrega el ID token que Firebase verifica. Solo en nube; la privada sigue sin red.
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

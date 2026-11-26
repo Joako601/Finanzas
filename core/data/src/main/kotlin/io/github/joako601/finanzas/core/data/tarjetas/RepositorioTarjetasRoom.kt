@@ -23,6 +23,7 @@ internal class RepositorioTarjetasRoom(
                 lineaDeCredito = Dinero(it.lineaCentavos),
                 diaDeCorte = it.diaCorte,
                 diaLimite = it.diaLimite,
+                tasaAnual = it.tasaAnual,
             )
         }
     }
@@ -69,6 +70,11 @@ internal class RepositorioTarjetasRoom(
                 capturadoEnMillis = relojMillis(),
             ),
         )
+    }
+
+    override suspend fun guardarTasaAnual(tarjeta: CuentaId, tasa: Int) {
+        require(tasa in 1..999) { "Tasa anual fuera de rango" }
+        dao.guardarTasaAnual(tarjeta.valor, tasa)
     }
 
     override suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate) {

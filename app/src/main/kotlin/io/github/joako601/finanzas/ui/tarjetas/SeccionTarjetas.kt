@@ -50,12 +50,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.joako601.finanzas.ui.componentes.enPantalla
+import io.github.joako601.finanzas.ui.componentes.fundidoAlOcultar
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.tarjetas.AnalisisTarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.NivelUtilizacionLinea
 import io.github.joako601.finanzas.core.domain.tarjetas.ProgresoPagoCiclo
 import io.github.joako601.finanzas.core.domain.tarjetas.SituacionTarjeta
 import io.github.joako601.finanzas.ui.componentes.TarjetaFinanzas
+import io.github.joako601.finanzas.ui.componentes.TextoMontoAnimado
 import io.github.joako601.finanzas.ui.componentes.toqueTactil
 import io.github.joako601.finanzas.ui.formatoCorto
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
@@ -385,18 +388,18 @@ private fun PlasticoTarjeta(
         val textoDisponible = when {
             desglose.sobregiro.esPositivo -> stringResource(
                 R.string.tarjeta_sobregiro_plastico,
-                desglose.sobregiro.formatear(),
-                resumen.tarjeta.lineaDeCredito.formatear(),
+                desglose.sobregiro.enPantalla(),
+                resumen.tarjeta.lineaDeCredito.enPantalla(),
             )
             aFavor -> stringResource(
                 R.string.disponible_con_saldo_a_favor,
-                desglose.creditoDisponible.formatear(),
-                resumen.tarjeta.lineaDeCredito.formatear(),
+                desglose.creditoDisponible.enPantalla(),
+                resumen.tarjeta.lineaDeCredito.enPantalla(),
             )
             else -> stringResource(
                 R.string.disponible_de,
-                desglose.creditoDisponible.formatear(),
-                resumen.tarjeta.lineaDeCredito.formatear(),
+                desglose.creditoDisponible.enPantalla(),
+                resumen.tarjeta.lineaDeCredito.enPantalla(),
             )
         }
 
@@ -404,6 +407,7 @@ private fun PlasticoTarjeta(
             text = textoDisponible,
             style = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum"),
             color = if (desglose.sobregiro.esPositivo) ErrorSobrePlastico else TextoSobreTarjeta,
+            modifier = Modifier.fundidoAlOcultar(),
         )
     }
 }
@@ -433,9 +437,9 @@ private fun CuerpoTarjeta(
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.weight(1f),
                 )
-                Text(
-                    text = resumen.deuda.absoluto().formatear(),
-                    style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"),
+                TextoMontoAnimado(
+                    monto = resumen.deuda.absoluto(),
+                    style = MaterialTheme.typography.titleLarge,
                 )
             }
 
@@ -444,10 +448,11 @@ private fun CuerpoTarjeta(
                 Text(
                     text = stringResource(
                         R.string.tarjeta_compras_nuevo_ciclo,
-                        desglose.comprasNuevoCiclo.formatear(),
+                        desglose.comprasNuevoCiclo.enPantalla(),
                     ),
                     style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fundidoAlOcultar(),
                 )
             }
         }
@@ -487,7 +492,7 @@ private fun LineaSituacion(analisis: AnalisisTarjeta) {
             stringResource(
                 R.string.tarjeta_vencido_titulo,
                 vencido.estado.fechaLimite.formatoCorto(),
-                vencido.restante.formatear(),
+                vencido.restante.enPantalla(),
             ),
             pluralStringResource(
                 R.plurals.tarjeta_vencido_dias,
@@ -500,7 +505,7 @@ private fun LineaSituacion(analisis: AnalisisTarjeta) {
             is SituacionTarjeta.PagoPendiente -> Triple(
                 stringResource(
                     R.string.situacion_pago_pendiente,
-                    situacion.restante.formatear(),
+                    situacion.restante.enPantalla(),
                     situacion.estado.fechaLimite.formatoCorto(),
                 ),
                 if (situacion.diasParaLimite == 0) {
@@ -534,6 +539,7 @@ private fun LineaSituacion(analisis: AnalisisTarjeta) {
                 text = texto,
                 style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
                 color = color,
+                modifier = Modifier.fundidoAlOcultar(),
             )
             if (detalle != null) {
                 Text(
@@ -577,12 +583,12 @@ private fun BloqueProgresoCiclo(progreso: ProgresoPagoCiclo) {
             Text(
                 text = stringResource(
                     R.string.tarjeta_abono_parcial,
-                    progreso.pagadoEnCiclo.formatear(),
-                    (progreso.pagadoEnCiclo + progreso.restanteSinIntereses).formatear(),
+                    progreso.pagadoEnCiclo.enPantalla(),
+                    (progreso.pagadoEnCiclo + progreso.restanteSinIntereses).enPantalla(),
                 ),
                 style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.weight(1f, fill = false).fundidoAlOcultar(),
             )
 
             if (progreso.pagoMinimoOriginal.esPositivo) {
@@ -591,7 +597,7 @@ private fun BloqueProgresoCiclo(progreso: ProgresoPagoCiclo) {
                 } else {
                     stringResource(
                         R.string.tarjeta_minimo_pendiente_badge,
-                        progreso.restanteMinimo.formatear(),
+                        progreso.restanteMinimo.enPantalla(),
                     ) to TemaFinanzas.colores.aviso
                 }
 
@@ -607,7 +613,7 @@ private fun BloqueProgresoCiclo(progreso: ProgresoPagoCiclo) {
                             fontFeatureSettings = "tnum",
                         ),
                         color = colorMinimo,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp).fundidoAlOcultar(),
                     )
                 }
             }

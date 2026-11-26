@@ -13,6 +13,7 @@ import io.github.joako601.finanzas.core.domain.libro.saldosPorCuenta
 import io.github.joako601.finanzas.core.domain.metas.ErrorMovimientoMeta
 import io.github.joako601.finanzas.core.domain.metas.ErrorTope
 import io.github.joako601.finanzas.core.domain.metas.MetaAhorro
+import io.github.joako601.finanzas.core.domain.metas.AporteMeta
 import io.github.joako601.finanzas.core.domain.metas.MetaAhorroId
 import io.github.joako601.finanzas.core.domain.metas.RepositorioMetas
 import io.github.joako601.finanzas.core.domain.metas.ServicioMetas
@@ -88,6 +89,23 @@ class MetasViewModelTest {
         vm.elegirCategoriaTope(super_.id)
         assertEquals(super_.id, vm.editorTope.value?.categoriaId)
         assertEquals("", vm.editorTope.value?.montoTexto)
+    }
+
+    @Test
+    fun tocar_categoria_en_analisis_crea_tope_nuevo_o_abre_el_existente() = runTest {
+        val vm = viewModel()
+
+        // Sin tope: abre el editor con esa categoría (no la de más gasto).
+        vm.abrirTopeDeCategoria(super_.id)
+        assertEquals(super_.id, vm.editorTope.value?.categoriaId)
+        vm.cambiarMontoTope("2000")
+        vm.guardarTope()
+        advanceUntilIdle()
+        vm.estado.first { it.resumenTopes?.topes?.size == 1 }
+
+        // Con tope: abre su detalle.
+        vm.abrirTopeDeCategoria(super_.id)
+        assertEquals(super_.id, vm.detalleTopeId.value)
     }
 
     @Test
@@ -179,6 +197,33 @@ class MetasViewModelTest {
         val final = vm.estado.first { it.resumenAhorro?.metasArchivadas?.size == 1 }.resumenAhorro!!
         assertTrue(final.metasActivas.isEmpty())
         assertEquals(Dinero.CERO, final.metasArchivadas.single().meta.apartado)
+
+        // El historial anota el aporte y el retiro (el apartado inicial no es un aporte).
+        backgroundScope.launch { vm.aportesDetalle.collect {} }
+        vm.abrirDetalleMeta(cargada.meta.id!!)
+        val historial = vm.aportesDetalle.first { it.size == 2 }
+        assertEquals(listOf(-Dinero.pesos(1_500), Dinero.pesos(500)), historial.map { it.monto })
+        assertEquals(hoy, historial.first().fecha)
+    }
+
+    @Test
+    fun retirar_y_registrar_gasto_deja_el_monto_listo_para_inicio() = runTest {
+        val vm = viewModel()
+        vm.abrirNuevaMeta(nombreInicial = "Viaje", objetivoInicial = Dinero.pesos(10_000))
+        vm.editarMeta { copy(apartadoInicialTexto = "3000") }
+        vm.guardarMeta()
+        advanceUntilIdle()
+        val meta = vm.estado.first { it.resumenAhorro?.metasActivas?.size == 1 }.resumenAhorro!!.metasActivas.single()
+
+        vm.abrirMovimientoMeta(meta, TipoMovimientoMeta.RETIRAR)
+        vm.cambiarMontoMovimientoMeta("1200")
+        vm.cambiarRegistrarComoGasto(true)
+        vm.confirmarMovimientoMeta()
+        advanceUntilIdle()
+
+        assertEquals(GastoDesdeRetiro(Dinero.pesos(1_200), "Viaje"), vm.gastoDesdeRetiro.value)
+        vm.consumirGastoDesdeRetiro()
+        assertNull(vm.gastoDesdeRetiro.value)
     }
 
     @Test
@@ -249,6 +294,7 @@ private class TarjetasFalsoMetas : RepositorioTarjetas {
     override suspend fun actualizarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta =
         error("no se usa")
     override suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta) = error("no se usa")
+    override suspend fun guardarTasaAnual(tarjeta: CuentaId, tasa: Int) = error("no se usa")
     override suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate) = error("no se usa")
 }
 
@@ -276,6 +322,8 @@ private class LibroFalsoMetas(
     override suspend fun eliminar(id: MovimientoId) = error("no se usa")
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = error("no se usa")
     override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) = error("no se usa")
+    override suspend fun actualizarIcono(id: CuentaId, icono: String?) = error("no se usa")
+    override suspend fun cambiarArchivada(id: CuentaId, archivada: Boolean) = error("no se usa")
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = error("no se usa")
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T = bloque()
 }
@@ -305,5 +353,12 @@ private class MetasFalso : RepositorioMetas {
     }
     override suspend fun eliminarMeta(id: MetaAhorroId) {
         metas.value = metas.value.filterNot { it.id == id }
+    }
+    val aportes = MutableStateFlow<Map<MetaAhorroId, List<AporteMeta>>>(emptyMap())
+    override fun observarAportes(meta: MetaAhorroId): Flow<List<AporteMeta>> = aportes.map { it[meta].orEmpty() }
+    override suspend fun moverApartado(meta: MetaAhorro, fecha: LocalDate, monto: Dinero) {
+        actualizarMeta(meta)
+        val id = meta.id!!
+        aportes.value = aportes.value + (id to listOf(AporteMeta(fecha, monto)) + aportes.value[id].orEmpty())
     }
 }

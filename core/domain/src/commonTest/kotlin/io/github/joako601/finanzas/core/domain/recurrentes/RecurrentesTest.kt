@@ -134,6 +134,7 @@ class RecurrentesTest {
             servicio.validarAlta(" ", "0", ClaseRegistro.INGRESO, luz),
         )
         assertEquals(emptySet(), servicio.validarAlta("Quincena", "12,500", ClaseRegistro.INGRESO, sueldo))
+        assertEquals(setOf(ErrorRecurrente.NOMBRE_VACIO), servicio.validarAlta("x".repeat(61), "12,500", ClaseRegistro.INGRESO, sueldo))
     }
 
     @Test
@@ -246,7 +247,7 @@ class RecurrentesTest {
     fun ingresos_y_pagos_cuyo_aviso_ya_paso_no_avisan() {
         val plan = PlanRecordatorios.calcular(
             emptyList(), emptyList(), emptyList(), fecha("2026-11-19"),
-            listOf(recurrente(ClaseRegistro.INGRESO, "2026-11-25"), recurrente(ClaseRegistro.GASTO, "2026-11-19")),
+            listOf(recurrente(ClaseRegistro.INGRESO, "2026-11-25"), recurrente(ClaseRegistro.GASTO, "2026-11-18")),
         )
         assertTrue(plan.isEmpty())
     }

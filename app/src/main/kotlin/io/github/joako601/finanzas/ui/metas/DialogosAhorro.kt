@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.metas.AporteMeta
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.metas.AnalisisMetaAhorro
 import io.github.joako601.finanzas.core.domain.metas.ErrorMeta
@@ -245,6 +246,7 @@ fun DialogoMovimientoMeta(
     onCambiarArchivarAlVaciar: (Boolean) -> Unit,
     onConfirmar: () -> Unit,
     onCerrar: () -> Unit,
+    onCambiarRegistrarComoGasto: (Boolean) -> Unit = {},
 ) {
     val esAporte = dialogo.tipo == TipoMovimientoMeta.APORTAR
     val meta = analisisVivo.meta
@@ -370,6 +372,26 @@ fun DialogoMovimientoMeta(
                     }
                 }
 
+                // "Retirar y registrar gasto": al guardar abre la captura de Inicio con el monto.
+                if (!esAporte) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .toggleable(
+                                value = dialogo.registrarComoGasto,
+                                enabled = !dialogo.guardando,
+                                role = Role.Checkbox,
+                                onValueChange = onCambiarRegistrarComoGasto,
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Checkbox(checked = dialogo.registrarComoGasto, enabled = !dialogo.guardando, onCheckedChange = null)
+                        Text(text = stringResource(R.string.metas_ahorro_registrar_gasto), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+
                 ErrorAlGuardar(dialogo.errorAlGuardar)
             }
         },
@@ -386,6 +408,41 @@ fun DialogoMovimientoMeta(
     )
 }
 
+/** Aportes (+) y retiros (−) de la meta, los más recientes primero. Solo existen desde la v7. */
+@Composable
+private fun HistorialAportes(aportes: List<AporteMeta>) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            stringResource(R.string.metas_ahorro_historial),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.semantics { heading() },
+        )
+        if (aportes.isEmpty()) {
+            Text(
+                stringResource(R.string.metas_ahorro_historial_vacio),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        aportes.take(MAXIMO_HISTORIAL).forEach { aporte ->
+            Row(
+                modifier = Modifier.fillMaxWidth().semantics(mergeDescendants = true) {},
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(aporte.fecha.formatoCorto(), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Text(
+                    text = if (aporte.monto.esNegativo) "−" + (-aporte.monto).formatear() else "+" + aporte.monto.formatear(),
+                    style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
+                    color = if (aporte.monto.esNegativo) MaterialTheme.colorScheme.onSurfaceVariant else TemaFinanzas.colores.ingreso,
+                )
+            }
+        }
+    }
+}
+
+/** Los últimos movimientos que caben sin volver larga la hoja. */
+private const val MAXIMO_HISTORIAL = 8
+
 /** Hoja de detalle de una meta de ahorro: progreso, cuotas sugeridas, acciones rápidas y edición. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -398,6 +455,7 @@ fun HojaDetalleMeta(
     onAlternarArchivar: () -> Unit,
     onEliminar: () -> Unit,
     onCerrar: () -> Unit,
+    aportes: List<AporteMeta> = emptyList(),
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val alcance = rememberCoroutineScope()
@@ -513,6 +571,8 @@ fun HojaDetalleMeta(
                     }
                 }
             }
+
+            HistorialAportes(aportes)
 
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (meta.archivada) {

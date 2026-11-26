@@ -51,6 +51,13 @@ internal class RepositorioEnMemoria : RepositorioLibro {
         cuentas.value = cuentas.value.map { if (it.id == id) it.copy(nombre = nombre) else it }
     }
 
+    override suspend fun actualizarIcono(id: CuentaId, icono: String?) {
+        cuentas.value = cuentas.value.map { if (it.id == id) it.copy(icono = icono) else it }
+    }
+    override suspend fun cambiarArchivada(id: CuentaId, archivada: Boolean) {
+        cuentas.value = cuentas.value.map { if (it.id == id) it.copy(archivada = archivada) else it }
+    }
+
     override suspend fun cuentaDeSaldosIniciales(): Cuenta = cuentas.value.first { it.tipo == TipoCuenta.CAPITAL }
 
     override suspend fun <T> enTransaccion(bloque: suspend () -> T): T {
@@ -74,7 +81,7 @@ internal class RepositorioTarjetasEnMemoria : RepositorioTarjetas {
     }
 
     override suspend fun actualizarTarjeta(cuenta: Cuenta, lineaDeCredito: Dinero, diaDeCorte: Int, diaLimite: Int): Tarjeta {
-        val tarjeta = Tarjeta(cuenta, lineaDeCredito, diaDeCorte, diaLimite)
+        val tarjeta = Tarjeta(cuenta, lineaDeCredito, diaDeCorte, diaLimite, tarjetas.value.firstOrNull { it.id == cuenta.id }?.tasaAnual)
         tarjetas.value = tarjetas.value.map { if (it.id == cuenta.id) tarjeta else it }
         return tarjeta
     }
@@ -82,6 +89,10 @@ internal class RepositorioTarjetasEnMemoria : RepositorioTarjetas {
     override suspend fun guardarEstadoDeCuenta(estado: EstadoDeCuenta) {
         val sinDuplicado = estados.value.filterNot { it.tarjeta == estado.tarjeta && it.fechaCorte == estado.fechaCorte }
         estados.value = (sinDuplicado + estado.copy(id = estados.value.size + 1L)).sortedByDescending { it.fechaCorte }
+    }
+
+    override suspend fun guardarTasaAnual(tarjeta: CuentaId, tasa: Int) {
+        tarjetas.value = tarjetas.value.map { if (it.id == tarjeta) it.copy(tasaAnual = tasa) else it }
     }
 
     override suspend fun eliminarEstadoDeCuenta(tarjetaId: CuentaId, fechaCorte: LocalDate) {

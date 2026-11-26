@@ -26,6 +26,8 @@ internal class RepositorioLibroRoom(
     override fun observarSaldos(): Flow<Map<CuentaId, Dinero>> =
         dao.observarSaldos().map { filas -> filas.associate { CuentaId(it.cuentaId) to Dinero(it.centavos) } }
 
+    override suspend fun saldoDe(id: CuentaId): Dinero = Dinero(dao.saldoDe(id.valor))
+
     override fun observarMovimientos(): Flow<List<Movimiento>> =
         dao.observarMovimientos().map { filas -> filas.map { it.aDominio() } }
 
@@ -41,7 +43,9 @@ internal class RepositorioLibroRoom(
 
     override suspend fun actualizar(movimiento: Movimiento) {
         val id = requireNotNull(movimiento.id) { "Solo se edita un movimiento guardado" }
-        dao.reemplazarCompleto(id.valor, movimiento.fecha.toEpochDays(), movimiento.descripcion, movimiento.asientosAEntidades())
+        dao.reemplazarCompleto(
+            id.valor, movimiento.fecha.toEpochDays(), movimiento.descripcion, movimiento.meses, movimiento.asientosAEntidades(),
+        )
     }
 
     override suspend fun crearCuenta(nombre: String, tipo: TipoCuenta): Cuenta = enTransaccion {
@@ -50,7 +54,18 @@ internal class RepositorioLibroRoom(
     }
 
     override suspend fun actualizarNombreCuenta(id: CuentaId, nombre: String) {
-        dao.actualizarNombreCuenta(id.valor, nombre.trim())
+        // Un nombre vacío o largo en la base rompería observarCuentas() (Cuenta lo rechaza al leer).
+        val limpio = nombre.trim()
+        require(limpio.isNotEmpty() && limpio.length <= Cuenta.LARGO_MAXIMO_NOMBRE) { "Nombre de cuenta inválido" }
+        dao.actualizarNombreCuenta(id.valor, limpio)
+    }
+
+    override suspend fun cambiarArchivada(id: CuentaId, archivada: Boolean) {
+        dao.cambiarArchivada(id.valor, archivada)
+    }
+
+    override suspend fun actualizarIcono(id: CuentaId, icono: String?) {
+        dao.actualizarIcono(id.valor, icono)
     }
 
     override suspend fun cuentaDeSaldosIniciales(): Cuenta =

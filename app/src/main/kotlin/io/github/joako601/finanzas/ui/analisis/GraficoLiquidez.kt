@@ -107,7 +107,7 @@ fun GraficoLiquidez(
     // Accesibilidad TalkBack: descripción sintetizada y acciones directas sin arrastrar.
     val descripcionGrafico = stringResource(
         R.string.analisis_grafico_cd,
-        corte.periodo.diasHistoricos,
+        corte.diasHistoricos,
         linea.enCuentas.formatear(),
         linea.disponible.formatear(),
     )
@@ -516,7 +516,7 @@ fun GraficoLiquidez(
 
         // Eje X en Compose nativo (sin tope de font_scale = 1.3 y centrado exacto por ancho medido)
         EjeXTemporalNativo(
-            periodo = corte.periodo,
+            diasHistoricos = corte.diasHistoricos,
             fraccionHoy = corte.indiceHoy.toFloat() / (puntos.size - 1).coerceAtLeast(1).toFloat(),
         )
     }
@@ -524,18 +524,13 @@ fun GraficoLiquidez(
 
 @Composable
 private fun EjeXTemporalNativo(
-    periodo: PeriodoAnalisis,
+    diasHistoricos: Int,
     fraccionHoy: Float,
 ) {
     val estiloEtiqueta = MaterialTheme.typography.labelSmall.copy(
         fontFeatureSettings = "tnum",
     )
-    val etiquetaInicio = stringResource(
-        when (periodo) {
-            PeriodoAnalisis.QUINCE_DIAS -> R.string.analisis_eje_menos_15
-            PeriodoAnalisis.TREINTA_DIAS -> R.string.analisis_eje_menos_30
-        },
-    )
+    val etiquetaInicio = stringResource(R.string.analisis_eje_menos_dias, diasHistoricos)
     val etiquetaHoy = stringResource(R.string.hoy)
     val etiquetaFin = stringResource(R.string.analisis_eje_mas_30)
 

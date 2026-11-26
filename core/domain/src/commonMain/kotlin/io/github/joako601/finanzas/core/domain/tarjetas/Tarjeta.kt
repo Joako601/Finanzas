@@ -20,12 +20,15 @@ public data class Tarjeta(
     val lineaDeCredito: Dinero,
     val diaDeCorte: Int,
     val diaLimite: Int,
+    /** Tasa anual ordinaria de esta tarjeta (CAT sin IVA); `null` = la de referencia en México. */
+    val tasaAnual: Int? = null,
 ) {
     init {
         require(cuenta.tipo == TipoCuenta.PASIVO) { "Una tarjeta de crédito es una cuenta de pasivo" }
         require(!lineaDeCredito.esNegativo) { "La línea de crédito no puede ser negativa" }
         require(diaDeCorte in 1..31) { "Día de corte fuera de rango" }
         require(diaLimite in 1..31) { "Día límite fuera de rango" }
+        require(tasaAnual == null || tasaAnual in 1..999) { "Tasa anual fuera de rango" }
     }
 
     val id: CuentaId get() = cuenta.id
@@ -53,5 +56,6 @@ public data class EstadoDeCuenta(
         require(fechaLimite > fechaCorte) { "La fecha límite debe ser posterior al corte" }
         require(!pagoSinIntereses.esNegativo) { "El pago para no generar intereses no puede ser negativo" }
         require(!pagoMinimo.esNegativo) { "El pago mínimo no puede ser negativo" }
+        require(pagoMinimo <= pagoSinIntereses) { "El pago mínimo no puede superar el pago para no generar intereses" }
     }
 }

@@ -27,6 +27,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.joako601.finanzas.core.domain.libro.CatalogoInicial
 import kotlinx.datetime.LocalDate
 import org.junit.After
 import org.junit.Before
@@ -73,6 +74,8 @@ class RespaldoTest {
         val tarjetas = ServicioTarjetas(libro, RepositorioTarjetasRoom(base.tarjetasDao()))
         val nu = tarjetas.crearTarjeta("Nu", Dinero.pesos(30_000), 15, 5, Dinero.pesos(2_500), hoy)
         tarjetas.capturarEstadoDeCuenta(nu, LocalDate(2026, 11, 15), LocalDate(2026, 12, 5), "2500", "250")
+        // Compra a 6 MSI (D-022): la columna `meses` también viaja en el respaldo.
+        libro.registrar(Registro.gasto(hoy, Dinero.pesos(6_000), nu.cuenta, cuenta("Súper y despensa"), "pantalla").copy(meses = 6))
         ServicioRecurrentes(libro, RepositorioRecurrentesRoom(base.recurrentesDao())).crear(
             "Quincena", ClaseRegistro.INGRESO, Dinero.pesos(9_000), cuenta("Sueldo"), Periodicidad.QUINCENAL, hoy, hoy,
         )
@@ -112,6 +115,15 @@ class RespaldoTest {
         respaldo.restaurar(archivo, contrasena)
 
         assertEquals(antes, volcado(db))
+    }
+
+    @Test
+    fun borrar_todo_deja_la_base_como_recien_instalada() = runTest {
+        llenar()
+        respaldo.borrarTodo()
+        assertTrue(libro.observarMovimientos().first().isEmpty())
+        assertEquals(CatalogoInicial.todas.map { it.nombre }, libro.observarCuentas().first().map { it.nombre })
+        assertTrue(RepositorioTarjetasRoom(base.tarjetasDao()).observarTarjetas().first().isEmpty())
     }
 
     @Test
@@ -166,6 +178,7 @@ class RespaldoTest {
         ayudante.createDatabase(nombre, 3).use { v3 ->
             v3.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (1, 'Efectivo', 'ACTIVO', 0, 1)")
             v3.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (2, 'Súper', 'GASTO', 0, 2)")
+            v3.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (3, 'Saldos iniciales', 'CAPITAL', 0, 3)")
             v3.execSQL("INSERT INTO movimiento (id, fecha, descripcion, creado_en) VALUES (1, 20774, 'tortillas', 0)")
             v3.execSQL("INSERT INTO asiento (movimiento_id, cuenta_id, centavos) VALUES (1, 2, 8550)")
             v3.execSQL("INSERT INTO asiento (movimiento_id, cuenta_id, centavos) VALUES (1, 1, -8550)")
@@ -176,8 +189,23 @@ class RespaldoTest {
 
         respaldo.restaurar(sobre, contrasena)
 
-        assertEquals(listOf("Efectivo", "Súper", CATEGORIA_PREDIAL), libro.observarCuentas().first().map { it.nombre })
+        assertEquals(listOf("Efectivo", "Súper", "Saldos iniciales", CATEGORIA_PREDIAL), libro.observarCuentas().first().map { it.nombre })
         assertEquals("tortillas", libro.observarMovimientos().first().single().descripcion)
+    }
+
+    @Test
+    fun un_respaldo_sin_cuenta_de_capital_se_rechaza() = runTest {
+        val nombre = "sin-capital-prueba.db"
+        ayudante.createDatabase(nombre, 3).use { v3 ->
+            v3.execSQL("INSERT INTO cuenta (id, nombre, tipo, archivada, orden) VALUES (1, 'Efectivo', 'ACTIVO', 0, 1)")
+        }
+        val archivo = contexto.getDatabasePath(nombre)
+        val sobre = CifradoRespaldo.cifrar(archivo.readBytes(), contrasena, CifradoRespaldo.MINIMO_ITERACIONES)
+        SQLiteDatabase.deleteDatabase(archivo)
+
+        val error = assertFailsWith<ErrorRespaldo> { respaldo.restaurar(sobre, contrasena) }
+
+        assertEquals(ErrorRespaldo.Motivo.BASE_INVALIDA, error.motivo)
     }
 
     @Test
@@ -247,8 +275,8 @@ class RespaldoTest {
             val sobreCorrupto = CifradoRespaldo.cifrar(alterada.readBytes(), contrasena, CifradoRespaldo.MINIMO_ITERACIONES)
             val error = assertFailsWith<ErrorRespaldo> { respaldo.restaurar(sobreCorrupto, contrasena) }
             assertEquals(ErrorRespaldo.Motivo.BASE_INVALIDA, error.motivo)
-            // Los datos actuales permanecen intactos.
-            assertEquals(3, libro.observarMovimientos().first().size)
+            // Los datos actuales permanecen intactos: los 4 movimientos de llenar() (incluida la compra MSI).
+            assertEquals(4, libro.observarMovimientos().first().size)
         } finally {
             android.database.sqlite.SQLiteDatabase.deleteDatabase(alterada)
         }

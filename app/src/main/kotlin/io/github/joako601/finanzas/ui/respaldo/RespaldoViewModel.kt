@@ -106,6 +106,11 @@ class RespaldoViewModel(
     private val _porRestaurar = MutableStateFlow<PorRestaurar?>(null)
     val porRestaurar: StateFlow<PorRestaurar?> = _porRestaurar.asStateFlow()
 
+    /** Quita el aviso del resultado anterior (p. ej. "Movimientos exportados") al cambiar de pantalla. */
+    fun limpiarAviso() {
+        if (_estado.value.tarea == null) avisar(null)
+    }
+
     fun abrirNuevoRespaldo() {
         _nuevo.value = NuevoRespaldo()
     }

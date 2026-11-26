@@ -90,6 +90,8 @@ data class NuevoRecurrente(
     val nombre: String = "",
     val monto: String = "",
     val categoriaId: CuentaId? = null,
+    /** Cuenta con la que se paga o donde se cobra; `null` = se elige al registrar. */
+    val cuentaId: CuentaId? = null,
     val frecuencia: Frecuencia = Frecuencia.MENSUAL,
     val inicio: LocalDate,
     val editando: RecurrenteId? = null,
@@ -158,8 +160,13 @@ class RecurrentesViewModel(
 
     // ---- Alta ----
 
-    fun abrirNuevo() {
-        _nuevo.value = NuevoRecurrente(inicio = fechaDeHoy())
+    /** La bienvenida lo abre como ingreso quincenal: la forma más común de cobrar en México. */
+    fun abrirNuevo(clase: ClaseRegistro = ClaseRegistro.GASTO) {
+        _nuevo.value = NuevoRecurrente(
+            clase = clase,
+            frecuencia = if (clase == ClaseRegistro.INGRESO) Frecuencia.QUINCENAL else Frecuencia.MENSUAL,
+            inicio = fechaDeHoy(),
+        )
     }
 
     fun cerrarNuevo() {
@@ -171,11 +178,14 @@ class RecurrentesViewModel(
         actual?.cambio()?.let { nuevo ->
             // Las categorías de pago e ingreso son distintas: al cambiar de clase se borra la elegida.
             val categoria = if (nuevo.clase != actual.clase) null else nuevo.categoriaId
+            // Un ingreso no llega a una tarjeta: al cambiar de clase se vuelve a elegir.
+            val cuenta = if (nuevo.clase != actual.clase) null else nuevo.cuentaId
             val fechaModificada = actual.fechaModificada || nuevo.inicio != actual.inicio
             val personalizada = if (nuevo.frecuencia != actual.frecuencia) null else nuevo.periodicidadPersonalizada
             nuevo.copy(
                 monto = limpiarMonto(nuevo.monto),
                 categoriaId = categoria,
+                cuentaId = cuenta,
                 fechaModificada = fechaModificada,
                 periodicidadPersonalizada = personalizada,
                 errores = emptySet(),
@@ -188,6 +198,7 @@ class RecurrentesViewModel(
         val actual = _nuevo.value ?: return
         if (actual.guardando) return
         val categoria = estado.value.categoriasDe(actual.clase).firstOrNull { it.id == actual.categoriaId }
+        val cuenta = estado.value.cuentasPara(actual.clase).firstOrNull { it.id == actual.cuentaId }
         val errores = servicio.validarAlta(actual.nombre, actual.monto, actual.clase, categoria)
         if (errores.isNotEmpty()) {
             _nuevo.value = actual.copy(errores = errores)
@@ -207,6 +218,7 @@ class RecurrentesViewModel(
                         periodicidad = periodicidadFinal,
                         inicio = actual.inicio,
                         hoy = fechaDeHoy(),
+                        cuenta = cuenta,
                     )
                 } else {
                     val existente = estado.value.recurrentes.firstOrNull { it.recurrente.id == idEditando }?.recurrente
@@ -229,6 +241,7 @@ class RecurrentesViewModel(
                         hoy = fechaDeHoy(),
                         proximaAnterior = proximaAnterior,
                         conservarProxima = conservarAnclaYProxima,
+                        cuenta = cuenta,
                     )
                 }
                 _nuevo.value = null
@@ -247,7 +260,9 @@ class RecurrentesViewModel(
         _registro.value = RegistroRecurrente(
             resumen = resumen,
             monto = resumen.recurrente.montoEstimado.textoEditable(),
-            cuentaId = estado.value.cuentasDeDinero.firstOrNull()?.id ?: cuentasDisponibles.firstOrNull()?.id,
+            // La cuenta preferida si sigue activa; si no, la primera de dinero.
+            cuentaId = resumen.recurrente.cuenta?.takeIf { id -> cuentasDisponibles.any { it.id == id } }
+                ?: estado.value.cuentasDeDinero.firstOrNull()?.id ?: cuentasDisponibles.firstOrNull()?.id,
             fecha = fechaDeHoy(),
         )
     }
@@ -262,6 +277,7 @@ class RecurrentesViewModel(
             nombre = r.nombre,
             monto = r.montoEstimado.textoEditable(),
             categoriaId = r.categoria,
+            cuentaId = r.cuenta,
             frecuencia = frecuenciaConocida ?: Frecuencia.MENSUAL,
             inicio = r.proxima,
             editando = r.id,

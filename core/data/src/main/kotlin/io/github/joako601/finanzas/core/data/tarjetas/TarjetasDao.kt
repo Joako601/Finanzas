@@ -12,7 +12,7 @@ internal interface TarjetasDao {
     @Query(
         """
         SELECT c.id AS cuenta_id, c.nombre, c.tipo, c.archivada,
-               t.linea_centavos, t.dia_corte, t.dia_limite
+               t.linea_centavos, t.dia_corte, t.dia_limite, t.tasa_anual
         FROM tarjeta t
         JOIN cuenta c ON c.id = t.cuenta_id
         ORDER BY c.orden, c.id
@@ -34,6 +34,9 @@ internal interface TarjetasDao {
         """,
     )
     suspend fun actualizarDatosTarjeta(cuentaId: Long, lineaCentavos: Long, diaCorte: Int, diaLimite: Int)
+
+    @Query("UPDATE tarjeta SET tasa_anual = :tasa WHERE cuenta_id = :cuentaId")
+    suspend fun guardarTasaAnual(cuentaId: Long, tasa: Int)
 
     @Query("SELECT * FROM estado_de_cuenta ORDER BY fecha_corte DESC, id DESC")
     fun observarEstadosDeCuenta(): Flow<List<EstadoDeCuentaEntity>>

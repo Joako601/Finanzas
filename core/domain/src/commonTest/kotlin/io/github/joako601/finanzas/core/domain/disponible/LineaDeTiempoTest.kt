@@ -5,10 +5,12 @@ import io.github.joako601.finanzas.core.domain.dinero.sumar
 import io.github.joako601.finanzas.core.domain.libro.ClaseRegistro
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
 import io.github.joako601.finanzas.core.domain.recurrentes.Periodicidad
 import io.github.joako601.finanzas.core.domain.recurrentes.Recurrente
 import io.github.joako601.finanzas.core.domain.recurrentes.RecurrenteId
+import io.github.joako601.finanzas.core.domain.tarjetas.CompraAMeses
 import io.github.joako601.finanzas.core.domain.tarjetas.EstadoDeCuenta
 import io.github.joako601.finanzas.core.domain.tarjetas.PagoATarjeta
 import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
@@ -22,6 +24,7 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.plus
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -41,7 +44,7 @@ class LineaDeTiempoTest {
 
     private fun estado(corte: String, limite: String, sinIntereses: Long) = EstadoDeCuenta(
         id = 1, tarjeta = nu.id, fechaCorte = fecha(corte), fechaLimite = fecha(limite),
-        pagoSinIntereses = Dinero.pesos(sinIntereses), pagoMinimo = Dinero.pesos(1),
+        pagoSinIntereses = Dinero.pesos(sinIntereses), pagoMinimo = Dinero.pesos(minOf(1, sinIntereses)),
         cortePredicho = null, limitePredicho = null,
     )
 
@@ -59,6 +62,7 @@ class LineaDeTiempoTest {
         estados: List<EstadoDeCuenta> = emptyList(),
         pagos: List<PagoATarjeta> = emptyList(),
         recurrentes: List<Recurrente> = emptyList(),
+        compras: List<CompraAMeses> = emptyList(),
     ) = LineaDeTiempo.calcular(
         cuentas = listOf(debito, cuentaNu, luz, sueldo),
         saldos = mapOf(debito.id to pesosConSigno(enDebito), cuentaNu.id to -pesosConSigno(deudaNu)),
@@ -67,6 +71,7 @@ class LineaDeTiempoTest {
         pagos = pagos,
         recurrentes = recurrentes,
         hoy = fecha(hoy),
+        compras = compras,
     )
 
     private fun LineaDeTiempo.pagosDeTarjeta() = eventos.filter { it.tipo == TipoEvento.PAGO_TARJETA }
@@ -185,6 +190,30 @@ class LineaDeTiempoTest {
         assertEquals(fecha("2026-12-05"), pago.fecha)
         assertEquals(Dinero.pesos(3_000), pago.monto)
         assertEquals(false, pago.exacto)
+    }
+
+    @Test
+    fun sin_estado_capturado_las_mensualidades_por_facturar_no_se_piden() {
+        // $12,000 a 12 MSI comprados el 1 nov: el corte del 15 nov factura solo $1,000.
+        val compra = CompraAMeses(
+            Registro.gasto(fecha("2026-11-01"), Dinero.pesos(12_000), cuentaNu, luz).copy(meses = 12),
+            nu, Dinero.pesos(12_000), 12,
+        )
+        val l = linea(hoy = "2026-11-19", deudaNu = 12_500, tarjetas = listOf(nu), compras = listOf(compra))
+        // Lo que se pide es la deuda menos lo que aún no se factura: 12,500 − 11,000.
+        assertEquals(listOf(Dinero.pesos(1_500)), l.pagosDeTarjeta().map { it.monto })
+    }
+
+    @Test
+    fun las_mensualidades_por_facturar_nunca_dejan_el_pago_en_negativo() {
+        val compra = CompraAMeses(
+            Registro.gasto(fecha("2026-11-01"), Dinero.pesos(12_000), cuentaNu, luz).copy(meses = 12),
+            nu, Dinero.pesos(12_000), 12,
+        )
+        // Ya se abonó casi todo: la deuda es menor que lo que falta por facturar.
+        val l = linea(hoy = "2026-11-19", deudaNu = 500, tarjetas = listOf(nu), compras = listOf(compra))
+        assertEquals(emptyList(), l.pagosDeTarjeta())
+        assertEquals(Dinero.pesos(10_000), l.disponible)
     }
 
     @Test
@@ -358,6 +387,7 @@ class LineaDeTiempoTest {
             pagos = emptyList(),
             recurrentes = emptyList(),
             hoy = fecha("2026-11-19"),
+            compras = emptyList(),
         )
         assertEquals(Dinero.pesos(1_000), l.enCuentas)
         assertEquals(Dinero.pesos(1_000), l.disponible)
@@ -390,6 +420,7 @@ class LineaDeTiempoTest {
                     fijo(2, "Quincena", ClaseRegistro.INGRESO, monto.toLong() * 3, Periodicidad.QUINCENAL, "2026-10-15"),
                 ),
                 hoy = hoy,
+                compras = emptyList(),
             )
             val deTarjeta = l.pagosDeTarjeta().map { it.monto }.sumar()
             assertTrue(deTarjeta <= maxOf(pesosConSigno(deuda), Dinero.CERO), "doble conteo: $deTarjeta con deuda $deuda")
@@ -406,4 +437,21 @@ class LineaDeTiempoTest {
             assertEquals(l.puntoMasBajo == null, l.diaMasBajo == null)
         }
     }
+
+    // ---- Pago fijo domiciliado a tarjeta (D-023) ----
+
+    @Test
+    fun un_pago_fijo_cargado_a_la_tarjeta_aparece_pero_no_resta_del_efectivo_en_su_fecha() {
+        val netflix = fijo(9, "Netflix", ClaseRegistro.GASTO, 300, Periodicidad.MENSUAL, "2026-11-25").copy(cuenta = nu.id)
+        val luzDebito = fijo(10, "CFE", ClaseRegistro.GASTO, 500, Periodicidad.MENSUAL, "2026-11-26").copy(cuenta = debito.id)
+
+        val l = linea(hoy = "2026-11-20", enDebito = 1_000, tarjetas = listOf(nu), recurrentes = listOf(netflix, luzDebito))
+
+        val cargo = l.eventos.single { it.recurrente == netflix.id }
+        assertEquals(nu.id, cargo.tarjeta)
+        assertFalse(cargo.esSalida)
+        // Solo la luz de débito baja el disponible.
+        assertEquals(Dinero.pesos(500), l.disponible)
+    }
+
 }

@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.R
+import io.github.joako601.finanzas.core.domain.libro.MovimientoId
 import io.github.joako601.finanzas.core.domain.libro.Cuenta
 import io.github.joako601.finanzas.core.domain.libro.CuentaId
 import io.github.joako601.finanzas.core.domain.metas.AnalisisTope
@@ -81,7 +83,29 @@ import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 fun PantallaMetas(
     viewModel: MetasViewModel = viewModel(factory = MetasViewModel.Fabrica),
     margenInferiorExtra: Dp = 0.dp,
+    categoriaPedida: CuentaId? = null,
+    onCategoriaAtendida: () -> Unit = {},
+    /** "Retirar y registrar gasto": lleva el monto y la nota a la captura de Inicio. */
+    onRegistrarGasto: (GastoDesdeRetiro) -> Unit = {},
+    /** Abre un movimiento del detalle de un tope para editarlo en Inicio. */
+    onEditarMovimiento: (MovimientoId) -> Unit = {},
 ) {
+    val gastoDesdeRetiro by viewModel.gastoDesdeRetiro.collectAsStateWithLifecycle()
+    LaunchedEffect(gastoDesdeRetiro) {
+        gastoDesdeRetiro?.let {
+            viewModel.consumirGastoDesdeRetiro()
+            onRegistrarGasto(it)
+        }
+    }
+    val aportesDetalle by viewModel.aportesDetalle.collectAsStateWithLifecycle()
+    // Llegada desde una categoría de Análisis: abre su tope (o uno nuevo) una sola vez.
+    LaunchedEffect(categoriaPedida) {
+        if (categoriaPedida != null) {
+            viewModel.abrirTopeDeCategoria(categoriaPedida)
+            onCategoriaAtendida()
+        }
+    }
+
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val editorTope by viewModel.editorTope.collectAsStateWithLifecycle()
     val detalleTopeId by viewModel.detalleTopeId.collectAsStateWithLifecycle()
@@ -218,6 +242,7 @@ fun PantallaMetas(
                 onEditar = { viewModel.abrirEditarTope(analisis) },
                 onEliminar = { viewModel.pedirEliminarTope(analisis) },
                 onCerrar = viewModel::cerrarDetalleTope,
+                onTocarMovimiento = { mov -> mov.movimiento.id?.let(onEditarMovimiento) },
             )
         }
     }
@@ -252,6 +277,7 @@ fun PantallaMetas(
             onCambiarArchivarAlVaciar = viewModel::cambiarArchivarAlVaciar,
             onConfirmar = viewModel::confirmarMovimientoMeta,
             onCerrar = viewModel::cerrarMovimientoMeta,
+            onCambiarRegistrarComoGasto = viewModel::cambiarRegistrarComoGasto,
         )
     }
 
@@ -270,6 +296,7 @@ fun PantallaMetas(
                     onAlternarArchivar = { viewModel.alternarArchivarMeta(analisis.meta) },
                     onEliminar = { viewModel.pedirEliminarMeta(analisis.meta) },
                     onCerrar = viewModel::cerrarDetalleMeta,
+                    aportes = aportesDetalle,
                 )
             }
         }
@@ -324,7 +351,7 @@ private fun EstadoVacioTopes(
                                 onClick = { onElegirCategoria(categoria.id) },
                                 leadingIcon = {
                                     Icon(
-                                        painter = painterResource(iconoDeCategoria(categoria.nombre)),
+                                        painter = painterResource(iconoDeCategoria(categoria)),
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
                                     )
@@ -464,6 +491,14 @@ private fun TarjetaResumenTopes(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            // Lo que ningún tope vigila: ayuda a decidir si falta uno.
+            if (resumen.gastadoSinTope.esPositivo) {
+                Text(
+                    text = stringResource(R.string.metas_fuera_de_topes, resumen.gastadoSinTope.formatear()),
+                    style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             if (puedeAgregarMas) {
                 BotonSecundario(
@@ -507,7 +542,7 @@ private fun TarjetaTopeCategoria(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.padding(end = 8.dp),
                 ) {
-                    IconoEnCirculo(iconoDeCategoria(analisis.categoria.nombre), tamano = 36.dp)
+                    IconoEnCirculo(iconoDeCategoria(analisis.categoria), tamano = 36.dp)
                     Text(
                         text = analisis.categoria.nombre,
                         style = MaterialTheme.typography.titleMedium,

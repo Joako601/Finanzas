@@ -33,9 +33,18 @@ internal abstract class LibroDao {
     @Query("UPDATE cuenta SET nombre = :nombre WHERE id = :id")
     abstract suspend fun actualizarNombreCuenta(id: Long, nombre: String)
 
+    @Query("UPDATE cuenta SET icono = :icono WHERE id = :id")
+    abstract suspend fun actualizarIcono(id: Long, icono: String?)
+
+    @Query("UPDATE cuenta SET archivada = :archivada WHERE id = :id")
+    abstract suspend fun cambiarArchivada(id: Long, archivada: Boolean)
+
     /** El saldo se calcula en SQLite sumando asientos, no cargando todo a memoria. */
     @Query("SELECT cuenta_id, SUM(centavos) AS centavos FROM asiento GROUP BY cuenta_id")
     abstract fun observarSaldos(): Flow<List<SaldoFila>>
+
+    @Query("SELECT COALESCE(SUM(centavos), 0) FROM asiento WHERE cuenta_id = :cuentaId")
+    abstract suspend fun saldoDe(cuentaId: Long): Long
 
     /**
      * @Transaction garantiza que el movimiento y sus asientos se leen del mismo estado
@@ -59,19 +68,19 @@ internal abstract class LibroDao {
         return id
     }
 
-    @Query("UPDATE movimiento SET fecha = :fechaDiaEpoca, descripcion = :descripcion WHERE id = :id")
-    protected abstract suspend fun actualizarMovimiento(id: Long, fechaDiaEpoca: Long, descripcion: String): Int
+    @Query("UPDATE movimiento SET fecha = :fechaDiaEpoca, descripcion = :descripcion, meses = :meses WHERE id = :id")
+    protected abstract suspend fun actualizarMovimiento(id: Long, fechaDiaEpoca: Long, descripcion: String, meses: Int?): Int
 
     @Query("DELETE FROM asiento WHERE movimiento_id = :id")
     protected abstract suspend fun eliminarAsientos(id: Long)
 
     /**
-     * Cambia fecha y nota y reemplaza los asientos, de forma atómica. No toca `creado_en`:
+     * Cambia fecha, nota y plazo MSI y reemplaza los asientos, de forma atómica. No toca `creado_en`:
      * el movimiento editado conserva su lugar entre los del mismo día.
      */
     @Transaction
-    open suspend fun reemplazarCompleto(id: Long, fechaDiaEpoca: Long, descripcion: String, asientos: List<AsientoEntity>) {
-        check(actualizarMovimiento(id, fechaDiaEpoca, descripcion) == 1) { "El movimiento $id ya no existe" }
+    open suspend fun reemplazarCompleto(id: Long, fechaDiaEpoca: Long, descripcion: String, meses: Int?, asientos: List<AsientoEntity>) {
+        check(actualizarMovimiento(id, fechaDiaEpoca, descripcion, meses) == 1) { "El movimiento $id ya no existe" }
         eliminarAsientos(id)
         insertarAsientos(asientos.map { it.copy(movimientoId = id) })
     }

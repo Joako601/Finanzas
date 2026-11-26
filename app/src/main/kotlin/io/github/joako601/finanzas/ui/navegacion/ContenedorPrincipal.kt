@@ -1,5 +1,9 @@
 package io.github.joako601.finanzas.ui.navegacion
 
+import io.github.joako601.finanzas.ui.perfil.PreferenciasPrivacidad
+import io.github.joako601.finanzas.ui.componentes.LocalMontosOcultos
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
@@ -23,11 +28,16 @@ import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.traversalIndex
 import androidx.compose.ui.unit.dp
+import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.MovimientoId
+import io.github.joako601.finanzas.ui.metas.GastoDesdeRetiro
 import io.github.joako601.finanzas.ui.analisis.PantallaAnalisis
-import io.github.joako601.finanzas.ui.boveda.PantallaBoveda
 import io.github.joako601.finanzas.ui.componentes.rememberAnimacionesDesactivadas
 import io.github.joako601.finanzas.ui.metas.PantallaMetas
 import io.github.joako601.finanzas.ui.movimientos.PantallaMovimientos
+import io.github.joako601.finanzas.ui.perfil.CuentaPerfil
+import io.github.joako601.finanzas.ui.perfil.PantallaPerfil
+import io.github.joako601.finanzas.ui.perfil.SubpantallaPerfil
 
 /**
  * Contenedor principal con la [BarraNavegacionInferior] de 4 apartados flotando sobre el
@@ -38,16 +48,28 @@ import io.github.joako601.finanzas.ui.movimientos.PantallaMovimientos
  *   histórica + proyección a 30 días, flujo del periodo y gastos por categoría).
  * - Tab 3 ([PestanaPrincipal.METAS]): conecta con [PantallaMetas] (topes mensuales por categoría
  *   con ritmo del mes y apartados de ahorro).
- * - Tab 4 ([PestanaPrincipal.BOVEDA]): conecta con [PantallaBoveda] (respaldo cifrado, CSV,
- *   estado de recordatorios y acceso a nube cuando aplica).
+ * - Tab 4 ([PestanaPrincipal.PERFIL]): conecta con [PantallaPerfil] (cuenta si la hay, respaldo
+ *   cifrado, CSV y recordatorios).
+ *
+ * @param cuenta datos de la cuenta nube para el Perfil; `null` en la distribución privada.
  * - Conserva el estado de UI (scroll de listas) al cambiar de pestaña mediante [rememberSaveableStateHolder].
  */
 @Composable
 fun ContenedorPrincipal(
-    onAbrirNube: (() -> Unit)? = null,
+    cuenta: CuentaPerfil? = null,
 ) {
     var pestanaActual by rememberSaveable { mutableStateOf(PestanaPrincipal.INICIO) }
+    var subpantallaPerfil by rememberSaveable { mutableStateOf(SubpantallaPerfil.NINGUNA) }
+    // Categoría tocada en Análisis que Metas debe abrir; se consume al atenderla.
+    var categoriaParaMetas by remember { mutableStateOf<CuentaId?>(null) }
+    // Retiro de un apartado que Inicio debe abrir como gasto; se consume al atenderlo.
+    var gastoParaInicio by remember { mutableStateOf<GastoDesdeRetiro?>(null) }
+    // Movimiento tocado en el detalle de un tope que Inicio debe abrir para editar.
+    var movimientoParaEditar by remember { mutableStateOf<MovimientoId?>(null) }
     val guardadorEstado = rememberSaveableStateHolder()
+    // Modo discreto: arranca como diga Perfil → Privacidad y el ojo de Inicio lo cambia en la sesión.
+    val contexto = LocalContext.current
+    var montosOcultos by rememberSaveable { mutableStateOf(PreferenciasPrivacidad(contexto).iniciarOculto) }
 
     // Si el usuario está en las pestañas 2, 3 o 4, el botón Atrás regresa primero a Inicio.
     BackHandler(enabled = pestanaActual != PestanaPrincipal.INICIO) {
@@ -79,22 +101,44 @@ fun ContenedorPrincipal(
         ) { pestana ->
             guardadorEstado.SaveableStateProvider(key = pestana) {
                 when (pestana) {
-                    PestanaPrincipal.INICIO -> PantallaMovimientos(
-                        onAbrirNube = onAbrirNube,
-                        onIrABoveda = { pestanaActual = PestanaPrincipal.BOVEDA },
-                        margenInferiorExtra = AlturaTotalBarraInferior,
-                    )
+                    // El modo discreto es de Inicio: lo que se ve en público al abrir la app.
+                    PestanaPrincipal.INICIO -> CompositionLocalProvider(LocalMontosOcultos provides montosOcultos) {
+                        PantallaMovimientos(
+                            margenInferiorExtra = AlturaTotalBarraInferior,
+                            onAlternarMontos = { montosOcultos = !montosOcultos },
+                            gastoPedido = gastoParaInicio,
+                            onGastoAtendido = { gastoParaInicio = null },
+                            movimientoPedido = movimientoParaEditar,
+                            onMovimientoAtendido = { movimientoParaEditar = null },
+                        )
+                    }
 
                     PestanaPrincipal.ANALISIS -> PantallaAnalisis(
                         margenInferiorExtra = AlturaTotalBarraInferior,
+                        onTocarCategoria = {
+                            categoriaParaMetas = it
+                            pestanaActual = PestanaPrincipal.METAS
+                        },
                     )
 
                     PestanaPrincipal.METAS -> PantallaMetas(
                         margenInferiorExtra = AlturaTotalBarraInferior,
+                        categoriaPedida = categoriaParaMetas,
+                        onCategoriaAtendida = { categoriaParaMetas = null },
+                        onRegistrarGasto = {
+                            gastoParaInicio = it
+                            pestanaActual = PestanaPrincipal.INICIO
+                        },
+                        onEditarMovimiento = {
+                            movimientoParaEditar = it
+                            pestanaActual = PestanaPrincipal.INICIO
+                        },
                     )
 
-                    PestanaPrincipal.BOVEDA -> PantallaBoveda(
-                        onAbrirNube = onAbrirNube,
+                    PestanaPrincipal.PERFIL -> PantallaPerfil(
+                        cuenta = cuenta,
+                        subpantalla = subpantallaPerfil,
+                        onSubpantalla = { subpantallaPerfil = it },
                         margenInferiorExtra = AlturaTotalBarraInferior,
                     )
                 }
@@ -103,7 +147,13 @@ fun ContenedorPrincipal(
 
         BarraNavegacionInferior(
             seleccionada = pestanaActual,
-            onSeleccionar = { pestanaActual = it },
+            onSeleccionar = {
+                // Salir de Perfil, o volver a tocarlo, lo deja en su raíz (patrón de pestañas iOS).
+                if (it != PestanaPrincipal.PERFIL || pestanaActual == PestanaPrincipal.PERFIL) {
+                    subpantallaPerfil = SubpantallaPerfil.NINGUNA
+                }
+                pestanaActual = it
+            },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .semantics {

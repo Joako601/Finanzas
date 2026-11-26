@@ -6,6 +6,7 @@ import io.github.joako601.finanzas.core.data.FinanzasDatabase
 import io.github.joako601.finanzas.core.data.libro.RepositorioLibroRoom
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
 import io.github.joako601.finanzas.core.domain.libro.TipoCuenta
+import io.github.joako601.finanzas.core.domain.metas.AporteMeta
 import io.github.joako601.finanzas.core.domain.metas.MetaAhorro
 import io.github.joako601.finanzas.core.domain.metas.TopeCategoria
 import kotlinx.coroutines.flow.first
@@ -75,5 +76,25 @@ class RepositorioMetasRoomTest {
 
         repositorio.eliminarMeta(id)
         assertTrue(repositorio.observarMetas().first().isEmpty())
+    }
+
+    @Test
+    fun mover_apartado_guarda_meta_e_historial_y_borrar_la_meta_borra_su_historial() = runTest {
+        val id = repositorio.crearMeta(
+            MetaAhorro(nombre = "Viaje", objetivo = Dinero.pesos(10_000), apartado = Dinero.pesos(1_000), fechaLimite = null, reservarDeDisponible = true),
+        )
+        val meta = repositorio.observarMetas().first().single()
+
+        repositorio.moverApartado(meta.copy(apartado = Dinero.pesos(1_500)), LocalDate(2026, 11, 20), Dinero.pesos(500))
+        repositorio.moverApartado(meta.copy(apartado = Dinero.pesos(1_300)), LocalDate(2026, 11, 22), -Dinero.pesos(200))
+
+        assertEquals(Dinero.pesos(1_300), repositorio.observarMetas().first().single().apartado)
+        assertEquals(
+            listOf(AporteMeta(LocalDate(2026, 11, 22), -Dinero.pesos(200)), AporteMeta(LocalDate(2026, 11, 20), Dinero.pesos(500))),
+            repositorio.observarAportes(id).first(),
+        )
+
+        repositorio.eliminarMeta(id)
+        assertTrue(repositorio.observarAportes(id).first().isEmpty())
     }
 }
