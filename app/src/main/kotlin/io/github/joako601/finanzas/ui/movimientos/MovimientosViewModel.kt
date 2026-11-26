@@ -382,6 +382,7 @@ class MovimientosViewModel(
     /** Archivar o reactivar conserva el historial; solo cambia si aparece y si cuenta en los totales. */
     fun cambiarArchivada(cuenta: Cuenta, archivada: Boolean) {
         if (archivada && !puedeArchivar(cuenta)) return
+        _errorCuentas.value = false
         viewModelScope.launch {
             try {
                 repositorio.cambiarArchivada(cuenta.id, archivada)

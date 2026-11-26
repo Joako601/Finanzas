@@ -52,7 +52,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -67,7 +66,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.R
-import io.github.joako601.finanzas.recordatorios.abrirAjustesDeAvisos
 import io.github.joako601.finanzas.ui.componentes.BotonPrincipal
 import io.github.joako601.finanzas.ui.componentes.BotonSecundario
 import io.github.joako601.finanzas.ui.componentes.IconoEnCirculo
@@ -290,7 +288,6 @@ private fun RaizPerfil(
     onSubpantalla: (SubpantallaPerfil) -> Unit,
     margenInferiorExtra: Dp,
 ) {
-    val context = LocalContext.current
     val avisos = recordarAvisos()
 
     Scaffold(containerColor = MaterialTheme.colorScheme.background) { margenes ->

@@ -107,6 +107,8 @@ data class PagoTarjeta(
     val editando: MovimientoId? = null,
     /** Nota del pago original, para no perderla al corregirlo. */
     val nota: String = "",
+    /** Cuenta origen del pago que se corrige, si ya fue archivada: sigue siendo elegible. */
+    val origenArchivado: Cuenta? = null,
 )
 
 /** Diálogo de captura de estado de cuenta. */
@@ -356,6 +358,7 @@ class TarjetasViewModel(
             fecha = resumen.movimiento.fecha,
             editando = id,
             nota = resumen.movimiento.descripcion,
+            origenArchivado = resumen.cuenta?.takeIf { it.archivada },
         )
     }
 
@@ -392,7 +395,7 @@ class TarjetasViewModel(
         val actual = _pago.value ?: return
         if (actual.guardando) return
         val monto = Dinero.parsear(actual.montoTexto)?.takeIf { it.esPositivo }
-        val desde = estado.value.cuentasParaPagar.firstOrNull { it.id == actual.desdeId }
+        val desde = (estado.value.cuentasParaPagar + listOfNotNull(actual.origenArchivado)).firstOrNull { it.id == actual.desdeId }
         val errores = buildSet {
             if (monto == null) add(ErrorPago.MONTO_INVALIDO)
             if (desde == null) add(ErrorPago.SIN_CUENTA)

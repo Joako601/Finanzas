@@ -56,7 +56,7 @@ public class ServicioLibro(private val repositorio: RepositorioLibro) {
                 if (!diferencia.esCero) {
                     val capital = repositorio.cuentaDeSaldosIniciales()
                     repositorio.registrar(
-                        Registro.saldoInicial(fecha, actualizada, diferencia, capital, descripcion = "Ajuste de saldo"),
+                        Registro.saldoInicial(fecha, actualizada, diferencia, capital, descripcion = Registro.DESCRIPCION_AJUSTE),
                     )
                 }
             }

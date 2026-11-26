@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import androidx.core.view.WindowInsetsControllerCompat
 import io.github.joako601.finanzas.R
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,24 +108,6 @@ fun SplashAnimadoKren(
     // Esperando la huella, Atrás manda Kren al fondo (como cualquier app bloqueada).
     BackHandler(enabled = true) {
         if (esperando) vista.context.encontrarActivity()?.moveTaskToBack(true)
-    }
-
-    // Mantiene barras del sistema claras sobre #111111 y restaura al terminar.
-    DisposableEffect(vista) {
-        val ventana = vista.context.encontrarActivity()?.window
-        val controlador = ventana?.let { WindowInsetsControllerCompat(it, vista) }
-        val previoStatus = controlador?.isAppearanceLightStatusBars
-        val previoNav = controlador?.isAppearanceLightNavigationBars
-        if (controlador != null) {
-            controlador.isAppearanceLightStatusBars = false
-            controlador.isAppearanceLightNavigationBars = false
-        }
-        onDispose {
-            if (controlador != null) {
-                if (previoStatus != null) controlador.isAppearanceLightStatusBars = previoStatus
-                if (previoNav != null) controlador.isAppearanceLightNavigationBars = previoNav
-            }
-        }
     }
 
     val progresoBarras = remember { Animatable(0f) }

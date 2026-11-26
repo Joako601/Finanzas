@@ -168,11 +168,8 @@ fun BarraNavegacionInferior(
                     ItemBarraNavegacion(
                         pestana = pestana,
                         activo = pestana == seleccionada,
-                        onClick = {
-                            if (pestana != seleccionada) {
-                                onSeleccionar(pestana)
-                            }
-                        },
+                        // También al tocar la pestaña ya abierta: así Perfil vuelve a su raíz.
+                        onClick = { onSeleccionar(pestana) },
                         modifier = Modifier.weight(1f),
                     )
                 }

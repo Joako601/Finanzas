@@ -231,6 +231,7 @@ fun DialogoPagoTarjeta(
     onEliminar: (() -> Unit)? = null,
 ) {
     val analisis = pago.analisis
+    val opcionesDesde = cuentas + listOfNotNull(pago.origenArchivado)
     val montoActual = remember(pago.montoTexto) { Dinero.parsear(pago.montoTexto) }
     val simulacion = remember(analisis, montoActual, pago.tasaAnualPorcentaje) {
         if (analisis != null && montoActual != null && montoActual.esPositivo) {
@@ -334,7 +335,7 @@ fun DialogoPagoTarjeta(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    cuentas.forEach { cuenta ->
+                    opcionesDesde.forEach { cuenta ->
                         val saldoCuenta = saldosCuentas[cuenta.id]
                         val etiquetaChip = if (saldoCuenta != null) {
                             stringResource(R.string.pago_cuenta_con_saldo, cuenta.nombre, saldoCuenta.formatear())
@@ -362,7 +363,7 @@ fun DialogoPagoTarjeta(
                 }
 
                 // Aviso preventivo si el monto supera el saldo actual de la cuenta de débito/efectivo elegida
-                val cuentaElegida = cuentas.firstOrNull { it.id == pago.desdeId }
+                val cuentaElegida = opcionesDesde.firstOrNull { it.id == pago.desdeId }
                 val saldoElegida = cuentaElegida?.let { saldosCuentas[it.id] }
                 if (cuentaElegida != null && saldoElegida != null && montoActual != null && montoActual > saldoElegida) {
                     Text(

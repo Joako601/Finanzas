@@ -33,6 +33,8 @@ val gruposDeRed = listOf(
     "com.google.android.play", // Play Integrity, Play Core
     "com.google.android.recaptcha", // reCAPTCHA (lo trae firebase-auth)
     "com.google.android.datatransport", // Envío de telemetría de Firebase
+    "com.google.android.libraries.identity.googleid", // Entrar con Google (solo nube)
+    "androidx.credentials", // Credential Manager: Entrar con Google (solo nube)
     "com.google.http-client",
     "com.google.api-client",
     "io.grpc",

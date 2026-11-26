@@ -6,7 +6,8 @@
 #
 # Uso: scripts/instalar-celular.sh [nube|privada] [etiqueta]
 #   scripts/instalar-celular.sh nube login
-# Sale con error si no encuentra el teléfono, si el respaldo queda vacío o si la base cambia.
+# Sale con error si no encuentra el teléfono, si el respaldo queda vacío, si la base cambia (3)
+# o si la app se cerró al abrir (4).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -92,14 +93,23 @@ adb shell am force-stop "$paquete"
 adb shell monkey -p "$paquete" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 sleep 4
 
-if adb logcat -d -t 400 AndroidRuntime:E '*:S' | grep -q "FATAL EXCEPTION"; then
+# Sin `grep -q` en tubería: con pipefail, un SIGPIPE de adb ocultaría justo el crash.
+errores="$(adb logcat -d -t 400 AndroidRuntime:E '*:S')"
+crash=false
+if [[ "$errores" == *"FATAL EXCEPTION"* ]]; then
   echo "La app se cerró al abrir (revisa: adb logcat -d AndroidRuntime:E '*:S')." >&2
+  crash=true
 fi
 
 if $hay_base; then
   despues="$(mktemp -d)"
   trap 'rm -rf "$despues"' EXIT
-  copiar_base "$despues"
+  # Con la app cerrada, la base y su -wal no cambian mientras se copian.
+  adb shell am force-stop "$paquete"
+  if ! copiar_base "$despues"; then
+    echo "No se pudo leer la base después de instalar (run-as falló)." >&2
+    exit 1
+  fi
   huella "$despues/finanzas.db" > "$respaldo/huella-despues.txt"
   if diff -q "$respaldo/huella-antes.txt" "$respaldo/huella-despues.txt" >/dev/null; then
     echo "Instalado. BASE IDÉNTICA."
@@ -111,3 +121,4 @@ if $hay_base; then
 else
   echo "Instalado."
 fi
+if $crash; then exit 4; fi

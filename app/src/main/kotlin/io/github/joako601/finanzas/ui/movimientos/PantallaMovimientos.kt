@@ -84,6 +84,7 @@ import io.github.joako601.finanzas.ui.componentes.enPantalla
 import io.github.joako601.finanzas.ui.componentes.fundidoAlOcultar
 import io.github.joako601.finanzas.R
 import io.github.joako601.finanzas.core.domain.libro.MovimientoId
+import io.github.joako601.finanzas.core.domain.libro.Registro
 import io.github.joako601.finanzas.ui.metas.GastoDesdeRetiro
 import io.github.joako601.finanzas.core.domain.disponible.LineaDeTiempo
 import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
@@ -738,7 +739,12 @@ fun ContenidoMovimientos(
                                     modifier = Modifier.weight(1f),
                                 )
                                 Text(
-                                    text = if (total.esNegativo) "−" + (-total).enPantalla() else "+" + total.enPantalla(),
+                                    // Con filtro por clase es una suma de montos, no un neto: sin "+" (igual que la búsqueda).
+                                    text = when {
+                                        total.esNegativo -> "−" + (-total).enPantalla()
+                                        filtro?.clase == null -> "+" + total.enPantalla()
+                                        else -> total.enPantalla()
+                                    },
                                     style = MaterialTheme.typography.titleSmall.copy(fontFeatureSettings = "tnum"),
                                     modifier = Modifier.fundidoAlOcultar(),
                                 )
@@ -885,8 +891,13 @@ internal fun FilaMovimiento(movimiento: MovimientoResumido, onClick: (() -> Unit
 private fun etiqueta(movimiento: MovimientoResumido): String = when (movimiento.clase) {
     ClaseMovimiento.GASTO, ClaseMovimiento.INGRESO ->
         movimiento.categoria?.nombre ?: stringResource(R.string.movimiento)
-    ClaseMovimiento.SALDO_INICIAL ->
-        stringResource(if (movimiento.cuenta?.tipo == TipoCuenta.PASIVO) R.string.deuda_inicial else R.string.saldo_inicial)
+    ClaseMovimiento.SALDO_INICIAL -> stringResource(
+        when {
+            movimiento.movimiento.descripcion == Registro.DESCRIPCION_AJUSTE -> R.string.ajuste_de_saldo
+            movimiento.cuenta?.tipo == TipoCuenta.PASIVO -> R.string.deuda_inicial
+            else -> R.string.saldo_inicial
+        },
+    )
     ClaseMovimiento.PAGO_TARJETA ->
         movimiento.contraparte?.let { stringResource(R.string.pago_a_tarjeta, it.nombre) } ?: stringResource(R.string.movimiento)
     ClaseMovimiento.TRANSFERENCIA -> stringResource(R.string.transferencia)

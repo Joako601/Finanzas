@@ -1,5 +1,6 @@
 package io.github.joako601.finanzas.ui.perfil
 
+import android.content.Intent
 import android.util.Log
 import androidx.activity.compose.LocalActivity
 import androidx.annotation.StringRes
@@ -26,6 +27,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +41,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.joako601.finanzas.ETIQUETA_LOG
@@ -87,11 +90,21 @@ internal fun ContenidoPrivacidad() {
     val actividad = LocalActivity.current
     val alcance = rememberCoroutineScope()
     val privacidad = remember { PreferenciasPrivacidad(contexto) }
-    val seguro = remember { dispositivoSeguro(contexto) }
+    // El PIN del teléfono puede ponerse o quitarse en Ajustes: se vuelve a leer al regresar.
+    var seguro by remember { mutableStateOf(dispositivoSeguro(contexto)) }
     var iniciarOculto by remember { mutableStateOf(privacidad.iniciarOculto) }
     var recientes by remember { mutableStateOf(privacidad.ocultarEnRecientes) }
     var bloqueo by remember { mutableStateOf(privacidad.bloqueo) }
     var confirmarBorrado by remember { mutableStateOf(false) }
+    // Sin PIN el bloqueo no protege nada: no deja la pantalla segura trabada.
+    fun aplicarSegura() {
+        actividad?.window?.let { ventana -> aplicarPantallaSegura(ventana, recientes || (bloqueo && seguro)) }
+    }
+    LifecycleResumeEffect(Unit) {
+        seguro = dispositivoSeguro(contexto)
+        aplicarSegura()
+        onPauseOrDispose {}
+    }
     var borrando by remember { mutableStateOf(false) }
     var errorAlBorrar by remember { mutableStateOf(false) }
 
@@ -102,7 +115,7 @@ internal fun ContenidoPrivacidad() {
     FilaInterruptor(R.string.privacidad_recientes, R.string.privacidad_recientes_texto, recientes) {
         recientes = it
         privacidad.ocultarEnRecientes = it
-        actividad?.window?.let { ventana -> aplicarPantallaSegura(ventana, it || bloqueo) }
+        aplicarSegura()
     }
     FilaInterruptor(
         titulo = R.string.privacidad_bloqueo,
@@ -115,7 +128,7 @@ internal fun ContenidoPrivacidad() {
         // Quien lo activa ya está dentro: no se le pide el PIN hasta que salga de la app.
         if (it) MainActivity.desbloqueada = true
         // Con bloqueo, la miniatura de recientes tampoco debe mostrar nada.
-        actividad?.window?.let { ventana -> aplicarPantallaSegura(ventana, it || recientes) }
+        aplicarSegura()
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
     Text(
@@ -144,8 +157,14 @@ internal fun ContenidoPrivacidad() {
                         alcance.launch {
                             try {
                                 privacidad.borrarDatosLocales(contexto.applicationContext as FinanzasApp)
-                                // Vuelve a leer los ajustes (sin pantalla segura ni bloqueo) como recién instalada.
-                                actividad?.recreate()
+                                // Arranca de cero como recién instalada: tarea nueva, sin ViewModels ni
+                                // estado guardado (recreate() conservaría filtros, pestaña y montos ocultos).
+                                actividad?.let { a ->
+                                    a.startActivity(
+                                        Intent(a, MainActivity::class.java)
+                                            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK),
+                                    )
+                                }
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
@@ -175,6 +194,7 @@ internal fun ContenidoCuentas(viewModel: MovimientosViewModel = viewModel(factor
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val alRegistrar by viewModel.cuentaAlRegistrar.collectAsStateWithLifecycle()
     val error by viewModel.errorCuentas.collectAsStateWithLifecycle()
+    DisposableEffect(Unit) { onDispose(viewModel::consumirErrorCuentas) }
     var porArchivar by remember { mutableStateOf<Cuenta?>(null) }
     // Lo que el usuario entiende: saldo en efectivo y débito, deuda (positiva) en una tarjeta.
     fun montoDe(cuenta: Cuenta): Dinero = (estado.saldos[cuenta.id] ?: Dinero.CERO).let { if (cuenta.tipo == TipoCuenta.PASIVO) -it else it }
@@ -260,6 +280,7 @@ internal fun ContenidoCategorias(viewModel: MovimientosViewModel = viewModel(fac
     val estado by viewModel.estado.collectAsStateWithLifecycle()
     val editor by viewModel.editorCategoria.collectAsStateWithLifecycle()
     val error by viewModel.errorCuentas.collectAsStateWithLifecycle()
+    DisposableEffect(Unit) { onDispose(viewModel::consumirErrorCuentas) }
     if (error) Text(stringResource(R.string.error_al_guardar), color = MaterialTheme.colorScheme.error)
 
     listOf(
@@ -346,7 +367,7 @@ private fun DialogoCategoria(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Campo(
                     valor = editor.nombre,
-                    onCambio = { texto -> onCambio { copy(nombre = texto) } },
+                    onCambio = { texto -> onCambio { copy(nombre = texto.take(Cuenta.LARGO_MAXIMO_NOMBRE)) } },
                     etiqueta = stringResource(R.string.categorias_nombre),
                     error = when (editor.error) {
                         ErrorCategoria.NOMBRE_VACIO -> stringResource(R.string.error_nombre_vacio)

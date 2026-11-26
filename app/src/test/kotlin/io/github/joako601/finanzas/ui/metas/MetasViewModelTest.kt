@@ -171,6 +171,8 @@ class MetasViewModelTest {
         val cargada = vm.estado.first { it.resumenAhorro?.metasActivas?.size == 1 }
             .resumenAhorro!!.metasActivas.single()
         assertEquals(Dinero.pesos(1_000), cargada.meta.apartado)
+        // El apartado inicial también queda en el historial, para que la suma cuadre con el saldo.
+        assertEquals(listOf(AporteMeta(hoy, Dinero.pesos(1_000))), metas.observarAportes(cargada.meta.id!!).first())
 
         // Aportar $500 -> $1,500
         vm.abrirMovimientoMeta(cargada, TipoMovimientoMeta.APORTAR)
@@ -198,11 +200,11 @@ class MetasViewModelTest {
         assertTrue(final.metasActivas.isEmpty())
         assertEquals(Dinero.CERO, final.metasArchivadas.single().meta.apartado)
 
-        // El historial anota el aporte y el retiro (el apartado inicial no es un aporte).
+        // El historial anota el apartado inicial, el aporte y el retiro: suma lo mismo que el saldo ($0).
         backgroundScope.launch { vm.aportesDetalle.collect {} }
         vm.abrirDetalleMeta(cargada.meta.id!!)
-        val historial = vm.aportesDetalle.first { it.size == 2 }
-        assertEquals(listOf(-Dinero.pesos(1_500), Dinero.pesos(500)), historial.map { it.monto })
+        val historial = vm.aportesDetalle.first { it.size == 3 }
+        assertEquals(listOf(-Dinero.pesos(1_500), Dinero.pesos(500), Dinero.pesos(1_000)), historial.map { it.monto })
         assertEquals(hoy, historial.first().fecha)
     }
 
@@ -343,9 +345,10 @@ private class MetasFalso : RepositorioMetas {
         topes.value = topes.value.filterNot { it.categoriaId == categoriaId }
     }
     override fun observarMetas(): Flow<List<MetaAhorro>> = metas
-    override suspend fun crearMeta(meta: MetaAhorro): MetaAhorroId {
+    override suspend fun crearMeta(meta: MetaAhorro, fecha: LocalDate): MetaAhorroId {
         val id = MetaAhorroId(siguienteMeta++)
         metas.value = metas.value + meta.copy(id = id)
+        if (meta.apartado.esPositivo) aportes.value = aportes.value + (id to listOf(AporteMeta(fecha, meta.apartado)))
         return id
     }
     override suspend fun actualizarMeta(meta: MetaAhorro) {

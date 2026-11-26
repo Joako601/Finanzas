@@ -96,6 +96,13 @@ internal abstract class MetasDao {
     @Insert
     abstract suspend fun insertarMeta(meta: MetaAhorroEntity): Long
 
+    @Transaction
+    open suspend fun crearMeta(meta: MetaAhorroEntity, fecha: Long): Long {
+        val id = insertarMeta(meta)
+        if (meta.apartadoCentavos > 0) insertarAporte(AporteMetaEntity(metaId = id, fecha = fecha, centavos = meta.apartadoCentavos))
+        return id
+    }
+
     @Query(
         """
         UPDATE meta_ahorro
@@ -150,8 +157,8 @@ internal class RepositorioMetasRoom(private val dao: MetasDao) : RepositorioMeta
     override fun observarMetas(): Flow<List<MetaAhorro>> =
         dao.observarMetas().map { filas -> filas.map { it.aDominio() } }
 
-    override suspend fun crearMeta(meta: MetaAhorro): MetaAhorroId =
-        MetaAhorroId(dao.insertarMeta(meta.aEntidad()))
+    override suspend fun crearMeta(meta: MetaAhorro, fecha: LocalDate): MetaAhorroId =
+        MetaAhorroId(dao.crearMeta(meta.aEntidad(), fecha.toEpochDays()))
 
     override suspend fun actualizarMeta(meta: MetaAhorro) {
         val id = requireNotNull(meta.id) { "Se requiere id para actualizar la meta" }.valor

@@ -64,8 +64,12 @@ class TarjetasViewModelTest {
     private lateinit var libro: LibroFalsoTarjetas
     private lateinit var tarjetas: TarjetasFalso
 
-    private suspend fun TestScope.viewModel(hoy: LocalDate, movimientos: List<Movimiento>): TarjetasViewModel {
-        libro = LibroFalsoTarjetas(listOf(debito, efectivo, capital, nu.cuenta), movimientos)
+    private suspend fun TestScope.viewModel(
+        hoy: LocalDate,
+        movimientos: List<Movimiento>,
+        cuentas: List<Cuenta> = listOf(debito, efectivo, capital, nu.cuenta),
+    ): TarjetasViewModel {
+        libro = LibroFalsoTarjetas(cuentas, movimientos)
         tarjetas = TarjetasFalso(listOf(nu), listOf(estadoOctubre))
         val vm = TarjetasViewModel(libro, tarjetas, ServicioTarjetas(libro, tarjetas)) { hoy }
         backgroundScope.launch { vm.estado.collect {} }
@@ -149,6 +153,22 @@ class TarjetasViewModelTest {
         assertEquals(MovimientoId(9), guardado.id)
         assertEquals("quincena", guardado.descripcion)
         assertEquals(-Dinero.pesos(750), guardado.asientos.single { it.cuenta == efectivo.id }.monto)
+    }
+
+    @Test
+    fun editar_un_pago_cuya_cuenta_origen_se_archivo_se_puede_guardar() = runTest {
+        val debitoArchivado = debito.copy(archivada = true)
+        val pago = Registro.pagoDeTarjeta(LocalDate(2026, 11, 1), Dinero.pesos(500), debitoArchivado, nu.cuenta)
+            .copy(id = MovimientoId(9))
+        val cuentas = listOf(debitoArchivado, efectivo, capital, nu.cuenta)
+        val vm = viewModel(LocalDate(2026, 11, 2), listOf(saldo(nu.cuenta, -250_000), saldo(efectivo, 500_000), pago), cuentas)
+
+        vm.abrirEdicionPago(pago.resumir(cuentas.associateBy { it.id }))
+        vm.editarPago { copy(montoTexto = "600") }
+        vm.guardarPago()
+
+        assertNull("se guardó sin pedir otra cuenta", vm.pago.value)
+        assertEquals(-Dinero.pesos(600), libro.actualizados.single().asientos.single { it.cuenta == debito.id }.monto)
     }
 
     @Test

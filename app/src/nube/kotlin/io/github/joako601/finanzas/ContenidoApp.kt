@@ -3,6 +3,7 @@ package io.github.joako601.finanzas
 import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,7 +111,9 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
     }
     ContenedorPrincipal(cuenta = cuenta)
 
-    // Si la sesión se cerró por fuera (token revocado, desde el catálogo), el diálogo ya no aplica.
+    // Si la sesión se cerró por fuera (token revocado, desde el catálogo), el diálogo ya no aplica
+    // y no debe reaparecer al volver a entrar.
+    LaunchedEffect(usuario) { if (usuario == null) confirmarCierre = false }
     if (confirmarCierre && repositorio != null && usuario != null) {
         DialogoCerrarSesion(
             enCurso = cerrando,

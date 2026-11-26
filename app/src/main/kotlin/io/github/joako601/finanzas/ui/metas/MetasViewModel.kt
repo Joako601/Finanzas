@@ -491,6 +491,7 @@ class MetasViewModel(
                         apartadoInicial = inicial,
                         fechaLimite = fecha,
                         reservarDeDisponible = actual.reservarDeDisponible,
+                        hoy = fechaDeHoy(),
                     )
                 } else {
                     // Leer el registro vivo desde estado para nunca sobrescribir apartado/archivada con datos viejos.

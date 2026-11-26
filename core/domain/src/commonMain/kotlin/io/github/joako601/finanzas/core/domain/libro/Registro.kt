@@ -45,6 +45,9 @@ public sealed interface ResultadoRegistro {
  * "un gasto de $100 en efectivo para comida" y nunca arma asientos a mano.
  */
 public object Registro {
+    /** Descripción del saldo inicial que cuadra una cuenta al editar su saldo actual. */
+    public const val DESCRIPCION_AJUSTE: String = "Ajuste de saldo"
+
 
     /** Gasto pagado desde una cuenta de dinero: sube la categoría, baja la cuenta. */
     public fun gasto(

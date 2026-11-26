@@ -250,6 +250,17 @@ class LineaDeTiempoTest {
     }
 
     @Test
+    fun un_pago_fijo_domiciliado_a_una_tarjeta_archivada_sigue_contando() {
+        // Sin la tarjeta, nadie más lo cuenta: sale como pago fijo normal y baja el disponible.
+        val archivada = nu.copy(cuenta = cuentaNu.copy(archivada = true))
+        val gym = fijo(5, "Gimnasio", ClaseRegistro.GASTO, 600, Periodicidad.MENSUAL, "2026-11-25").copy(cuenta = cuentaNu.id)
+        val l = linea(hoy = "2026-11-19", tarjetas = listOf(archivada), recurrentes = listOf(gym))
+        val evento = l.eventos.single()
+        assertNull(evento.tarjeta)
+        assertEquals(Dinero.pesos(9_400), l.disponible)
+    }
+
+    @Test
     fun una_tarjeta_archivada_no_aparece() {
         val archivada = nu.copy(cuenta = cuentaNu.copy(archivada = true))
         val l = linea(hoy = "2026-11-19", deudaNu = 3_000, tarjetas = listOf(archivada))

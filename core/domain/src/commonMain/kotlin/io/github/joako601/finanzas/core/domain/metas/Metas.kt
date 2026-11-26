@@ -62,7 +62,8 @@ public interface RepositorioMetas {
     public suspend fun eliminarTope(categoriaId: CuentaId)
 
     public fun observarMetas(): Flow<List<MetaAhorro>>
-    public suspend fun crearMeta(meta: MetaAhorro): MetaAhorroId
+    /** Crea [meta]; si ya trae apartado, lo anota en su historial con [fecha], en una sola transacción. */
+    public suspend fun crearMeta(meta: MetaAhorro, fecha: LocalDate): MetaAhorroId
     public suspend fun actualizarMeta(meta: MetaAhorro)
     public suspend fun eliminarMeta(id: MetaAhorroId)
 
@@ -131,6 +132,8 @@ public class ServicioMetas(private val repositorio: RepositorioMetas) {
         apartadoInicial: Dinero = Dinero.CERO,
         fechaLimite: LocalDate? = null,
         reservarDeDisponible: Boolean = true,
+        /** Día del aporte inicial en el historial, para que cuadre con el apartado. */
+        hoy: LocalDate,
     ): MetaAhorroId {
         val limpia = MetaAhorro(
             nombre = nombre.trim().take(MetaAhorro.LARGO_MAXIMO_NOMBRE),
@@ -139,7 +142,7 @@ public class ServicioMetas(private val repositorio: RepositorioMetas) {
             fechaLimite = fechaLimite,
             reservarDeDisponible = reservarDeDisponible,
         )
-        return repositorio.crearMeta(limpia)
+        return repositorio.crearMeta(limpia, hoy)
     }
 
     public suspend fun actualizarMeta(meta: MetaAhorro) {

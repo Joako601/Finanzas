@@ -138,7 +138,9 @@ public data class LineaDeTiempo(
             val fin = hoy.plus(DIAS, DateTimeUnit.DAY)
             val sinSaldo = buildList {
                 tarjetas.filterNot { it.cuenta.archivada }.forEach { addAll(deTarjeta(it, estados, pagos, saldos, compras, hoy, fin)) }
-                val idsTarjetas = tarjetas.map { it.id }.toSet()
+                // Una tarjeta archivada no proyecta pagos: lo domiciliado a ella sale como pago fijo normal
+                // (si no, no lo contaría nadie y el disponible se vería más alto de lo real).
+                val idsTarjetas = tarjetas.filterNot { it.cuenta.archivada }.map { it.id }.toSet()
                 recurrentes.forEach { addAll(deRecurrente(it, hoy, fin, it.cuenta?.takeIf { c -> c in idsTarjetas })) }
             }.sortedWith(compareBy({ it.fecha }, { it.tipo.ordinal }))
 

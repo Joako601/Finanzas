@@ -81,7 +81,7 @@ class RespaldoTest {
         )
         val metas = ServicioMetas(RepositorioMetasRoom(base.metasDao()))
         metas.guardarTope(cuenta("Súper y despensa"), Dinero.pesos(4_000))
-        metas.crearMeta("Fondo de emergencia", Dinero.pesos(20_000), Dinero.pesos(3_500), LocalDate(2027, 6, 30))
+        metas.crearMeta("Fondo de emergencia", Dinero.pesos(20_000), Dinero.pesos(3_500), LocalDate(2027, 6, 30), hoy = LocalDate(2026, 11, 1))
     }
 
     /** Todas las filas de todas las tablas de datos, como texto, para comparar dos bases. */

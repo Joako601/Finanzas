@@ -10,6 +10,7 @@
     <string name="hoy">Hoy</string>
     <string name="ayer">Ayer</string>
     <string name="saldo_inicial">Saldo inicial</string>
+    <string name="ajuste_de_saldo">Ajuste de saldo</string>
     <string name="transferencia">Transferencia</string>
     <string name="transferir">Transferir</string>
     <string name="de_a">%1$s → %2$s</string>

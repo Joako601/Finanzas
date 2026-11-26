@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,7 +56,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // Dibuja detrás de las barras del sistema; Scaffold aplica los márgenes necesarios.
         enableEdgeToEdge()
-        aplicarPantallaSegura(window, privacidad.ocultarEnRecientes || privacidad.bloqueo)
+        // Con bloqueo pero sin PIN en el teléfono no hay nada que proteger: no se fuerza la pantalla segura.
+        aplicarPantallaSegura(window, privacidad.ocultarEnRecientes || (privacidad.bloqueo && dispositivoSeguro(this)))
         bloqueada.value = debeBloquear()
         PreferenciasApp.cargarTema(this)
         setContent {
@@ -62,15 +66,6 @@ class MainActivity : ComponentActivity() {
                 ModoTema.SISTEMA -> isSystemInDarkTheme()
                 ModoTema.CLARO -> false
                 ModoTema.OSCURO -> true
-            }
-            // Con un tema fijo distinto al del sistema, los íconos de las barras deben seguir a la app.
-            LaunchedEffect(oscuro) {
-                val estilo = if (oscuro) {
-                    SystemBarStyle.dark(Color.TRANSPARENT)
-                } else {
-                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
-                }
-                enableEdgeToEdge(statusBarStyle = estilo, navigationBarStyle = estilo)
             }
             TemaFinanzas(oscuro = oscuro) {
                 val sinAnimaciones = rememberAnimacionesDesactivadas()
@@ -88,16 +83,34 @@ class MainActivity : ComponentActivity() {
                 val estaBloqueada by bloqueada
                 // Al volver tras la gracia, el logo se vuelve a armar y se detiene para pedir la huella.
                 LaunchedEffect(estaBloqueada) { if (estaBloqueada) mostrarSplash = true }
+                // Bloqueada, el splash se ve siempre: sin él quedaría una pantalla vacía sin salida.
+                val splashVisible = mostrarSplash || estaBloqueada
+                // Un solo lugar decide las barras: claras sobre el fondo oscuro del splash, y luego
+                // según el tema de la app (un tema fijo distinto al del sistema también cuenta).
+                LaunchedEffect(oscuro, splashVisible) {
+                    val estilo = if (oscuro || splashVisible) {
+                        SystemBarStyle.dark(Color.TRANSPARENT)
+                    } else {
+                        SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                    }
+                    enableEdgeToEdge(statusBarStyle = estilo, navigationBarStyle = estilo)
+                }
+                // Si se vuelve a bloquear mientras el splash se iba, otra vuelta del splash pide la huella.
+                var vueltaSplash by remember { mutableIntStateOf(0) }
+                // Guarda el estado de la app (pestaña, modo de entrada…) mientras está fuera por el bloqueo.
+                val guardadorApp = rememberSaveableStateHolder()
                 Box(modifier = Modifier.fillMaxSize()) {
                     // Bloqueada no se compone la app: ni sus diálogos ni sus hojas (ventanas aparte)
                     // quedan encima del splash, y TalkBack no tiene nada que leer debajo.
-                    if (!estaBloqueada) ContenidoApp()
-                    if (mostrarSplash) {
-                        SplashAnimadoKren(
-                            onTerminar = { mostrarSplash = false },
-                            bloqueada = { bloqueada.value },
-                            onPedirDesbloqueo = ::pedirDesbloqueo,
-                        )
+                    if (!estaBloqueada) guardadorApp.SaveableStateProvider("app") { ContenidoApp() }
+                    if (splashVisible) {
+                        key(vueltaSplash) {
+                            SplashAnimadoKren(
+                                onTerminar = { if (bloqueada.value) vueltaSplash++ else mostrarSplash = false },
+                                bloqueada = { bloqueada.value },
+                                onPedirDesbloqueo = ::pedirDesbloqueo,
+                            )
+                        }
                     }
                 }
             }

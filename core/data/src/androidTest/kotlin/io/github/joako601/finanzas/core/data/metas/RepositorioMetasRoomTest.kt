@@ -62,6 +62,7 @@ class RepositorioMetasRoomTest {
                 fechaLimite = LocalDate(2027, 6, 30),
                 reservarDeDisponible = true,
             ),
+            LocalDate(2026, 11, 1),
         )
         val guardada = repositorio.observarMetas().first().single()
         assertEquals(id, guardada.id)
@@ -82,6 +83,7 @@ class RepositorioMetasRoomTest {
     fun mover_apartado_guarda_meta_e_historial_y_borrar_la_meta_borra_su_historial() = runTest {
         val id = repositorio.crearMeta(
             MetaAhorro(nombre = "Viaje", objetivo = Dinero.pesos(10_000), apartado = Dinero.pesos(1_000), fechaLimite = null, reservarDeDisponible = true),
+            LocalDate(2026, 11, 19),
         )
         val meta = repositorio.observarMetas().first().single()
 
@@ -90,7 +92,12 @@ class RepositorioMetasRoomTest {
 
         assertEquals(Dinero.pesos(1_300), repositorio.observarMetas().first().single().apartado)
         assertEquals(
-            listOf(AporteMeta(LocalDate(2026, 11, 22), -Dinero.pesos(200)), AporteMeta(LocalDate(2026, 11, 20), Dinero.pesos(500))),
+            // El apartado con que se creó también queda en el historial: la suma cuadra con el saldo.
+            listOf(
+                AporteMeta(LocalDate(2026, 11, 22), -Dinero.pesos(200)),
+                AporteMeta(LocalDate(2026, 11, 20), Dinero.pesos(500)),
+                AporteMeta(LocalDate(2026, 11, 19), Dinero.pesos(1_000)),
+            ),
             repositorio.observarAportes(id).first(),
         )
 
