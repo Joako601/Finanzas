@@ -116,7 +116,43 @@ class Avisos(private val context: Context) {
         notificaciones.notify(recordatorio.clave.hashCode(), notificacion)
     }
 
+    /**
+     * Alerta de tipo de cambio de Mercado, en su propio canal para que se pueda silenciar aparte.
+     * Mismo criterio de privacidad: en la pantalla de bloqueo no aparecen moneda ni tasa.
+     */
+    fun mostrarAlertaCambio(id: String, titulo: String, texto: String) {
+        notificaciones.createNotificationChannel(
+            NotificationChannel(
+                CANAL_MERCADO,
+                context.getString(R.string.canal_alertas_cambio),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply { description = context.getString(R.string.canal_alertas_cambio_descripcion) },
+        )
+        val abrirApp = PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+        val publica = Notification.Builder(context, CANAL_MERCADO)
+            .setSmallIcon(R.drawable.ic_cat_tarjeta)
+            .setContentTitle(context.getString(R.string.aviso_publico_mercado))
+            .build()
+        val notificacion = Notification.Builder(context, CANAL_MERCADO)
+            .setSmallIcon(R.drawable.ic_cat_tarjeta)
+            .setContentTitle(titulo)
+            .setContentText(texto)
+            .setContentIntent(abrirApp)
+            .setAutoCancel(true)
+            .setCategory(Notification.CATEGORY_STATUS)
+            .setVisibility(Notification.VISIBILITY_PRIVATE)
+            .setPublicVersion(publica)
+            .build()
+        notificaciones.notify("alerta_cambio:$id".hashCode(), notificacion)
+    }
+
     companion object {
         const val CANAL = "recordatorios_pagos"
+        const val CANAL_MERCADO = "alertas_tipo_cambio"
     }
 }

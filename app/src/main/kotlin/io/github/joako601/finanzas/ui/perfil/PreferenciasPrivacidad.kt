@@ -6,6 +6,7 @@ import android.content.Context
 import android.view.Window
 import android.view.WindowManager
 import androidx.core.content.edit
+import java.io.File
 import io.github.joako601.finanzas.FinanzasApp
 
 /**
@@ -43,6 +44,9 @@ class PreferenciasPrivacidad(context: Context) {
          * y las de avisos. La fecha del último respaldo se conserva: el archivo sigue existiendo
          * y es justo lo que sirve para recuperar lo borrado.
          */
+        /** Igual que `AlertasLocales.RUTA` de `:feature:nube`, que la privada no conoce. */
+        private const val RUTA_ALERTAS_MERCADO = "mercado/alertas.txt"
+
         private val AL_BORRAR = listOf(ARCHIVO, "captura", "finanzas_avisos")
     }
 
@@ -50,6 +54,8 @@ class PreferenciasPrivacidad(context: Context) {
     suspend fun borrarDatosLocales(app: FinanzasApp) {
         app.contenedor.respaldo.borrarTodo()
         AL_BORRAR.forEach { app.getSharedPreferences(it, Context.MODE_PRIVATE).edit(commit = true) { clear() } }
+        // Alertas de tipo de cambio de Mercado (distribución nube; en la privada no existe el archivo).
+        File(app.noBackupFilesDir, RUTA_ALERTAS_MERCADO).delete()
         app.contenedor.ajustesInhabiles.recargar()
         app.getSystemService(NotificationManager::class.java).cancelAll()
         // Sin datos no queda nada por avisar: cancela la alarma pendiente.

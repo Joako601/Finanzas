@@ -228,6 +228,9 @@
     <string name="canal_recordatorios">Recordatorios de pago</string>
     <string name="canal_recordatorios_descripcion">Avisos antes del corte, antes de la fecha límite, para capturar tu estado de cuenta y antes de tus pagos fijos.</string>
     <string name="aviso_publico">Tienes un recordatorio de pago</string>
+    <string name="canal_alertas_cambio">Alertas de tipo de cambio</string>
+    <string name="canal_alertas_cambio_descripcion">Avisos cuando una divisa sube o baja del valor que elegiste en Mercado.</string>
+    <string name="aviso_publico_mercado">Tienes un aviso de Mercado</string>
     <string name="aviso_corte_titulo">Mañana es el corte de %1$s</string>
     <string name="aviso_corte_titulo_hoy">Hoy es el corte de %1$s</string>
     <string name="aviso_corte_texto">Lo que compres a partir del %1$s entra en el siguiente estado de cuenta.</string>

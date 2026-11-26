@@ -96,6 +96,9 @@ kotlin {
 apply(from = rootProject.file("gradle/guardia-dependencias.gradle.kts"))
 
 dependencies {
+    // Dominio puro (KMP, sin Android): evaluador de alertas de tipo de cambio.
+    implementation(project(":core:domain"))
+
     // Solo Auth, sin Analytics, Crashlytics ni Messaging. La BoM fija versiones compatibles.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)

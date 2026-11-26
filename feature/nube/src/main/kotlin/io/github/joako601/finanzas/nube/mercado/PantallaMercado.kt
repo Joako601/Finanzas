@@ -89,6 +89,7 @@ private const val DIA_MS = 24 * 60 * 60 * 1000L
  *
  * @param margenInferior espacio que ocupa la barra de pestañas flotante.
  * @param onIniciarSesion abre el login cuando la sesión expiró.
+ * @param avisosActivos si la app puede mostrar notificaciones; sin ellas las alertas invitan a activarlas.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,6 +98,8 @@ fun PantallaMercado(
     margenInferior: Dp,
     onIniciarSesion: () -> Unit,
     modifier: Modifier = Modifier,
+    avisosActivos: Boolean = true,
+    onActivarAvisos: () -> Unit = {},
 ) {
     val estado by repositorio.estado.collectAsStateWithLifecycle()
     val alcance = rememberCoroutineScope()
@@ -159,7 +162,14 @@ fun PantallaMercado(
                         SelectorVista(vista = vista, onCambiar = { vista = it })
                     }
                     when (vista) {
-                        VistaMercado.DIVISAS -> vistaDivisas(actual.datos.cotizaciones, actual.conectado)
+                        VistaMercado.DIVISAS -> {
+                            vistaDivisas(actual.datos.cotizaciones, actual.conectado)
+                            repositorio.alertas?.let { alertas ->
+                                item(key = "alertas") {
+                                    SeccionAlertas(alertas, actual.datos.cotizaciones, avisosActivos, onActivarAvisos)
+                                }
+                            }
+                        }
                         VistaMercado.INDICADORES -> vistaIndicadores(actual.datos.indicadores)
                         VistaMercado.CATALOGO -> item(key = "catalogo") { VistaCatalogo(actual.datos) }
                     }
@@ -354,11 +364,16 @@ private fun TarjetaConversor(cotizaciones: List<TipoCambio>, conectado: Boolean)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun SelectorMoneda(etiqueta: String, seleccionada: String, onElegir: (String) -> Unit) {
+internal fun SelectorMoneda(
+    etiqueta: String,
+    seleccionada: String,
+    monedas: List<String> = MONEDAS_CONVERSOR,
+    onElegir: (String) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         TextoSecundario(etiqueta)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MONEDAS_CONVERSOR.forEach { moneda ->
+            monedas.forEach { moneda ->
                 FilterChip(
                     selected = moneda == seleccionada,
                     onClick = { onElegir(moneda) },
@@ -425,7 +440,7 @@ private fun VistaCatalogo(datos: DatosMercado) {
 
 /** `TarjetaFinanzas` de la app: plana, borde 1 dp, radio 20 dp, padding 20 dp. */
 @Composable
-private fun Tarjeta(modifier: Modifier = Modifier, contenido: @Composable () -> Unit) {
+internal fun Tarjeta(modifier: Modifier = Modifier, contenido: @Composable () -> Unit) {
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
@@ -437,7 +452,7 @@ private fun Tarjeta(modifier: Modifier = Modifier, contenido: @Composable () -> 
 }
 
 @Composable
-private fun BotonContorno(texto: String, enabled: Boolean, onClick: () -> Unit) {
+internal fun BotonContorno(texto: String, enabled: Boolean, onClick: () -> Unit) {
     val interaccion = remember { MutableInteractionSource() }
     OutlinedButton(
         onClick = onClick,
@@ -452,11 +467,11 @@ private fun BotonContorno(texto: String, enabled: Boolean, onClick: () -> Unit) 
 }
 
 @Composable
-private fun TextoSecundario(texto: String) {
+internal fun TextoSecundario(texto: String) {
     Text(texto, style = MaterialTheme.typography.bodySmall.tnum(), color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-private fun TextStyle.tnum(): TextStyle = copy(fontFeatureSettings = "tnum")
+internal fun TextStyle.tnum(): TextStyle = copy(fontFeatureSettings = "tnum")
 
 private val localeMx = Locale.forLanguageTag("es-MX")
 private val formatoDia = DateTimeFormatter.ofPattern("d MMM", localeMx)

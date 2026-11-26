@@ -15,4 +15,23 @@
     <string name="nube_catalogo_titulo">Catálogo</string>
     <string name="nube_cerrar_sesion">Cerrar sesión</string>
     <string name="nube_ir_a_finanzas">Ir a mis finanzas</string>
+    <string name="mercado_alertas_titulo">Alertas de tipo de cambio</string>
+    <string name="mercado_alertas_vacio">Sin alertas. Elige una divisa y un valor, y te avisamos cuando lo cruce.</string>
+    <string name="mercado_alertas_sin_permiso">Las notificaciones están apagadas: tus alertas no podrán avisarte.</string>
+    <string name="mercado_alertas_activar">Activar notificaciones</string>
+    <string name="mercado_alertas_moneda">Divisa</string>
+    <string name="mercado_alertas_baja_de">Baja de</string>
+    <string name="mercado_alertas_sube_de">Sube de</string>
+    <string name="mercado_alertas_umbral">Pesos por 1 %1$s</string>
+    <string name="mercado_alertas_hoy">Hoy: %1$s</string>
+    <string name="mercado_alertas_crear">Crear alerta</string>
+    <string name="mercado_alertas_error">No se pudo guardar. Revisa el espacio libre del teléfono.</string>
+    <string name="mercado_alertas_nota">Se revisan al actualizar Mercado con la app abierta y se guardan solo en este teléfono.</string>
+    <string name="mercado_alerta_fila">%1$s/MXN %2$s %3$s</string>
+    <string name="mercado_alerta_cumplida">Ya se cumple</string>
+    <string name="mercado_alerta_esperando">Esperando</string>
+    <string name="mercado_alerta_quitar">Quitar</string>
+    <string name="aviso_alerta_bajo">%1$s/MXN bajó de %2$s</string>
+    <string name="aviso_alerta_subio">%1$s/MXN subió de %2$s</string>
+    <string name="aviso_alerta_texto">Ahora 1 %1$s = %2$s</string>
 </resources>
