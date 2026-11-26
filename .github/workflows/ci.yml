@@ -25,9 +25,12 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          # Caché simple de ~/.gradle. No se usa gradle/actions/setup-gradle porque inyecta
+          # scripts de inicio con plugins propios que no están en verification-metadata.xml.
+          cache: gradle
 
-      # Valida el wrapper de Gradle y guarda la caché de dependencias.
-      - uses: gradle/actions/setup-gradle@v4
+      # Comprueba que gradle-wrapper.jar sea una versión oficial de Gradle.
+      - uses: gradle/actions/wrapper-validation@v4
 
       # Pruebas del dominio (JVM y JS), de la app y de los datos en la JVM, lint y las
       # guardias de permisos y dependencias. Las pruebas instrumentadas necesitan un
