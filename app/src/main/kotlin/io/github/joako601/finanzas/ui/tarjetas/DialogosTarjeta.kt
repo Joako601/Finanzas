@@ -1,5 +1,6 @@
 package io.github.joako601.finanzas.ui.tarjetas
 
+import io.github.joako601.finanzas.core.domain.tarjetas.AjusteInhabil
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -647,6 +648,7 @@ fun HojaDetalleTarjeta(
     onPagar: () -> Unit,
     onCerrar: () -> Unit,
     onEditarEstado: (EstadoDeCuenta) -> Unit = {},
+    onElegirAjuste: (AjusteInhabil) -> Unit = {},
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val alcance = rememberCoroutineScope()
@@ -743,6 +745,9 @@ fun HojaDetalleTarjeta(
                     )
                 }
             }
+
+            resumen.fechaInhabil?.let { BloqueFechaInhabil(it, onElegirAjuste) }
+            resumen.contraCetes?.let { BloqueContraCetes(it) }
 
             // Compras a meses activas (D-022): mensualidades facturadas y cuota.
             if (resumen.compras.isNotEmpty()) {

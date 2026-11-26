@@ -457,7 +457,7 @@ private fun CuerpoTarjeta(
             }
         }
 
-        LineaSituacion(analisis = resumen.analisis)
+        LineaSituacion(analisis = resumen.analisis, fechaInhabil = resumen.fechaInhabil)
 
         if (alto != null) Spacer(Modifier.weight(1f))
 
@@ -483,7 +483,7 @@ private fun CuerpoTarjeta(
 }
 
 @Composable
-private fun LineaSituacion(analisis: AnalisisTarjeta) {
+private fun LineaSituacion(analisis: AnalisisTarjeta, fechaInhabil: FechaInhabil? = null) {
     val colores = MaterialTheme.colorScheme
     val vencido = analisis.vencidoPendiente
 
@@ -522,7 +522,13 @@ private fun LineaSituacion(analisis: AnalisisTarjeta) {
             )
             is SituacionTarjeta.CapturaPendiente -> Triple(
                 stringResource(R.string.situacion_captura_pendiente, situacion.cortePredicho.formatoCorto()),
-                null,
+                fechaInhabil?.let { f ->
+                    when (f.ajustada) {
+                        null -> stringResource(R.string.inhabil_linea_elegir, f.nominal.formatoCorto())
+                        f.nominal -> null
+                        else -> stringResource(R.string.inhabil_linea_ajustada, f.ajustada.formatoCorto())
+                    }
+                },
                 colores.tertiary,
             )
             is SituacionTarjeta.EnCiclo -> Triple(

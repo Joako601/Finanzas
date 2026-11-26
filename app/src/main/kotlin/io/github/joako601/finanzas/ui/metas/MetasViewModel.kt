@@ -1,5 +1,7 @@
 package io.github.joako601.finanzas.ui.metas
 
+import kotlinx.coroutines.flow.Flow
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -149,6 +151,7 @@ class MetasViewModel(
     recurrentes: RepositorioRecurrentes,
     repositorioMetas: RepositorioMetas,
     private val servicio: ServicioMetas,
+    calendario: Flow<CalendarioBancario> = flowOf(CalendarioBancario.NINGUNO),
     private val fechaDeHoy: () -> LocalDate,
 ) : ViewModel() {
 
@@ -158,7 +161,8 @@ class MetasViewModel(
         combine(libro.observarCuentas(), libro.observarSaldos(), libro.observarMovimientos(), ::Triple),
         combine(tarjetas.observarTarjetas(), tarjetas.observarEstadosDeCuenta(), recurrentes.observarRecurrentes(), ::Triple),
         combine(repositorioMetas.observarTopes(), repositorioMetas.observarMetas(), dias, ::Triple),
-    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (topes, metas, hoy) ->
+        calendario,
+    ) { (cuentas, saldos, movimientos), (listaTarjetas, estados, listaRecurrentes), (topes, metas, hoy), calendarioBancario ->
         val porId = cuentas.associateBy { it.id }
         val linea = LineaDeTiempo.calcular(
             cuentas = cuentas,
@@ -169,6 +173,7 @@ class MetasViewModel(
             recurrentes = listaRecurrentes,
             hoy = hoy,
             compras = comprasAMeses(movimientos, porId, listaTarjetas),
+            calendario = calendarioBancario,
         )
         val resumenTopes = AnalizadorTopes.analizar(
             topes = topes,
@@ -700,6 +705,7 @@ class MetasViewModel(
                     repositorioMetas = contenedor.repositorioMetas,
                     servicio = contenedor.servicioMetas,
                     fechaDeHoy = ::hoy,
+                    calendario = contenedor.calendarioBancario,
                 )
             }
         }

@@ -1,5 +1,9 @@
 package io.github.joako601.finanzas.ui.movimientos
 
+import io.github.joako601.finanzas.ui.componentes.enPantalla
+import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.ui.tarjetas.comoPorcentaje
+import io.github.joako601.finanzas.core.domain.mercado.CalculadoraMsi
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
@@ -94,6 +98,8 @@ fun HojaCaptura(
     cuentas: List<Cuenta>,
     acciones: AccionesCaptura,
     avisoTope: AvisoTope? = null,
+    /** CETES 28 de Mercado; sin él no se muestra la estimación de MSI. */
+    tasaReferencia: Double? = null,
 ) {
     val estadoHoja = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val foco = remember { FocusRequester() }
@@ -256,6 +262,7 @@ fun HojaCaptura(
                             )
                         }
                     }
+                    LineaMsiCetes(captura, tasaReferencia)
                 }
 
                 Seccion(titulo = stringResource(R.string.fecha), error = null) {
@@ -333,3 +340,17 @@ fun textoError(error: ErrorRegistro): String = stringResource(
         ErrorRegistro.MISMA_CUENTA -> R.string.error_misma_cuenta
     },
 )
+
+/** Cuánto rinde aprox. el dinero que no se paga de contado si se queda en CETES (función 4). */
+@Composable
+private fun LineaMsiCetes(captura: Captura, tasa: Double?) {
+    val meses = captura.meses ?: return
+    val total = Dinero.parsear(captura.montoTexto)?.takeIf { it.esPositivo } ?: return
+    val estimacion = tasa?.let { CalculadoraMsi.estimar(total, meses, it) } ?: return
+    if (!estimacion.ventaja.esPositivo) return
+    Text(
+        text = stringResource(R.string.msi_cetes, meses, estimacion.ventaja.enPantalla(), tasa.comoPorcentaje()),
+        style = MaterialTheme.typography.bodySmall.copy(fontFeatureSettings = "tnum"),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}

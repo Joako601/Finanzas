@@ -601,4 +601,18 @@
     <string name="acerca_privacidad_titulo">Tus datos se quedan aquí</string>
     <string name="acerca_privacidad_texto">Tus finanzas viven solo en este teléfono. Kren no las envía a ningún servidor ni las comparte. Los respaldos van cifrados con tu contraseña y los avisos no muestran montos en la pantalla de bloqueo.</string>
     <string name="acerca_version">Kren %1$s</string>
+
+    <!-- Mercado en el libro (S14, CETES y MSI); solo aparecen con datos de Mercado guardados -->
+    <string name="inhabil_linea_elegir">La fecha límite (%1$s) cae en día inhábil. Elige en el detalle.</string>
+    <string name="inhabil_linea_ajustada">Fecha límite ajustada al %1$s por día inhábil. Confirma con tu banco.</string>
+    <string name="inhabil_titulo">Fecha límite en día inhábil</string>
+    <string name="inhabil_explicacion">La fecha límite calculada, %1$s, cae en día inhábil. Cada banco la recorre distinto: revisa tu estado de cuenta y elige.</string>
+    <string name="inhabil_anterior">Día hábil anterior</string>
+    <string name="inhabil_siguiente">Día hábil siguiente</string>
+    <string name="cetes_titulo">Deuda frente a CETES</string>
+    <string name="cetes_costo_deuda">Un año de deuda al %1$d%% más IVA</string>
+    <string name="cetes_rendimiento">Lo mismo en CETES 28 al %1$s%%</string>
+    <string name="cetes_conclusion_pagar">Pagar la deuda ahorra aprox. %1$s al año más de lo que rendiría ese dinero. Estimado informativo.</string>
+    <string name="cetes_conclusion_igual">Con estas tasas, CETES rinde lo mismo o más que lo que cuesta la deuda. Estimado informativo.</string>
+    <string name="msi_cetes">A %1$d MSI, tu dinero rinde aprox. %2$s si lo mantienes en CETES (%3$s%%). Estimado informativo.</string>
 </resources>

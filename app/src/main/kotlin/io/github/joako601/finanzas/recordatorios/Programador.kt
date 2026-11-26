@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import io.github.joako601.finanzas.core.domain.libro.RepositorioLibro
 import io.github.joako601.finanzas.core.domain.recordatorios.PlanRecordatorios
+import io.github.joako601.finanzas.core.domain.tarjetas.CalendarioBancario
 import io.github.joako601.finanzas.ui.perfil.PreferenciasApp
 import io.github.joako601.finanzas.core.domain.recordatorios.RepositorioRecordatorios
 import io.github.joako601.finanzas.core.domain.recurrentes.RepositorioRecurrentes
@@ -46,6 +47,8 @@ class Programador(
     private val recurrentes: RepositorioRecurrentes,
     private val recordatorios: RepositorioRecordatorios,
     private val avisos: Avisos,
+    /** Días inhábiles con la elección del usuario (S14); sin datos de Mercado, NINGUNO. */
+    private val calendario: () -> CalendarioBancario = { CalendarioBancario.NINGUNO },
 ) {
     private val candado = Mutex()
 
@@ -62,6 +65,7 @@ class Programador(
             recurrentes = recurrentes.observarRecurrentes().first(),
             saldos = libro.observarSaldos().first(),
             horas = PreferenciasApp(context).horasAviso(),
+            calendario = calendario(),
         )
         val seleccion = PlanRecordatorios.seleccionar(plan, ahora, recordatorios.clavesEntregadas())
 
