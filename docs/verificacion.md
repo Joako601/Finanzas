@@ -193,3 +193,17 @@ Limitaciones de la prueba manual en el S24 FE: la hizo el autor, que conoce la a
 el oráculo de usabilidad de cinco personas), y no hay capturas de pantalla guardadas.
 Las pruebas instrumentadas de Room (sección 3) siguen pendientes de ejecutarse en el
 teléfono.
+
+### 2026-11-26 · mercado-f5 (alertas de tipo de cambio, commit 5123cbd)
+
+Instalada `1.0.0-nube-debug` en el S24 FE. Respaldo previo en
+`evidencia/privado/respaldo-nube-mercado-f5-20261126-125931` (10 tablas); base idéntica tras
+instalar. Sin pruebas instrumentadas. Captura de la sección de alertas pendiente: `screencap`
+sale negro (app con bloqueo o pantalla segura).
+
+### 2026-11-26 · mercado-f6 (comparador de tarjetas, D-025, commit 6ca38f0)
+
+Instalada `1.0.0-nube-debug` en el S24 FE. Respaldo previo en
+`evidencia/privado/respaldo-nube-mercado-f6-20261126-213537` (10 tablas); base idéntica tras
+instalar. Sin pruebas instrumentadas ni capturas. Con el catálogo de ejemplo el comparador no
+aparece (solo compara tarjetas verificadas).
