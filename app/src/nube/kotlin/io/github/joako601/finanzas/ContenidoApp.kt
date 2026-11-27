@@ -8,7 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.graphics.ImageBitmap
-import io.github.joako601.finanzas.nube.sesion.descargarFotoCuenta
+import io.github.joako601.finanzas.nube.red.descargarImagen
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -116,7 +116,7 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
     val alcance = rememberCoroutineScope()
 
     val foto by produceState<ImageBitmap?>(null, usuario?.fotoUrl) {
-        value = usuario?.fotoUrl?.let { descargarFotoCuenta(it) }
+        value = usuario?.fotoUrl?.let { descargarImagen(it) }
     }
     val cuenta = remember(usuario, foto, onAbrirNube) {
         CuentaPerfil(
