@@ -118,7 +118,15 @@ private fun FirebaseUser?.aEstadoSesion(): EstadoSesion =
     if (this == null) {
         EstadoSesion.SinSesion
     } else {
-        EstadoSesion.Autenticado(UsuarioSesion(uid = uid, correo = email.orEmpty(), nombre = displayName?.takeIf { it.isNotBlank() }))
+        EstadoSesion.Autenticado(
+            UsuarioSesion(
+                uid = uid,
+                correo = email.orEmpty(),
+                nombre = displayName?.takeIf { it.isNotBlank() },
+                fotoUrl = photoUrl?.toString(),
+                creadaEnMs = metadata?.creationTimestamp,
+            ),
+        )
     }
 
 /** Espera un [Task] de Play Services sin agregar la dependencia `kotlinx-coroutines-play-services`. */
