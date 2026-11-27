@@ -17,7 +17,7 @@ internal fun datosDePrueba(uid: String = "u1", recibidoEn: Long = 1_000L) = Dato
     cotizaciones = listOf(TipoCambio("USD", "MXN", "2026-11-26", BigDecimal("18.4521"), "Banxico \"FIX\"", false)),
     indicadores = listOf(IndicadorEconomico(DatosMercado.CETES_28, "CETES 28 días", BigDecimal("7.25"), "%", "2026-11-26", "Banxico")),
     productos = listOf(
-        ProductoFinanciero(1, "Azul", "Tarjeta de crédito", "BBVA", 748, "Anual", "CAT 60 %", "Ejemplo sin verificar", null, 56.5),
+        ProductoFinanciero(1, "Azul", "Tarjeta de crédito", "BBVA", 748, "Anual", "CAT 60 %", "Banco · 2026", null, 56.5, verificado = true),
         ProductoFinanciero(2, "Nu", "Tarjeta de crédito", "Nu\\MX\n", 0, "Anual", "Sin anualidad", "CONDUSEF", "https://x/y.png", null),
     ),
     diasInhabiles = listOf("2026-11-16", "2026-12-25"),

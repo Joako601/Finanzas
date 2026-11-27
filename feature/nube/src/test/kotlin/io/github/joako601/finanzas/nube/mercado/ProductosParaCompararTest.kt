@@ -7,8 +7,8 @@ import org.junit.Test
 
 class ProductosParaCompararTest {
 
-    private fun producto(id: Long, categoria: String, costo: Long, periodicidad: String, fuente: String = "Banxico · 2026") =
-        ProductoFinanciero(id, "P$id", categoria, "Banco", costo, periodicidad, "", fuente, null, 50.0)
+    private fun producto(id: Long, categoria: String, costo: Long, periodicidad: String, verificado: Boolean = true) =
+        ProductoFinanciero(id, "P$id", categoria, "Banco", costo, periodicidad, "", "Banco · 2026", null, 50.0, verificado)
 
     @Test
     fun soloCreditoVerificadoYAnualizado() {
@@ -16,7 +16,7 @@ class ProductosParaCompararTest {
             producto(1, "Tarjeta de crédito", 748, "Anual"),
             producto(2, "Tarjeta de crédito", 100, "Mensual"),
             producto(3, "Tarjeta de crédito", 0, "Sin costo"),
-            producto(4, "Tarjeta de crédito", 500, "Anual", fuente = "Ejemplo sin verificar · BBVA"),
+            producto(4, "Tarjeta de crédito", 500, "Anual", verificado = false),
             producto(5, "Tarjeta de débito", 0, "Sin costo"),
             producto(6, "Tarjeta de crédito", 300, "Trimestral"),
         )

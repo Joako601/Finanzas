@@ -75,6 +75,7 @@ internal fun DatosMercado.aJson(): String = buildString {
         append(",\"fuenteReferencia\":").texto(it.fuenteReferencia)
         append(",\"imageUrl\":").textoONulo(it.imageUrl)
         append(",\"tasaAnualReferencia\":").append(it.tasaAnualReferencia?.toBigDecimal()?.toPlainString() ?: "null")
+        append(",\"verificado\":").append(it.verificado)
         append('}')
     }
     append(",\"diasInhabiles\":").arreglo(diasInhabiles) { texto(it) }
@@ -113,6 +114,7 @@ internal fun datosMercadoDesdeJson(json: String): DatosMercado? = try {
                     fuenteReferencia = it.textoObligatorio("fuenteReferencia"),
                     imageUrl = it.textoOpcional("imageUrl"),
                     tasaAnualReferencia = it.decimalOpcional("tasaAnualReferencia")?.toDouble(),
+                    verificado = it.booleano("verificado"),
                 )
             },
             diasInhabiles = (raiz.campos["diasInhabiles"] as? ArregloJson)?.elementos

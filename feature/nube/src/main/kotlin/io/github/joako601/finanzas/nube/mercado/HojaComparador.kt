@@ -33,13 +33,13 @@ import java.util.Locale
 private const val MONTO_OCULTO = "$ ••••"
 
 /**
- * Tarjetas de crédito del catálogo que se pueden comparar: solo las verificadas (las de
- * ejemplo dicen "sin verificar" en su fuente) y con un costo que se pueda llevar a un año.
+ * Tarjetas de crédito del catálogo que se pueden comparar: solo las que el backend marca como
+ * verificadas y con un costo que se pueda llevar a un año.
  */
 internal fun productosParaComparar(productos: List<ProductoFinanciero>): List<ProductoTarjeta> =
     productos.mapNotNull { p ->
         if (!p.categoria.contains("crédito", ignoreCase = true)) return@mapNotNull null
-        if (p.fuenteReferencia.contains("sin verificar", ignoreCase = true)) return@mapNotNull null
+        if (!p.verificado) return@mapNotNull null
         val vecesPorAnio = when (p.periodicidad.trim().lowercase(Locale.ROOT)) {
             "anual" -> 1
             "mensual" -> 12

@@ -811,15 +811,16 @@ sirva sin red y que se mezcle con el libro sin mandar datos personales al servid
   tarjetas viven en `:core:domain`. `:feature:nube` depende de `:core:domain` (puro) pero
   sigue sin ver `:core:data` (D-020); el uso propio (gasto de 3 meses, deuda y tasa) lo
   calcula `:app` y lo pasa a la pestaña. Nada del libro se envía.
-- **Comparador solo con productos verificados:** el backend no tiene un campo propio; un
-  producto cuya fuente dice "sin verificar" no se compara. Con el catálogo de ejemplo el
-  comparador no aparece.
+- **Comparador solo con productos verificados:** el backend marca cada producto con
+  `verificado` (migración V3, por defecto `false`); la app solo compara esos. Una respuesta o
+  caché sin el campo cuenta como no verificado. Con el catálogo de ejemplo el comparador no
+  aparece.
 - **La pantalla de catálogo de la nube se elimina:** con sesión, la sección nube lleva a la
   app, donde está la pestaña Mercado.
 
 **Consecuencias:** sin red se ve lo último guardado con su antigüedad. Las alertas no avisan
-con la app cerrada. El comparador queda oculto hasta que el backend sirva tarjetas
-verificadas.
+con la app cerrada. El comparador queda oculto hasta que se marque como verificada al
+menos una tarjeta de crédito.
 
 ---
 
