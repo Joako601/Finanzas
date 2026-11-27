@@ -53,7 +53,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import io.github.joako601.finanzas.nube.catalogo.PantallaCatalogo
 import io.github.joako601.finanzas.nube.catalogo.RepositorioCatalogo
 import io.github.joako601.finanzas.nube.catalogo.RepositorioCatalogoFalso
 import io.github.joako601.finanzas.nube.componentes.rememberAnimacionesDesactivadasNube
@@ -68,12 +67,6 @@ import io.github.joako601.finanzas.nube.sesion.EstadoSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesion
 import io.github.joako601.finanzas.nube.sesion.RepositorioSesionFalso
 import io.github.joako601.finanzas.nube.sesion.UsuarioSesion
-import java.util.concurrent.atomic.AtomicInteger
-
-private object GeneradorClaveSesion {
-    private val contador = AtomicInteger(0)
-    fun siguiente(): Int = contador.incrementAndGet()
-}
 
 /**
  * Cuando la nube es la primera pantalla de la app (sin sesión iniciada), el login es la
@@ -107,8 +100,6 @@ private object DemoSesionHolder {
             cuentasIniciales = mapOf("demo@tecdesoftware.edu.mx" to "Demo1234!"),
         )
     }
-    val repositorioCatalogo: RepositorioCatalogo by lazy { RepositorioCatalogoFalso() }
-    val repositorioDivisas: RepositorioDivisas by lazy { RepositorioDivisasFalso() }
 }
 
 /**
@@ -136,9 +127,6 @@ fun SeccionNube(
                 onSalir = onSalir,
                 onIrAFinanzas = onIrAFinanzas,
                 entrada = entrada,
-                repositorioCatalogo = DemoSesionHolder.repositorioCatalogo,
-                repositorioDivisas = DemoSesionHolder.repositorioDivisas,
-                conectadoAlServidor = false,
             )
         } else {
             PantallaSinConfigurar(
@@ -153,9 +141,6 @@ fun SeccionNube(
             onSalir = onSalir,
             onIrAFinanzas = onIrAFinanzas,
             entrada = entrada,
-            repositorioCatalogo = contenedor.repositorioCatalogo,
-            repositorioDivisas = contenedor.repositorioDivisas,
-            conectadoAlServidor = contenedor.backendConfigurado,
         )
     }
 }
@@ -170,32 +155,11 @@ fun SeccionNube(
     onSalir: () -> Unit,
     onIrAFinanzas: (() -> Unit)? = null,
     entrada: EntradaNube? = null,
-    repositorioCatalogo: RepositorioCatalogo = remember { RepositorioCatalogoFalso() },
-    repositorioDivisas: RepositorioDivisas = remember { RepositorioDivisasFalso() },
-    conectadoAlServidor: Boolean = false,
 ) {
     val estadoSesion by repositorioSesion.estado.collectAsStateWithLifecycle()
     var rutaActual by rememberSaveable { mutableStateOf<RutaNube?>(null) }
     var mostrarRecuperar by rememberSaveable { mutableStateOf(false) }
     var correoParaRecuperar by rememberSaveable { mutableStateOf("") }
-    // Clave monotónica única por entrada/sesión para no reutilizar ViewModels obsoletos del
-    // ViewModelStore de la Activity tras salir de Nube o cerrar sesión y volver a entrar.
-    var generacionSesion by rememberSaveable { mutableIntStateOf(GeneradorClaveSesion.siguiente()) }
-    var estabaAutenticado by rememberSaveable { mutableStateOf(false) }
-
-    LaunchedEffect(estadoSesion) {
-        when (estadoSesion) {
-            is EstadoSesion.Autenticado -> estabaAutenticado = true
-            EstadoSesion.SinSesion -> {
-                if (estabaAutenticado) {
-                    generacionSesion = GeneradorClaveSesion.siguiente()
-                    estabaAutenticado = false
-                }
-            }
-            EstadoSesion.Cargando -> Unit
-        }
-    }
-
     val rutaEfectiva = siguienteRuta(rutaActual, estadoSesion)
     SideEffect {
         if (rutaEfectiva != rutaActual) {
@@ -248,16 +212,11 @@ fun SeccionNube(
         when (destino) {
             DestinoNube.Cargando -> PantallaCargaSesion()
 
-            is DestinoNube.Catalogo -> PantallaCatalogo(
-                usuario = destino.usuario,
-                repositorioSesion = repositorioSesion,
-                onSalir = onSalir,
-                onIrAFinanzas = onIrAFinanzas,
-                repositorioCatalogo = repositorioCatalogo,
-                repositorioDivisas = repositorioDivisas,
-                conectadoAlServidor = conectadoAlServidor,
-                claveSesion = "${destino.usuario.uid}-$generacionSesion",
-            )
+            // Con sesión, la nube no tiene pantalla propia: el catálogo vive en la pestaña Mercado.
+            is DestinoNube.Catalogo -> {
+                PantallaCargaSesion()
+                LaunchedEffect(destino.usuario.uid) { (onIrAFinanzas ?: onSalir)() }
+            }
 
             DestinoNube.Registro -> PantallaRegistro(
                 repositorioSesion = repositorioSesion,
