@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Imagen no disponible: marco con montaña y diagonal, trazo 1.75 como los íconos ic_cat_*. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M6,4H18A2,2 0,0 1,20 6V18A2,2 0,0 1,18 20H6A2,2 0,0 1,4 18V6A2,2 0,0 1,6 4Z M4,16L9,11L13,15 M14,14L16,12L20,16 M3,3L21,21"
+        android:strokeColor="#FF111111"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
