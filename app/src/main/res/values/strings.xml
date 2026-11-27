@@ -354,6 +354,9 @@
     <string name="perfil_exportar">Exportar movimientos</string>
     <string name="perfil_recordatorios">Recordatorios</string>
     <string name="perfil_cerrar_sesion">Cerrar sesión</string>
+    <string name="perfil_gafete_correo">Correo</string>
+    <string name="perfil_gafete_uid">UID</string>
+    <string name="perfil_gafete_desde">Cuenta creada</string>
     <string name="perfil_volver">Volver</string>
     <string name="perfil_estado_pendiente">Pendiente</string>
     <string name="perfil_avisos_activos">Activos</string>

@@ -2,11 +2,16 @@ package io.github.joako601.finanzas.nube.sesion
 
 import kotlinx.coroutines.flow.StateFlow
 
-/** Datos mínimos de la cuenta con sesión iniciada. [nombre] llega con Google; con correo suele ser `null`. */
+/**
+ * Datos mínimos de la cuenta con sesión iniciada. [nombre] y [fotoUrl] llegan con Google; con
+ * correo suelen ser `null`. [creadaEnMs] es la fecha de alta en Firebase (epoch en milisegundos).
+ */
 data class UsuarioSesion(
     val uid: String,
     val correo: String,
     val nombre: String? = null,
+    val fotoUrl: String? = null,
+    val creadaEnMs: Long? = null,
 ) {
     override fun toString(): String = "UsuarioSesion(uid=$uid, correoLen=${correo.length})"
 }

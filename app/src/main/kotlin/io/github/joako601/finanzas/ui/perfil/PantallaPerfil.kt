@@ -12,7 +12,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -80,6 +83,10 @@ import io.github.joako601.finanzas.ui.respaldo.EstadoRespaldo
 import io.github.joako601.finanzas.ui.respaldo.Progreso
 import io.github.joako601.finanzas.ui.respaldo.RespaldoViewModel
 import io.github.joako601.finanzas.ui.tarjetas.recordarAvisos
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import io.github.joako601.finanzas.ui.tema.TemaFinanzas
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.daysUntil
@@ -318,6 +325,10 @@ private fun RaizPerfil(
                 Spacer(Modifier.height(24.dp))
 
                 EncabezadoPerfil(cuenta)
+                if (cuenta?.conSesion == true) {
+                    GafeteCuenta(cuenta)
+                    Spacer(Modifier.height(20.dp))
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 Spacer(Modifier.height(32.dp))
@@ -435,7 +446,17 @@ private fun EncabezadoPerfil(cuenta: CuentaPerfil?) {
             .padding(vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (conSesion && cuenta.inicial.isNotEmpty()) {
+        if (conSesion && cuenta.foto != null) {
+            Image(
+                bitmap = cuenta.foto,
+                // Decorativo: el nombre ya está escrito al lado.
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape),
+            )
+        } else if (conSesion && cuenta.inicial.isNotEmpty()) {
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -479,6 +500,45 @@ private fun EncabezadoPerfil(cuenta: CuentaPerfil?) {
         }
     }
 }
+
+/**
+ * Gafete de la cuenta nube: correo, UID y fecha de alta en Firebase. El UID se puede
+ * seleccionar para copiarlo; cerrar sesión vive en la lista de ajustes de abajo.
+ */
+@Composable
+private fun GafeteCuenta(cuenta: CuentaPerfil) {
+    TarjetaFinanzas(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            DatoGafete(stringResource(R.string.perfil_gafete_correo), cuenta.correo.orEmpty())
+            SelectionContainer {
+                DatoGafete(stringResource(R.string.perfil_gafete_uid), cuenta.uid.orEmpty())
+            }
+            cuenta.creadaEnMs?.let { ms ->
+                DatoGafete(stringResource(R.string.perfil_gafete_desde), formatoFechaLarga(ms))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DatoGafete(etiqueta: String, valor: String) {
+    Column(Modifier.semantics(mergeDescendants = true) { }) {
+        Text(
+            text = etiqueta,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = valor,
+            style = MaterialTheme.typography.bodyLarge.copy(fontFeatureSettings = "tnum"),
+        )
+    }
+}
+
+private val FORMATO_FECHA_LARGA = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy", Locale.forLanguageTag("es-MX"))
+
+private fun formatoFechaLarga(epochMs: Long): String =
+    Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(FORMATO_FECHA_LARGA)
 
 /**
  * Fila de ajuste tipo lista: ícono, título, estado opcional y flecha. Toda la fila es el

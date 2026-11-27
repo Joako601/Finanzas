@@ -6,6 +6,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.ImageBitmap
+import io.github.joako601.finanzas.nube.sesion.descargarFotoCuenta
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -112,12 +115,18 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
     var cerrando by remember { mutableStateOf(false) }
     val alcance = rememberCoroutineScope()
 
-    val cuenta = remember(usuario, onAbrirNube) {
+    val foto by produceState<ImageBitmap?>(null, usuario?.fotoUrl) {
+        value = usuario?.fotoUrl?.let { descargarFotoCuenta(it) }
+    }
+    val cuenta = remember(usuario, foto, onAbrirNube) {
         CuentaPerfil(
             correo = usuario?.correo,
             nombre = usuario?.nombre,
             onEntrar = onAbrirNube,
             onCerrarSesion = { confirmarCierre = true },
+            uid = usuario?.uid,
+            foto = foto,
+            creadaEnMs = usuario?.creadaEnMs,
         )
     }
     val repositorioMercado = remember(context) { ContenedorNube.obtener(context).repositorioMercado }
