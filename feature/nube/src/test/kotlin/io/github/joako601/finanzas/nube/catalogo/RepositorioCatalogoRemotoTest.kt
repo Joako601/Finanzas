@@ -43,6 +43,7 @@ class RepositorioCatalogoRemotoTest {
                 "costoReferenciaPesos": 0,
                 "periodicidad": "Sin costo",
                 "tasaAnualReferencia": 10.25,
+                "verificado": true,
                 "detalleReferencia": "Instrumento gubernamental a 28 días",
                 "fuenteReferencia": "Banxico / Cetesdirecto",
                 "imageUrl": "https://cdn.ejemplo.mx/cetes.png"
@@ -67,6 +68,9 @@ class RepositorioCatalogoRemotoTest {
         assertEquals("Nu México", productos[0].nombre)
         assertNull(productos[0].tasaAnualReferencia)
         assertEquals(10.25, productos[1].tasaAnualReferencia!!, 0.001)
+        // Sin el campo (backend anterior) cuenta como no verificado.
+        assertEquals(false, productos[0].verificado)
+        assertEquals(true, productos[1].verificado)
         assertEquals("https://cdn.ejemplo.mx/cetes.png", productos[1].imageUrl)
     }
 

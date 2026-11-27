@@ -31,6 +31,7 @@ internal class RepositorioCatalogoRemoto(
                     fuenteReferencia = obj.textoObligatorio("fuenteReferencia"),
                     imageUrl = obj.textoOpcional("imageUrl"),
                     tasaAnualReferencia = obj.decimalOpcional("tasaAnualReferencia")?.toDouble(),
+                    verificado = obj.booleano("verificado"),
                 )
             }
             ResultadoCatalogo.Exito(productos)
