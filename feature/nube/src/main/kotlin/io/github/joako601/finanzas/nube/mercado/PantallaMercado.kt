@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.joako601.finanzas.core.domain.mercado.UsoPropio
 import io.github.joako601.finanzas.nube.R
 import io.github.joako601.finanzas.nube.catalogo.TarjetaProductoFinanciero
 import io.github.joako601.finanzas.nube.componentes.ColoresSemanticosNube
@@ -89,6 +90,8 @@ private const val DIA_MS = 24 * 60 * 60 * 1000L
  *
  * @param margenInferior espacio que ocupa la barra de pestañas flotante.
  * @param onIniciarSesion abre el login cuando la sesión expiró.
+ * @param usoPropio gasto y deuda con tarjetas calculados del libro del teléfono; `null` sin tarjetas.
+ * @param montosOcultos modo discreto de la app: el comparador oculta los montos propios.
  * @param avisosActivos si la app puede mostrar notificaciones; sin ellas las alertas invitan a activarlas.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,6 +103,8 @@ fun PantallaMercado(
     modifier: Modifier = Modifier,
     avisosActivos: Boolean = true,
     onActivarAvisos: () -> Unit = {},
+    usoPropio: UsoPropio? = null,
+    montosOcultos: Boolean = false,
 ) {
     val estado by repositorio.estado.collectAsStateWithLifecycle()
     val alcance = rememberCoroutineScope()
@@ -171,7 +176,7 @@ fun PantallaMercado(
                             }
                         }
                         VistaMercado.INDICADORES -> vistaIndicadores(actual.datos.indicadores)
-                        VistaMercado.CATALOGO -> item(key = "catalogo") { VistaCatalogo(actual.datos) }
+                        VistaMercado.CATALOGO -> item(key = "catalogo") { VistaCatalogo(actual.datos, usoPropio, montosOcultos) }
                     }
                 }
             }
@@ -411,8 +416,10 @@ private fun LazyListScope.vistaIndicadores(indicadores: List<IndicadorEconomico>
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun VistaCatalogo(datos: DatosMercado) {
+private fun VistaCatalogo(datos: DatosMercado, uso: UsoPropio?, montosOcultos: Boolean) {
     var categoria by rememberSaveable { mutableStateOf<String?>(null) }
+    var comparando by rememberSaveable { mutableStateOf(false) }
+    val comparables = remember(datos.productos) { productosParaComparar(datos.productos) }
     val categorias = remember(datos.productos) { datos.productos.map { it.categoria }.distinct() }
     val visibles = remember(datos.productos, categoria) {
         datos.productos.filter { categoria == null || it.categoria == categoria }
@@ -421,6 +428,20 @@ private fun VistaCatalogo(datos: DatosMercado) {
         if (datos.productos.isEmpty()) {
             Tarjeta { TextoSecundario(stringResource(R.string.mercado_sin_productos)) }
             return@Column
+        }
+        if (uso != null && comparables.isNotEmpty()) {
+            Tarjeta {
+                Text(
+                    stringResource(R.string.comparador_titulo),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.semantics { heading() },
+                )
+                TextoSecundario(stringResource(R.string.comparador_invitacion))
+                BotonContorno(stringResource(R.string.comparador_abrir), enabled = true) { comparando = true }
+            }
+            if (comparando) {
+                HojaComparador(comparables, uso, montosOcultos, onCerrar = { comparando = false })
+            }
         }
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(

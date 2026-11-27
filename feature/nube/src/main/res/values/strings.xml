@@ -12,9 +12,7 @@
     <!-- Títulos y acciones compartidas entre las pantallas de nube -->
     <string name="nube_registro_titulo">Crear cuenta</string>
     <string name="nube_recuperar_titulo">Recuperar contraseña</string>
-    <string name="nube_catalogo_titulo">Catálogo</string>
     <string name="nube_cerrar_sesion">Cerrar sesión</string>
-    <string name="nube_ir_a_finanzas">Ir a mis finanzas</string>
     <string name="mercado_alertas_titulo">Alertas de tipo de cambio</string>
     <string name="mercado_alertas_vacio">Sin alertas. Elige una divisa y un valor, y te avisamos cuando lo cruce.</string>
     <string name="mercado_alertas_sin_permiso">Las notificaciones están apagadas: tus alertas no podrán avisarte.</string>
@@ -34,4 +32,17 @@
     <string name="aviso_alerta_bajo">%1$s/MXN bajó de %2$s</string>
     <string name="aviso_alerta_subio">%1$s/MXN subió de %2$s</string>
     <string name="aviso_alerta_texto">Ahora 1 %1$s = %2$s</string>
+    <string name="comparador_titulo">Comparador con tus tarjetas</string>
+    <string name="comparador_invitacion">Compara las tarjetas del catálogo con tu gasto y tu deuda. Se calcula en este teléfono.</string>
+    <string name="comparador_abrir">Comparar</string>
+    <string name="comparador_tu_uso">Tu uso</string>
+    <string name="comparador_gasto_mensual">Gasto con tarjeta: %1$s al mes (promedio de 3 meses)</string>
+    <string name="comparador_deuda">Deuda actual: %1$s · tasa %2$d %% anual</string>
+    <string name="comparador_costo_anual">Costo estimado a un año: %1$s</string>
+    <string name="comparador_sin_tasa">Anualidad %1$s · sin tasa de referencia para estimar intereses</string>
+    <string name="comparador_mas_barata">%1$s menos que tu tarjeta</string>
+    <string name="comparador_mas_cara">%1$s más que tu tarjeta</string>
+    <string name="comparador_igual">Igual que tu tarjeta</string>
+    <string name="comparador_anualidad_sobre_gasto">Anualidad: %1$.1f %% de tu gasto de un año</string>
+    <string name="comparador_nota">Estimado informativo: anualidad más intereses con IVA de mantener tu deuda actual un año. No incluye comisiones ni promociones. Tus gastos no salen del teléfono.</string>
 </resources>

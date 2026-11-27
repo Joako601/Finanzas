@@ -16,8 +16,6 @@ class AnimacionesLottieNubeTest {
     private val esperados = setOf(
         "anim_registro_exito.json",
         "anim_correo_enviado.json",
-        "anim_catalogo_carga.json",
-        "anim_catalogo_vacio.json",
         "anim_login_exito.json",
         "anim_login_error.json",
     )

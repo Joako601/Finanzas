@@ -1,6 +1,18 @@
 package io.github.joako601.finanzas.core.domain.mercado
 
 import io.github.joako601.finanzas.core.domain.dinero.Dinero
+import io.github.joako601.finanzas.core.domain.dinero.sumar
+import io.github.joako601.finanzas.core.domain.libro.ClaseMovimiento
+import io.github.joako601.finanzas.core.domain.libro.Cuenta
+import io.github.joako601.finanzas.core.domain.libro.CuentaId
+import io.github.joako601.finanzas.core.domain.libro.Movimiento
+import io.github.joako601.finanzas.core.domain.libro.resumir
+import io.github.joako601.finanzas.core.domain.tarjetas.AnalizadorTarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.Tarjeta
+import io.github.joako601.finanzas.core.domain.tarjetas.deudaDe
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.minus
 
 /** Una tarjeta del catálogo público, sin depender de `:feature:nube`. */
 public data class ProductoTarjeta(
@@ -53,4 +65,46 @@ public object ComparadorTarjetas {
             )
         }.sortedWith(compareBy(nullsLast()) { it.costoAnual })
     }
+}
+
+/** Meses del libro que se promedian para el gasto con tarjeta. */
+public const val MESES_USO_PROPIO: Int = 3
+
+/**
+ * Arma [UsoPropio] con el libro del teléfono; `null` si no hay tarjetas activas.
+ *
+ * - Gasto: los gastos pagados con tarjeta de los últimos [MESES_USO_PROPIO] meses (desde el
+ *   mismo día de hace tres meses, sin incluirlo, hasta [hoy]), entre tres.
+ * - Deuda: la suma de lo que se debe en cada tarjeta; un saldo a favor no resta.
+ * - Tasa: la de la tarjeta con más deuda que tenga tasa capturada, o la de referencia en México.
+ */
+public fun calcularUsoPropio(
+    tarjetas: List<Tarjeta>,
+    saldos: Map<CuentaId, Dinero>,
+    movimientos: List<Movimiento>,
+    cuentas: Map<CuentaId, Cuenta>,
+    hoy: LocalDate,
+): UsoPropio? {
+    val activas = tarjetas.filterNot { it.cuenta.archivada }
+    if (activas.isEmpty()) return null
+    val ids = activas.map { it.id }.toSet()
+    val desde = hoy.minus(MESES_USO_PROPIO, DateTimeUnit.MONTH)
+    val gasto = movimientos.asSequence()
+        .filter { it.fecha > desde && it.fecha <= hoy }
+        .map { it.resumir(cuentas) }
+        .filter { it.clase == ClaseMovimiento.GASTO && it.cuenta?.id in ids }
+        .map { it.monto }
+        .toList()
+        .sumar()
+    val deudas = activas.associateWith { maxOf(deudaDe(it, saldos), Dinero.CERO) }
+    val tasa = deudas.entries
+        .filter { it.key.tasaAnual != null }
+        .maxByOrNull { it.value }
+        ?.key?.tasaAnual
+        ?: AnalizadorTarjeta.TASA_ANUAL_REFERENCIA_MEXICO
+    return UsoPropio(
+        gastoMensualPromedio = Dinero(gasto.centavos / MESES_USO_PROPIO),
+        deuda = deudas.values.sumar(),
+        tasaPropia = tasa,
+    )
 }

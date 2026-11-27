@@ -31,6 +31,12 @@ import io.github.joako601.finanzas.ui.perfil.CuentaPerfil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
+import io.github.joako601.finanzas.core.domain.mercado.calcularUsoPropio
+import io.github.joako601.finanzas.ui.componentes.LocalMontosOcultos
+import io.github.joako601.finanzas.ui.hoy
 
 private enum class ModoInicioNube {
     /** Primera pantalla sin sesión: el login es la entrada y ofrece usar la app sin cuenta. */
@@ -130,6 +136,19 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
         }
     }
     val avisos = recordarAvisos()
+    // El comparador de Mercado necesita el uso propio; se calcula aquí porque :feature:nube no ve la base.
+    val usoPropio by remember(context) {
+        val contenedor = (context.applicationContext as FinanzasApp).contenedor
+        val libro = contenedor.repositorioLibro
+        combine(
+            contenedor.repositorioTarjetas.observarTarjetas(),
+            libro.observarSaldos(),
+            libro.observarMovimientos(),
+            libro.observarCuentas(),
+        ) { tarjetas, saldos, movimientos, cuentas ->
+            calcularUsoPropio(tarjetas, saldos, movimientos, cuentas.associateBy { it.id }, hoy())
+        }.flowOn(Dispatchers.Default)
+    }.collectAsStateWithLifecycle(initialValue = null)
     ContenedorPrincipal(
         cuenta = cuenta,
         mercado = if (estadoMercado is EstadoMercado.Oculto) {
@@ -142,6 +161,8 @@ private fun FinanzasConPerfil(onAbrirNube: () -> Unit) {
                     onIniciarSesion = onAbrirNube,
                     avisosActivos = avisos.activos,
                     onActivarAvisos = avisos.activar,
+                    usoPropio = usoPropio,
+                    montosOcultos = LocalMontosOcultos.current,
                 )
             }
         },

@@ -787,6 +787,42 @@ restaura en la v7 sin código extra (probado en `MigracionTest.de_6_a_7…`).
 
 ---
 
+## D-025 Pestaña Mercado: datos públicos en caché y cálculos locales
+
+**Fecha:** 2026-11-26
+
+**Contexto:** la distribución nube ya traía divisas y un catálogo de productos detrás del
+login, en una pantalla aparte. Se quería una 5.ª pestaña con datos públicos de México que
+sirva sin red y que se mezcle con el libro sin mandar datos personales al servidor.
+
+**Decisión:**
+- **Sin endpoint agregado ni ETag:** la app compone `/divisas/actual`, `/indicadores/actual`,
+  `/calendario/inhabiles` y `/productos`. Una parte que falla conserva la anterior. Caché JSON
+  en `noBackupFilesDir/mercado` con el `uid` adentro (otra cuenta la invalida) y escritura
+  atómica. Espera de 15 minutos entre llamadas no forzadas.
+- **Sin WorkManager:** Mercado se actualiza solo con la app al frente; las alertas de tipo de
+  cambio se evalúan en ese momento y avisan una vez al cruzar el umbral.
+- **Cerrar sesión a propósito** borra caché y alertas, y la pestaña desaparece. Una sesión
+  que se cae por fuera conserva los datos e invita a entrar de nuevo. "Borrar datos locales"
+  también elimina las alertas.
+- **Días inhábiles:** solo mueven la fecha predicha de una tarjeta, y el usuario elige día
+  hábil anterior o siguiente; los avisos de pago salen del estado capturado (D-011).
+- **Cálculos en el teléfono:** tarjeta contra CETES, MSI contra CETES y el comparador de
+  tarjetas viven en `:core:domain`. `:feature:nube` depende de `:core:domain` (puro) pero
+  sigue sin ver `:core:data` (D-020); el uso propio (gasto de 3 meses, deuda y tasa) lo
+  calcula `:app` y lo pasa a la pestaña. Nada del libro se envía.
+- **Comparador solo con productos verificados:** el backend no tiene un campo propio; un
+  producto cuya fuente dice "sin verificar" no se compara. Con el catálogo de ejemplo el
+  comparador no aparece.
+- **La pantalla de catálogo de la nube se elimina:** con sesión, la sección nube lleva a la
+  app, donde está la pestaña Mercado.
+
+**Consecuencias:** sin red se ve lo último guardado con su antigüedad. Las alertas no avisan
+con la app cerrada. El comparador queda oculto hasta que el backend sirva tarjetas
+verificadas.
+
+---
+
 ## Dependencias y su razón
 
 | Dependencia | Para qué | Alternativa descartada |

@@ -148,7 +148,9 @@ fun ContenedorPrincipal(
                         },
                     )
 
-                    PestanaPrincipal.MERCADO -> mercado?.invoke(AlturaTotalBarraInferior)
+                    PestanaPrincipal.MERCADO -> CompositionLocalProvider(LocalMontosOcultos provides montosOcultos) {
+                        mercado?.invoke(AlturaTotalBarraInferior)
+                    }
 
                     PestanaPrincipal.PERFIL -> PantallaPerfil(
                         cuenta = cuenta,
